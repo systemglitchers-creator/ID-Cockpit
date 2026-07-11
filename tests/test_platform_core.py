@@ -55,8 +55,37 @@ def test_scan_counts_ignores_nonjson_and_bad_json(tmp_path):
     assert counts["21"]["cards"] == 1
 
 
+def test_scan_counts_tolerates_non_dict_json(tmp_path):
+    d = tmp_path / "ID Anki Cards" / "22 - Carbapenems"
+    d.mkdir(parents=True)
+    (d / "list.json").write_text("[1, 2, 3]")
+    _write_json(d / "2026-07-01.json", {"cards": [{"Text": "a"}]})
+    counts = core.scan_counts(tmp_path)
+    assert counts["22"]["cards"] == 1
+
+
+def test_scan_counts_accumulates_duplicate_chapter_folders(tmp_path):
+    root = tmp_path / "ID Anki Cards"
+    _write_json(root / "20 - Penicillins" / "a.json", {"cards": [{"Text": "1"}, {"Text": "2"}]})
+    _write_json(root / "Chapter 20 - Penicillins dup" / "b.json", {"cards": [{"Text": "3"}]})
+    counts = core.scan_counts(tmp_path)
+    assert counts["20"]["cards"] == 3
+
+
 def test_load_state_returns_empty_when_missing(tmp_path):
     assert core.load_state(tmp_path / "state.json") == {"sessions": {}}
+
+
+def test_load_state_tolerates_corrupt_json(tmp_path):
+    sp = tmp_path / "state.json"
+    sp.write_text("{not valid", encoding="utf-8")
+    assert core.load_state(sp) == {"sessions": {}}
+
+
+def test_load_state_tolerates_wrong_shape(tmp_path):
+    sp = tmp_path / "state.json"
+    sp.write_text("[1, 2, 3]", encoding="utf-8")
+    assert core.load_state(sp) == {"sessions": {}}
 
 
 def test_toggle_done_sets_and_persists(tmp_path):

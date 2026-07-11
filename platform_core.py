@@ -8,6 +8,8 @@ from datetime import datetime
 from pathlib import Path
 
 _CHAPTER_RE = re.compile(r"(?:Chapter\s+)?(\d+)")
+CARDS_SUBDIR = "ID Anki Cards"
+QUESTIONS_SUBDIR = "ID Practice Questions"
 
 
 def parse_chapter_num(title):
@@ -20,17 +22,13 @@ def parse_chapter_num(title):
     return m.group(1) if m else None
 
 
-CARDS_SUBDIR = "ID Anki Cards"
-QUESTIONS_SUBDIR = "ID Practice Questions"
-
-
 def _count_items(json_path, key):
     """Number of items under `key` in a JSON file; 0 if unreadable or absent."""
     try:
-        obj = json.loads(json_path.read_text())
+        obj = json.loads(json_path.read_text(encoding="utf-8"))
     except (ValueError, OSError):
         return 0
-    items = obj.get(key)
+    items = obj.get(key) if isinstance(obj, dict) else None
     return len(items) if isinstance(items, list) else 0
 
 
@@ -46,7 +44,7 @@ def _scan_subdir(base_dir, subdir, key, counts):
             continue
         total = sum(_count_items(f, key) for f in chapter_dir.glob("*.json"))
         counts.setdefault(nn, {"cards": 0, "questions": 0})
-        counts[nn][key if key == "cards" else "questions"] = total
+        counts[nn][key] += total
 
 
 def scan_counts(base_dir):
@@ -67,7 +65,7 @@ def load_state(state_path):
     if not p.exists():
         return {"sessions": {}}
     try:
-        data = json.loads(p.read_text())
+        data = json.loads(p.read_text(encoding="utf-8"))
     except (ValueError, OSError):
         return {"sessions": {}}
     if not isinstance(data, dict) or "sessions" not in data:
@@ -78,7 +76,7 @@ def load_state(state_path):
 def _save_state(state_path, state):
     p = Path(state_path)
     p.parent.mkdir(parents=True, exist_ok=True)
-    p.write_text(json.dumps(state, indent=2))
+    p.write_text(json.dumps(state, indent=2), encoding="utf-8")
 
 
 def toggle_done(state_path, session_id, done):
@@ -91,7 +89,10 @@ def toggle_done(state_path, session_id, done):
 
 
 def import_ids(state_path, ids):
-    """One-time seed: mark each id done if not already present. Idempotent union."""
+    """One-time seed: mark each id done if not already present. Idempotent union.
+
+    Returns the full updated state dict.
+    """
     state = load_state(state_path)
     for sid in ids:
         if sid not in state["sessions"]:
