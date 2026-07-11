@@ -1,0 +1,118 @@
+"""Local cockpit server for the ID Study Platform. Python stdlib only."""
+from __future__ import annotations
+
+import json
+import os
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from pathlib import Path
+from urllib.parse import urlparse, parse_qs
+
+import platform_core as core
+
+PLATFORM_DIR = Path(__file__).resolve().parent
+DEFAULT_BASE = PLATFORM_DIR.parent  # the "8. Claude" artifact root
+STATIC_FILES = {
+    "/": "dashboard.html",
+    "/dashboard.html": "dashboard.html",
+    "/cockpit.js": "cockpit.js",
+}
+CONTENT_TYPES = {".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8"}
+
+
+def _load_prompts():
+    return json.loads((PLATFORM_DIR / "prompts.json").read_text(encoding="utf-8"))
+
+
+class Handler(BaseHTTPRequestHandler):
+    # base_dir is injected via the server instance (see make_server)
+    def _base(self):
+        return self.server.base_dir
+
+    def _state_path(self):
+        # state.json always lives under <base>/ID Platform/ (created on first write).
+        return Path(self.server.base_dir) / "ID Platform" / "state.json"
+
+    def _send_json(self, obj, status=200):
+        body = json.dumps(obj).encode("utf-8")
+        self.send_response(status)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
+    def _send_file(self, filename):
+        path = PLATFORM_DIR / filename
+        if not path.exists():
+            self.send_error(404, "Not found")
+            return
+        body = path.read_bytes()
+        self.send_response(200)
+        self.send_header("Content-Type", CONTENT_TYPES.get(path.suffix, "application/octet-stream"))
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
+    def _read_body(self):
+        length = int(self.headers.get("Content-Length", 0))
+        if not length:
+            return {}
+        try:
+            return json.loads(self.rfile.read(length).decode("utf-8"))
+        except ValueError:
+            return {}
+
+    def do_GET(self):
+        parsed = urlparse(self.path)
+        route = parsed.path
+        if route in STATIC_FILES:
+            self._send_file(STATIC_FILES[route])
+            return
+        if route == "/api/status":
+            state = core.load_state(self._state_path())
+            counts = core.scan_counts(self._base())
+            self._send_json({"done": state["sessions"], "chapters": counts})
+            return
+        if route == "/api/prompt":
+            q = {k: v[0] for k, v in parse_qs(parsed.query).items()}
+            prompts = _load_prompts()
+            template = prompts.get(q.get("action", ""), "")
+            fields = {k: q.get(k, "") for k in ("NN", "title", "ps", "pe")}
+            self._send_json({"prompt": core.fill_prompt(template, fields)})
+            return
+        self.send_error(404, "Not found")
+
+    def do_POST(self):
+        route = urlparse(self.path).path
+        if route.startswith("/api/session/") and route.endswith("/done"):
+            session_id = route[len("/api/session/"):-len("/done")]
+            body = self._read_body()
+            entry = core.toggle_done(self._state_path(), session_id, bool(body.get("done")))
+            self._send_json(entry)
+            return
+        if route == "/api/import":
+            body = self._read_body()
+            ids = body.get("ids", [])
+            core.import_ids(self._state_path(), ids if isinstance(ids, list) else [])
+            self._send_json({"imported": len(ids)})
+            return
+        self.send_error(404, "Not found")
+
+    def log_message(self, *args):
+        pass  # keep the console quiet
+
+
+def make_server(host="127.0.0.1", port=8756, base_dir=None):
+    httpd = ThreadingHTTPServer((host, port), Handler)
+    httpd.base_dir = base_dir or str(os.environ.get("ID_PLATFORM_BASE", DEFAULT_BASE))
+    return httpd
+
+
+if __name__ == "__main__":
+    server = make_server(port=int(os.environ.get("ID_PLATFORM_PORT", 8756)))
+    host, port = server.server_address
+    print(f"ID Study Platform cockpit → http://{host}:{port}")
+    print("Press Ctrl+C to stop.")
+    try:
+        server.serve_forever()
+    except KeyboardInterrupt:
+        print("\nStopped.")
