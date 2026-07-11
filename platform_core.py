@@ -98,3 +98,11 @@ def import_ids(state_path, ids):
             state["sessions"][sid] = {"done": True, "doneAt": _now_iso()}
     _save_state(state_path, state)
     return state
+
+
+def fill_prompt(template, fields):
+    """Replace {key} placeholders with values. Unknown placeholders are left as-is."""
+    out = template
+    for key, val in fields.items():
+        out = out.replace("{" + key + "}", str(val))
+    return out

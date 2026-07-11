@@ -81,3 +81,14 @@ def test_import_ids_unions_without_clobbering(tmp_path):
     state = core.load_state(sp)
     assert set(state["sessions"]) == {"ch20-p1", "ch21-p1", "ch21-p2"}
     assert all(state["sessions"][k]["done"] for k in state["sessions"])
+
+
+def test_fill_prompt_substitutes_all_fields(tmp_path):
+    template = "Chapter {NN} — {title}, pages {ps}-{pe}."
+    out = core.fill_prompt(template, {"NN": "20", "title": "Penicillins", "ps": "263", "pe": "268"})
+    assert out == "Chapter 20 — Penicillins, pages 263-268."
+
+
+def test_fill_prompt_leaves_unknown_placeholders_untouched():
+    out = core.fill_prompt("Ch {NN} {missing}", {"NN": "20"})
+    assert out == "Ch 20 {missing}"
