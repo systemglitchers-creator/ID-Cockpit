@@ -92,7 +92,9 @@ class Handler(BaseHTTPRequestHandler):
         if route == "/api/import":
             body = self._read_body()
             ids = body.get("ids", [])
-            core.import_ids(self._state_path(), ids if isinstance(ids, list) else [])
+            if not isinstance(ids, list):
+                ids = []
+            core.import_ids(self._state_path(), ids)
             self._send_json({"imported": len(ids)})
             return
         self.send_error(404, "Not found")

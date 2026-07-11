@@ -84,3 +84,16 @@ def test_root_serves_dashboard(tmp_path):
         assert "<html" in body.lower() or "<!doctype" in body.lower()
     finally:
         httpd.shutdown()
+
+
+def test_import_non_list_ids_reports_zero(tmp_path):
+    httpd, port = _start_server(tmp_path)
+    try:
+        st, body = _post(port, "/api/import", {"ids": "abcd"})
+        assert st == 200
+        assert json.loads(body)["imported"] == 0
+        # and nothing was actually imported
+        _, sbody = _get(port, "/api/status")
+        assert json.loads(sbody)["done"] == {}
+    finally:
+        httpd.shutdown()
