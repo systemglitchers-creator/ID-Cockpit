@@ -53,3 +53,31 @@ def test_scan_counts_ignores_nonjson_and_bad_json(tmp_path):
     _write_json(d / "2026-07-01.json", {"cards": [{"Text": "a"}]})
     counts = core.scan_counts(tmp_path)
     assert counts["21"]["cards"] == 1
+
+
+def test_load_state_returns_empty_when_missing(tmp_path):
+    assert core.load_state(tmp_path / "state.json") == {"sessions": {}}
+
+
+def test_toggle_done_sets_and_persists(tmp_path):
+    sp = tmp_path / "state.json"
+    entry = core.toggle_done(sp, "ch20-p1", True)
+    assert entry["done"] is True and entry["doneAt"]
+    reloaded = core.load_state(sp)
+    assert reloaded["sessions"]["ch20-p1"]["done"] is True
+
+
+def test_toggle_done_false_clears_flag(tmp_path):
+    sp = tmp_path / "state.json"
+    core.toggle_done(sp, "ch20-p1", True)
+    entry = core.toggle_done(sp, "ch20-p1", False)
+    assert entry["done"] is False
+
+
+def test_import_ids_unions_without_clobbering(tmp_path):
+    sp = tmp_path / "state.json"
+    core.toggle_done(sp, "ch20-p1", True)
+    core.import_ids(sp, ["ch20-p1", "ch21-p1", "ch21-p2"])
+    state = core.load_state(sp)
+    assert set(state["sessions"]) == {"ch20-p1", "ch21-p1", "ch21-p2"}
+    assert all(state["sessions"][k]["done"] for k in state["sessions"])
