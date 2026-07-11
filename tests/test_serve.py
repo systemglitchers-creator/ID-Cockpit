@@ -1,6 +1,7 @@
 import json
 import threading
 import time
+import urllib.error
 import urllib.request
 from pathlib import Path
 
@@ -95,5 +96,55 @@ def test_import_non_list_ids_reports_zero(tmp_path):
         # and nothing was actually imported
         _, sbody = _get(port, "/api/status")
         assert json.loads(sbody)["done"] == {}
+    finally:
+        httpd.shutdown()
+
+
+def test_bad_content_length_does_not_crash(tmp_path):
+    httpd, port = _start_server(tmp_path)
+    try:
+        req = urllib.request.Request(
+            f"http://127.0.0.1:{port}/api/session/ch1-p1/done",
+            data=b"{}",
+            headers={"Content-Type": "application/json", "Content-Length": "notanumber"},
+            method="POST",
+        )
+        # urllib may recompute Content-Length; force the bad header through the raw path instead:
+        import http.client
+        conn = http.client.HTTPConnection("127.0.0.1", port)
+        conn.putrequest("POST", "/api/session/ch1-p1/done")
+        conn.putheader("Content-Type", "application/json")
+        conn.putheader("Content-Length", "notanumber")
+        conn.endheaders()
+        conn.send(b"{}")
+        resp = conn.getresponse()
+        assert resp.status == 200
+        conn.close()
+    finally:
+        httpd.shutdown()
+
+
+def test_unknown_routes_return_404(tmp_path):
+    httpd, port = _start_server(tmp_path)
+    try:
+        for path in ("/api/nope", "/random"):
+            try:
+                urllib.request.urlopen(f"http://127.0.0.1:{port}{path}")
+                assert False, "expected 404"
+            except urllib.error.HTTPError as e:
+                assert e.code == 404
+    finally:
+        httpd.shutdown()
+
+
+def test_toggle_done_false_over_http(tmp_path):
+    httpd, port = _start_server(tmp_path)
+    try:
+        _post(port, "/api/session/ch1-p1/done", {"done": True})
+        st, body = _post(port, "/api/session/ch1-p1/done", {"done": False})
+        assert st == 200
+        assert json.loads(body)["done"] is False
+        _, sbody = _get(port, "/api/status")
+        assert json.loads(sbody)["done"]["ch1-p1"]["done"] is False
     finally:
         httpd.shutdown()

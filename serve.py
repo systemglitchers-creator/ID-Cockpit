@@ -25,12 +25,12 @@ def _load_prompts():
 
 class Handler(BaseHTTPRequestHandler):
     # base_dir is injected via the server instance (see make_server)
-    def _base(self):
+    def _base_dir(self):
         return self.server.base_dir
 
     def _state_path(self):
-        # state.json always lives under <base>/ID Platform/ (created on first write).
-        return Path(self.server.base_dir) / "ID Platform" / "state.json"
+        # state.json always lives under <base>/<platform folder>/ (created on first write).
+        return Path(self.server.base_dir) / PLATFORM_DIR.name / "state.json"
 
     def _send_json(self, obj, status=200):
         body = json.dumps(obj).encode("utf-8")
@@ -53,8 +53,11 @@ class Handler(BaseHTTPRequestHandler):
         self.wfile.write(body)
 
     def _read_body(self):
-        length = int(self.headers.get("Content-Length", 0))
-        if not length:
+        try:
+            length = int(self.headers.get("Content-Length", 0))
+        except (TypeError, ValueError):
+            return {}
+        if length <= 0:
             return {}
         try:
             return json.loads(self.rfile.read(length).decode("utf-8"))
@@ -69,7 +72,7 @@ class Handler(BaseHTTPRequestHandler):
             return
         if route == "/api/status":
             state = core.load_state(self._state_path())
-            counts = core.scan_counts(self._base())
+            counts = core.scan_counts(self._base_dir())
             self._send_json({"done": state["sessions"], "chapters": counts})
             return
         if route == "/api/prompt":
@@ -103,6 +106,8 @@ class Handler(BaseHTTPRequestHandler):
         pass  # keep the console quiet
 
 
+# Note: ThreadingHTTPServer + unlocked read-modify-write of state.json is fine for
+# single-user local use. Do not add multi-client usage without a lock in platform_core.
 def make_server(host="127.0.0.1", port=8756, base_dir=None):
     httpd = ThreadingHTTPServer((host, port), Handler)
     httpd.base_dir = base_dir or str(os.environ.get("ID_PLATFORM_BASE", DEFAULT_BASE))
