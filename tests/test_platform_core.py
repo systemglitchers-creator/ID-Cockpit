@@ -22,3 +22,34 @@ def test_parse_chapter_num_extracts_leading_number():
 
 def test_parse_chapter_num_returns_none_when_absent():
     assert core.parse_chapter_num("Antimicrobial Stewardship overview") is None
+
+
+def _write_json(path, obj):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(obj))
+
+
+def test_scan_counts_counts_cards_and_questions(tmp_path):
+    cards_dir = tmp_path / "ID Anki Cards" / "20 - Penicillins"
+    _write_json(cards_dir / "2026-07-01.json", {"cards": [{"Text": "a"}, {"Text": "b"}]})
+    _write_json(cards_dir / "2026-07-02.json", {"cards": [{"Text": "c"}]})
+    q_dir = tmp_path / "ID Practice Questions" / "20 - Penicillins"
+    _write_json(q_dir / "2026-07-03.json", {"questions": [{"stem": "x"}]})
+
+    counts = core.scan_counts(tmp_path)
+    assert counts["20"]["cards"] == 3
+    assert counts["20"]["questions"] == 1
+
+
+def test_scan_counts_handles_missing_folders(tmp_path):
+    assert core.scan_counts(tmp_path) == {}
+
+
+def test_scan_counts_ignores_nonjson_and_bad_json(tmp_path):
+    d = tmp_path / "ID Anki Cards" / "21 - Cephalosporins"
+    d.mkdir(parents=True)
+    (d / "notes.txt").write_text("ignore me")
+    (d / "broken.json").write_text("{not valid json")
+    _write_json(d / "2026-07-01.json", {"cards": [{"Text": "a"}]})
+    counts = core.scan_counts(tmp_path)
+    assert counts["21"]["cards"] == 1
