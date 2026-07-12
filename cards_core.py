@@ -59,3 +59,41 @@ def extract(pdf_path):
         if hi:
             out.append({"highlight": hi, "context": (ctx or "").strip()})
     return out
+
+
+def derive_tag(nn, title):
+    """Chapter::NN::Title::With::Colons — spaces become '::', words kept verbatim."""
+    words = str(title).strip().split()
+    return "::".join(["Chapter", str(nn)] + words)
+
+
+def build_prompt(nn, title, highlights, style_guide, examples):
+    """Assemble the drafting prompt: grounding + highlights + JSON-only instruction."""
+    lines = []
+    for h in highlights:
+        lines.append("HIGHLIGHT: " + h["highlight"])
+        if h.get("context"):
+            lines.append("CONTEXT  : " + h["context"])
+        lines.append("")
+    body = "\n".join(lines).strip()
+    return (
+        "You are drafting Anki cloze cards for Chapter " + str(nn) + " — " + str(title) + ".\n\n"
+        "Follow this style guide exactly:\n\n" + style_guide + "\n\n"
+        "Worked examples of the target style:\n\n" + examples + "\n\n"
+        "Draft cards ONLY from the highlighted facts below. Every fact in a card must\n"
+        "come from these highlights or their context — never outside knowledge.\n\n"
+        + body + "\n\n"
+        "Output ONLY a JSON array of objects with keys \"Text\" and \"Extra\" "
+        "(Extra may be an empty string). No prose, no code fence."
+    )
+
+
+def read_grounding():
+    """Read STYLE_GUIDE.md and examples.md from the id-anki-cards skill dir."""
+    def _read(name):
+        p = SKILL_DIR / name
+        try:
+            return p.read_text(encoding="utf-8")
+        except OSError:
+            return ""
+    return _read("STYLE_GUIDE.md"), _read("examples.md")

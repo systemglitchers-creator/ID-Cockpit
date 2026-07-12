@@ -56,3 +56,18 @@ def test_extract_no_highlights_returns_empty(tmp_path):
     doc = fitz.open(); doc.new_page().insert_text((72, 72), "plain");
     p = tmp_path / "plain.pdf"; doc.save(str(p)); doc.close()
     assert cc.extract(str(p)) == []
+
+
+def test_derive_tag_colons_and_ampersand():
+    tag = cc.derive_tag("20", "Penicillins and B-Lactamase Inhibitors")
+    assert tag == "Chapter::20::Penicillins::and::B-Lactamase::Inhibitors"
+
+
+def test_build_prompt_includes_grounding_and_highlights():
+    hs = [{"highlight": "Vanco inhibits cell wall", "context": "Vancomycin ... cell wall."}]
+    prompt = cc.build_prompt("29", "Glycopeptides", hs,
+                             style_guide="STYLE RULES HERE", examples="EXAMPLE CARDS")
+    assert "STYLE RULES HERE" in prompt and "EXAMPLE CARDS" in prompt
+    assert "Vanco inhibits cell wall" in prompt
+    assert "Chapter 29" in prompt and "Glycopeptides" in prompt
+    assert "JSON" in prompt  # instructs JSON-only output
