@@ -3,6 +3,8 @@ from __future__ import annotations
 
 import json
 import os
+import subprocess
+import sys
 import uuid
 from datetime import datetime
 from pathlib import Path
@@ -159,3 +161,44 @@ def list_jobs(base_dir):
             rows.append({"id": j["id"], "nn": j.get("nn"), "title": j.get("title"),
                          "status": j.get("status"), "count": len(j.get("cards") or [])})
     return rows
+
+
+def process_job(base_dir, job_id, draft_fn):
+    """Draft cards for a pending job. draft_fn(prompt) -> list[{Text,Extra}]."""
+    job = load_job(base_dir, job_id)
+    if not job:
+        return
+    set_status(base_dir, job, "drafting")
+    try:
+        style, examples = read_grounding()
+        prompt = build_prompt(job["nn"], job["title"], job.get("highlights", []), style, examples)
+        cards = draft_fn(prompt)
+        if not cards:
+            raise ValueError("no cards produced (no usable highlights?)")
+        set_status(base_dir, job, "drafted", cards=cards)
+    except Exception as e:  # noqa: BLE001 — record any failure for the UI
+        set_status(base_dir, job, "error", error=str(e))
+
+
+def _chapter_dir(base_dir, nn, title):
+    return Path(base_dir) / "ID Anki Cards" / (str(nn) + " - " + str(title))
+
+
+def push(base_dir, job, approved_cards, runner=subprocess.run):
+    """Push approved cards to Anki via add_cards.py; write durable chapter JSON."""
+    spec = {"deck": DECK, "model": MODEL,
+            "tag": derive_tag(job["nn"], job["title"]), "cards": approved_cards}
+    chdir = _chapter_dir(base_dir, job["nn"], job["title"])
+    chdir.mkdir(parents=True, exist_ok=True)
+    spec_path = chdir / (datetime.now().strftime("%Y-%m-%d") + ".json")
+    spec_path.write_text(json.dumps(spec, ensure_ascii=False, indent=2), encoding="utf-8")
+    add_cards = str(SKILL_SCRIPTS / "add_cards.py")
+    result = runner([sys.executable, add_cards, str(spec_path)],
+                    capture_output=True, text=True, timeout=60)
+    if result.returncode == 0:
+        set_status(base_dir, job, "pushed", pushed={"stdout": (result.stdout or "").strip()})
+        return {"anki": "ok", "detail": (result.stdout or "").strip()}
+    if result.returncode == 2:
+        # Anki closed: durable JSON + add_cards' .txt backup remain; leave drafted
+        return {"anki": "offline", "detail": (result.stderr or "").strip()}
+    return {"anki": "error", "detail": (result.stderr or result.stdout or "").strip()}

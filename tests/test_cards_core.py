@@ -99,3 +99,57 @@ def test_list_jobs_summarizes(tmp_path):
     cc.set_status(tmp_path, j, "drafted", cards=[{"Text": "a", "Extra": ""}])
     rows = cc.list_jobs(tmp_path)
     assert any(r["id"] == j["id"] and r["status"] == "drafted" and r["count"] == 1 for r in rows)
+
+
+def test_process_job_drafts_and_marks_drafted(tmp_path, monkeypatch):
+    cc.ensure_queue(tmp_path)
+    monkeypatch.setattr(cc, "read_grounding", lambda: ("STYLE", "EX"))
+    job = cc.create_job(tmp_path, "29", "Glyco", [{"highlight": "h", "context": "c"}])
+    seen = {}
+    def draft_fn(prompt):
+        seen["prompt"] = prompt
+        return [{"Text": "clozed {{c1::fact}}", "Extra": ""}]
+    cc.process_job(tmp_path, job["id"], draft_fn)
+    out = cc.load_job(tmp_path, job["id"])
+    assert out["status"] == "drafted" and out["cards"][0]["Text"].startswith("clozed")
+    assert "STYLE" in seen["prompt"] and "h" in seen["prompt"]
+
+
+def test_process_job_records_error(tmp_path, monkeypatch):
+    cc.ensure_queue(tmp_path)
+    monkeypatch.setattr(cc, "read_grounding", lambda: ("S", "E"))
+    job = cc.create_job(tmp_path, "29", "Glyco", [])
+    def draft_fn(prompt):
+        raise RuntimeError("claude blew up")
+    cc.process_job(tmp_path, job["id"], draft_fn)
+    out = cc.load_job(tmp_path, job["id"])
+    assert out["status"] == "error" and "claude blew up" in out["error"]
+
+
+def test_push_writes_chapter_json_and_reports(tmp_path):
+    cc.ensure_queue(tmp_path)
+    job = cc.create_job(tmp_path, "29", "Glycopeptides", [])
+    job = cc.set_status(tmp_path, job, "drafted", cards=[{"Text": "a", "Extra": ""}])
+    calls = {}
+    def runner(cmd, **kw):
+        calls["cmd"] = cmd
+        import subprocess
+        return subprocess.CompletedProcess(cmd, 0, stdout="added 1, skipped 0", stderr="")
+    res = cc.push(tmp_path, job, [{"Text": "a", "Extra": ""}], runner=runner)
+    assert res["anki"] == "ok"
+    chdir = tmp_path / "ID Anki Cards"
+    written = list(chdir.glob("29 - Glycopeptides/*.json"))
+    assert written, "durable chapter JSON should be written"
+    assert cc.load_job(tmp_path, job["id"])["status"] == "pushed"
+
+
+def test_push_anki_offline_keeps_drafted(tmp_path):
+    cc.ensure_queue(tmp_path)
+    job = cc.create_job(tmp_path, "29", "Glyco", [])
+    job = cc.set_status(tmp_path, job, "drafted", cards=[{"Text": "a", "Extra": ""}])
+    def runner(cmd, **kw):
+        import subprocess
+        return subprocess.CompletedProcess(cmd, 2, stdout="", stderr="AnkiConnect unreachable")
+    res = cc.push(tmp_path, job, [{"Text": "a", "Extra": ""}], runner=runner)
+    assert res["anki"] == "offline"
+    assert cc.load_job(tmp_path, job["id"])["status"] == "drafted"
