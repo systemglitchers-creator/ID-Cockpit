@@ -3,6 +3,8 @@ from __future__ import annotations
 
 import json
 import os
+import uuid
+from datetime import datetime
 from pathlib import Path
 
 import importlib.util
@@ -97,3 +99,63 @@ def read_grounding():
         except OSError:
             return ""
     return _read("STYLE_GUIDE.md"), _read("examples.md")
+
+
+def _job_path(base_dir, status, job_id):
+    return Path(base_dir) / "queue" / _STATUS_DIR[status] / (job_id + ".json")
+
+
+def _find_job_file(base_dir, job_id):
+    for sub in ("pending", "drafts", "done"):
+        p = Path(base_dir) / "queue" / sub / (job_id + ".json")
+        if p.exists():
+            return p
+    return None
+
+
+def create_job(base_dir, nn, title, highlights):
+    ensure_queue(base_dir)
+    job = {
+        "id": uuid.uuid4().hex[:12],
+        "nn": str(nn), "title": str(title),
+        "status": "pending",
+        "created": datetime.now().isoformat(timespec="seconds"),
+        "highlights": highlights,
+    }
+    _job_path(base_dir, "pending", job["id"]).write_text(
+        json.dumps(job, ensure_ascii=False, indent=2), encoding="utf-8")
+    return job
+
+
+def load_job(base_dir, job_id):
+    p = _find_job_file(base_dir, job_id)
+    if not p:
+        return None
+    return json.loads(p.read_text(encoding="utf-8"))
+
+
+def set_status(base_dir, job, status, **updates):
+    """Update job dict, move its file to the folder for `status`, persist."""
+    old = _find_job_file(base_dir, job["id"])
+    job = dict(job)
+    job["status"] = status
+    job.update(updates)
+    if old and old != _job_path(base_dir, status, job["id"]):
+        old.unlink()
+    _job_path(base_dir, status, job["id"]).write_text(
+        json.dumps(job, ensure_ascii=False, indent=2), encoding="utf-8")
+    return job
+
+
+def list_jobs(base_dir):
+    ensure_queue(base_dir)
+    rows = []
+    for sub in ("pending", "drafts", "done"):
+        for f in sorted((Path(base_dir) / "queue" / sub).glob("*.json")):
+            try:
+                j = json.loads(f.read_text(encoding="utf-8"))
+            except (ValueError, OSError):
+                continue
+            rows.append({"id": j["id"], "nn": j.get("nn"), "title": j.get("title"),
+                         "status": j.get("status"), "count": len(j.get("cards") or [])})
+    return rows

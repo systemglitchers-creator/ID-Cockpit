@@ -71,3 +71,31 @@ def test_build_prompt_includes_grounding_and_highlights():
     assert "Vanco inhibits cell wall" in prompt
     assert "Chapter 29" in prompt and "Glycopeptides" in prompt
     assert "JSON" in prompt  # instructs JSON-only output
+
+
+def test_create_and_load_job(tmp_path):
+    cc.ensure_queue(tmp_path)
+    job = cc.create_job(tmp_path, "29", "Glycopeptides",
+                        [{"highlight": "h", "context": "c"}])
+    assert job["status"] == "pending" and job["nn"] == "29" and job["id"]
+    loaded = cc.load_job(tmp_path, job["id"])
+    assert loaded["title"] == "Glycopeptides"
+    assert (tmp_path / "queue" / "pending" / (job["id"] + ".json")).exists()
+
+
+def test_set_status_moves_file(tmp_path):
+    cc.ensure_queue(tmp_path)
+    job = cc.create_job(tmp_path, "29", "Glyco", [])
+    cc.set_status(tmp_path, job, "drafted", cards=[{"Text": "a", "Extra": ""}])
+    assert not (tmp_path / "queue" / "pending" / (job["id"] + ".json")).exists()
+    assert (tmp_path / "queue" / "drafts" / (job["id"] + ".json")).exists()
+    reloaded = cc.load_job(tmp_path, job["id"])
+    assert reloaded["status"] == "drafted" and reloaded["cards"][0]["Text"] == "a"
+
+
+def test_list_jobs_summarizes(tmp_path):
+    cc.ensure_queue(tmp_path)
+    j = cc.create_job(tmp_path, "30", "Strepto", [])
+    cc.set_status(tmp_path, j, "drafted", cards=[{"Text": "a", "Extra": ""}])
+    rows = cc.list_jobs(tmp_path)
+    assert any(r["id"] == j["id"] and r["status"] == "drafted" and r["count"] == 1 for r in rows)
