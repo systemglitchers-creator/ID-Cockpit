@@ -140,6 +140,18 @@ body.loading .treewrap,body.loading .quest{opacity:.4;pointer-events:none}
   .hud .in{flex-wrap:wrap;gap:12px;padding:11px 16px}.xpwrap{order:3;flex-basis:100%}
   .hstats{gap:12px}.quest{padding:0 16px}.qcard{flex-wrap:wrap}.qcard .qacts{margin-left:0;width:100%}
 }
+.chapgen{display:flex;align-items:center;gap:10px;padding:10px 22px 4px}
+.cglabel{font-family:var(--mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--vio2)}
+.cgstatus{font-family:var(--mono);font-size:10px;color:var(--dim)}
+.gbtn{border-color:var(--cyan) !important;color:var(--cyan) !important;background:rgba(55,230,207,.06) !important}
+.dz{margin:2px 22px 8px;border:1px dashed var(--line);border-radius:10px;padding:14px;text-align:center;color:var(--dim);font-family:var(--mono);font-size:11px;cursor:pointer}
+.dz.hot{border-color:var(--cyan);color:var(--cyan)}
+.tray{margin:2px 22px 12px;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.tcard{padding:10px 12px;border-top:1px solid var(--line2)}
+.tcard textarea{width:100%;background:var(--panel2);color:var(--txt);border:1px solid var(--line);border-radius:6px;font-family:var(--mono);font-size:11px;padding:6px;resize:vertical;min-height:38px;margin-bottom:4px}
+.tcard .trow{display:flex;gap:8px;align-items:center;margin-top:6px}
+.tcard.dropped{opacity:.4}
+.tray .tfoot{padding:10px 12px;display:flex;gap:10px;align-items:center;background:var(--panel2)}
 </style>
 </head><body class="loading">
 <div class="hud"><div class="in">
@@ -276,21 +288,30 @@ function openPanel(si){
   document.getElementById("pt").textContent=s.title;
   document.getElementById("psub").textContent=x.dn+" / "+x.tot+" sessions · "+x.ppd+" / "+x.pp+" pp · "+Math.round(x.frac*100)+"%";
   document.getElementById("pbar").style.width=(x.frac*100)+"%";
-  var body=document.getElementById("pbody"), html="", lastWk=null;
+  var body=document.getElementById("pbody"), html="", lastWk=null, lastChap=null;
   s.rows.forEach(function(r){
-    if(r.wk!==lastWk){ html+='<div class="pwk">Week '+r.wk+'</div>'; lastWk=r.wk; }
     var nn=chapNum(r.r), c=counts(nn), dn=isDone(r.id);
+    if(r.wk!==lastWk){ html+='<div class="pwk">Week '+r.wk+'</div>'; lastWk=r.wk; }
+    if(nn && nn!==lastChap){
+      lastChap=nn;
+      html+='<div class="chapgen" data-nn="'+nn+'" data-title="'+esc(cleanTitle(r.r))+'">'
+        +'<span class="cglabel">Chapter '+nn+'</span>'
+        +'<button class="mbtn gbtn" data-nn="'+nn+'" data-title="'+esc(cleanTitle(r.r))+'">✦ Generate cards</button>'
+        +'<span class="cgstatus" id="cg-'+nn+'"></span></div>';
+    }
     html+='<div class="q'+(dn?' done':'')+'" data-id="'+r.id+'">'
       +'<div class="chk" data-toggle="'+r.id+'"></div>'
       +'<div class="qmid"><div class="qttl">'+esc(r.r)+'</div>'
       +'<div class="qsub">'+(r.ps?'<span class="pg">pp. '+r.ps+(r.pe&&r.pe!==r.ps?'–'+r.pe:'')+'</span>':'')
       +(nn?'<span class="bc">◆ '+c.cards+'</span><span class="bq">● '+c.questions+'</span>':'')+'</div>'
-      +'<div class="qacts"><button class="mbtn" data-act="cards" data-id="'+r.id+'">⧉ Cards</button><button class="mbtn" data-act="questions" data-id="'+r.id+'">⧉ RC Q</button></div>'
+      +'<div class="qacts"><button class="mbtn" data-act="questions" data-id="'+r.id+'">⧉ RC Q</button></div>'
       +'</div></div>';
   });
   body.innerHTML=html;
   Array.prototype.forEach.call(body.querySelectorAll(".chk"),function(el){el.onclick=function(){toggle(el.dataset.toggle);};});
-  Array.prototype.forEach.call(body.querySelectorAll(".mbtn"),function(el){el.onclick=function(){var r=rowById(el.dataset.id);copyPrompt(el.dataset.act,r);};});
+  Array.prototype.forEach.call(body.querySelectorAll(".q .mbtn[data-act]"),function(el){el.onclick=function(){var r=rowById(el.dataset.id);copyPrompt(el.dataset.act,r);};});
+  Array.prototype.forEach.call(body.querySelectorAll(".gbtn"),function(btn){btn.onclick=function(){showDropzone(btn.dataset.nn,btn.dataset.title,btn);};});
+  refreshCardJobs();
   document.getElementById("panel").classList.add("open");
   document.getElementById("scrim").classList.add("on");
 }
@@ -318,6 +339,91 @@ function copyPrompt(action,r){
 
 var toastT=null;
 function toastMsg(t){var el=document.getElementById("toast");el.textContent=t;el.classList.add("show");clearTimeout(toastT);toastT=setTimeout(function(){el.classList.remove("show");},2600);}
+
+// ---- in-app card generation (SP2) ----
+var CARDJOBS={};
+function showDropzone(nn,title,anchor){
+  var host=anchor.closest(".chapgen");
+  if(host.nextSibling && host.nextSibling.classList && host.nextSibling.classList.contains("dz")){ return; }
+  var dz=document.createElement("div"); dz.className="dz";
+  dz.textContent="Drop the highlighted PDF for Chapter "+nn+" here, or click to choose";
+  var inp=document.createElement("input"); inp.type="file"; inp.accept="application/pdf"; inp.style.display="none";
+  dz.appendChild(inp);
+  host.parentNode.insertBefore(dz, host.nextSibling);
+  dz.onclick=function(){ inp.click(); };
+  inp.onchange=function(){ if(inp.files[0]) uploadPdf(nn,title,inp.files[0],dz); };
+  dz.ondragover=function(e){ e.preventDefault(); dz.classList.add("hot"); };
+  dz.ondragleave=function(){ dz.classList.remove("hot"); };
+  dz.ondrop=function(e){ e.preventDefault(); dz.classList.remove("hot");
+    if(e.dataTransfer.files[0]) uploadPdf(nn,title,e.dataTransfer.files[0],dz); };
+}
+function uploadPdf(nn,title,file,dz){
+  dz.textContent="Uploading & scanning highlights…";
+  fetch("/api/cards/upload?nn="+encodeURIComponent(nn)+"&title="+encodeURIComponent(title),
+    {method:"POST",headers:{"Content-Type":"application/pdf"},body:file})
+    .then(function(r){return r.json();})
+    .then(function(){ dz.remove(); toastMsg("Drafting cards… I'll show them when ready"); pollCardJobs(); })
+    .catch(function(){ dz.textContent="Upload failed — try again"; });
+}
+function refreshCardJobs(){
+  return fetch("/api/cards/jobs").then(function(r){return r.json();}).then(function(rows){
+    CARDJOBS={}; rows.forEach(function(j){ CARDJOBS[j.nn]=j; });
+    renderCardStatuses();
+  }).catch(function(){});
+}
+function renderCardStatuses(){
+  document.querySelectorAll(".chapgen").forEach(function(host){
+    var nn=host.dataset.nn, j=CARDJOBS[nn], el=document.getElementById("cg-"+nn);
+    if(!el) return;
+    if(!j){ el.textContent=""; return; }
+    if(j.status==="pending"||j.status==="drafting") el.textContent="· drafting…";
+    else if(j.status==="drafted"){ el.textContent="· ready to review ("+j.count+")"; ensureTray(host,j.id); }
+    else if(j.status==="error") el.textContent="· failed — retry";
+    else if(j.status==="pushed") el.textContent="· pushed ✓";
+  });
+}
+function pollCardJobs(){
+  var n=0; var iv=setInterval(function(){
+    n++; refreshCardJobs();
+    var anyDrafting=Object.keys(CARDJOBS).some(function(k){var s=CARDJOBS[k].status;return s==="pending"||s==="drafting";});
+    if(!anyDrafting || n>120){ clearInterval(iv); }
+  }, 1500);
+}
+function ensureTray(host,jobId){
+  if(host.nextSibling && host.nextSibling.classList && host.nextSibling.classList.contains("tray")) return;
+  fetch("/api/cards/job/"+jobId).then(function(r){return r.json();}).then(function(job){
+    var tray=document.createElement("div"); tray.className="tray";
+    var html="";
+    (job.cards||[]).forEach(function(c,i){
+      html+='<div class="tcard" data-i="'+i+'"><textarea class="ttext">'+esc(c.Text)+'</textarea>'
+        +'<textarea class="textra" placeholder="Extra (optional)">'+esc(c.Extra||"")+'</textarea>'
+        +'<div class="trow"><button class="mbtn tdrop">Delete</button></div></div>';
+    });
+    html+='<div class="tfoot"><button class="mbtn gbtn tpush">⇪ Push approved to Anki</button>'
+      +'<button class="mbtn tdiscard">Discard</button><span class="cgstatus tmsg"></span></div>';
+    tray.innerHTML=html;
+    host.parentNode.insertBefore(tray, host.nextSibling);
+    tray.querySelectorAll(".tdrop").forEach(function(b){ b.onclick=function(){ b.closest(".tcard").classList.toggle("dropped"); }; });
+    tray.querySelector(".tpush").onclick=function(){ pushTray(tray,jobId); };
+    tray.querySelector(".tdiscard").onclick=function(){
+      fetch("/api/cards/job/"+jobId+"/discard",{method:"POST"}).then(function(){ tray.remove(); refreshCardJobs(); }); };
+  });
+}
+function pushTray(tray,jobId){
+  var cards=[];
+  tray.querySelectorAll(".tcard").forEach(function(c){
+    if(c.classList.contains("dropped")) return;
+    var t=c.querySelector(".ttext").value.trim(); if(!t) return;
+    cards.push({Text:t, Extra:c.querySelector(".textra").value.trim()});
+  });
+  var msg=tray.querySelector(".tmsg"); msg.textContent="Pushing…";
+  fetch("/api/cards/job/"+jobId+"/push",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({cards:cards})})
+    .then(function(r){return r.json();}).then(function(res){
+      if(res.anki==="ok"){ msg.textContent="Pushed ✓"; toastMsg("Cards pushed to Anki"); tray.remove(); refreshStatus(); refreshCardJobs(); }
+      else if(res.anki==="offline"){ msg.textContent="Anki closed — saved a backup, open Anki and push again"; }
+      else { msg.textContent="Push error: "+(res.detail||""); }
+    }).catch(function(){ msg.textContent="Push failed"; });
+}
 
 function warpToActive(){
   var n=document.querySelector('.node.active')||document.querySelector('.node');
