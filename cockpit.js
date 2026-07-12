@@ -8,6 +8,11 @@
 
   var STATUS = { done: {}, chapters: {} };
 
+  function esc(s) {
+    return String(s == null ? "" : s)
+      .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+  }
+
   function api(path, opts) {
     return fetch(path, opts).then(function (r) { return r.json(); });
   }
@@ -18,7 +23,9 @@
     if (typeof SECTIONS === "undefined") return idx;
     SECTIONS.forEach(function (s) {
       (s.rows || []).forEach(function (r) {
-        var m = /(?:Chapter\s+)?(\d+)/.exec((r.r || "").trim());
+        // Anchored (like the server's parser). Combo rows that start with a word
+        // (e.g. "Antifungal Drugs — Chapter 40 …") intentionally get NN="" / no badge.
+        var m = /^(?:Chapter\s+)?(\d+)/.exec((r.r || "").trim());
         idx[r.id] = {
           NN: m ? m[1] : "",
           title: (r.r || "").replace(/\s+·.*$/, "").replace(/^(?:Chapter\s+)?\d+\s*[—-]\s*/, "").trim(),
@@ -67,8 +74,7 @@
       span.innerHTML =
         '<em class="cb cb-c" title="Anki cards">◆ ' + c.cards + "</em>" +
         '<em class="cb cb-q" title="Practice questions">● ' + c.questions + "</em>";
-      var mid = el.querySelector(".mid");
-      (mid || el).appendChild(span);
+      el.appendChild(span);
     });
   }
 
@@ -98,7 +104,7 @@
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ done: val })
-    });
+    }).catch(function () { console.warn("cockpit: failed to sync read-state for", id); });
   }
 
   // Detail panel with copy-a-prompt buttons.
@@ -134,7 +140,7 @@
     var body = panel.querySelector("#cockpit-body");
     body.innerHTML =
       '<div style="font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--faint,#748078)">Chapter ' + (info.NN || "—") + "</div>" +
-      '<h3 style="margin:6px 0 4px;font-size:16px">' + info.title + "</h3>" +
+      '<h3 style="margin:6px 0 4px;font-size:16px">' + esc(info.title) + "</h3>" +
       '<div style="color:var(--soft,#a9b6b0);font-size:13px;margin-bottom:16px">pp. ' + info.ps + "–" + info.pe +
       " · ◆ " + c.cards + " cards · ● " + c.questions + " questions</div>" +
       '<button class="cockpit-act" data-act="cards" style="display:block;width:100%;margin:8px 0;padding:11px;border-radius:8px;border:1px solid var(--acc-line,#3a5);background:var(--acc-wash,rgba(79,216,160,.10));color:var(--txt,#eef3f0);cursor:pointer;text-align:left">Copy: make Anki cards →</button>' +
@@ -144,6 +150,8 @@
       btn.onclick = function () {
         copyPrompt(btn.dataset.act, info).then(function () {
           body.querySelector("#cockpit-toast").textContent = "Copied — paste into Claude Code.";
+        }).catch(function () {
+          body.querySelector("#cockpit-toast").textContent = "Couldn't copy — check clipboard permissions.";
         });
       };
     });
@@ -187,6 +195,7 @@
 
   function boot() {
     PLAN = planIndex();
+    document.body.classList.add("cockpit-loading");
     api("/api/status").then(function (s) {
       STATUS = s;
       return importLegacyOnce();
@@ -199,6 +208,11 @@
       var panel = buildPanel();
       decorate(panel);
       observeWrap(panel);
+    }).catch(function (e) {
+      console.warn("cockpit: initialization failed", e);
+    }).then(function () {
+      // Always re-enable interaction, whether boot succeeded or failed.
+      document.body.classList.remove("cockpit-loading");
     });
   }
 
