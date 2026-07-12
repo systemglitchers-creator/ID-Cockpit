@@ -17,9 +17,12 @@ def test_load_config_missing_is_unconfigured(tmp_path):
 
 
 def test_load_config_reads_file(tmp_path):
+    fake_claude = tmp_path / "claude"
+    fake_claude.write_text("#!/bin/sh\n")
+    fake_claude.chmod(0o755)
     (tmp_path / "config.json").write_text(json.dumps(
-        {"claudePath": "/usr/local/bin/claude", "model": None, "timeoutSec": 120}))
+        {"claudePath": str(fake_claude), "model": None, "timeoutSec": 120}))
     cfg = cc.load_config(tmp_path)
-    assert cfg["claudePath"] == "/usr/local/bin/claude"
+    assert cfg["claudePath"] == str(fake_claude)
     assert cfg["timeoutSec"] == 120
     assert cc.is_configured(tmp_path) is True
