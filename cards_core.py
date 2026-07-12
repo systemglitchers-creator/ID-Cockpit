@@ -5,6 +5,9 @@ import json
 import os
 from pathlib import Path
 
+import importlib.util
+import fitz  # PyMuPDF
+
 SKILL_DIR = Path(os.environ.get("ID_SKILL_DIR", os.path.expanduser("~/.claude/skills/id-anki-cards")))
 SKILL_SCRIPTS = SKILL_DIR / "scripts"
 DECK = "Infectious Disease::Mandell"
@@ -33,3 +36,26 @@ def load_config(base_dir):
 def is_configured(base_dir):
     cp = load_config(base_dir)["claudePath"]
     return bool(cp) and Path(cp).exists()
+
+
+def _load_skill_module(name):
+    """Import a module from the id-anki-cards scripts dir by file path."""
+    path = SKILL_SCRIPTS / (name + ".py")
+    spec = importlib.util.spec_from_file_location("idac_" + name, str(path))
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def extract(pdf_path):
+    """Auto-scan the whole PDF; return [{'highlight','context'}] for each highlight."""
+    with fitz.open(pdf_path) as doc:
+        pages = doc.page_count
+    eh = _load_skill_module("extract_highlights")
+    pairs = eh.extract_highlights_with_context(pdf_path, 1, pages)
+    out = []
+    for page_num, hi, ctx in pairs:  # confirmed shape: (page, highlight, context)
+        hi = (hi or "").strip()
+        if hi:
+            out.append({"highlight": hi, "context": (ctx or "").strip()})
+    return out
