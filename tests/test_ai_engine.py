@@ -64,3 +64,12 @@ def test_parse_cards_bad_output_raises():
 
 def test_parse_cards_coerces_missing_extra():
     assert ae.parse_cards('[{"Text":"a"}]') == [{"Text": "a", "Extra": ""}]
+
+
+def test_bad_draft_output_carries_raw():
+    try:
+        ae.parse_cards("totally not json")
+    except ae.BadDraftOutput as e:
+        assert e.raw == "totally not json"
+    else:
+        assert False, "should have raised"

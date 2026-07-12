@@ -19,7 +19,9 @@ class EngineFailed(Exception):
 
 
 class BadDraftOutput(Exception):
-    pass
+    def __init__(self, message, raw=None):
+        super().__init__(message)
+        self.raw = raw
 
 
 def draft(prompt, *, claude_path, model=None, timeout=240, runner=subprocess.run):
@@ -33,7 +35,7 @@ def draft(prompt, *, claude_path, model=None, timeout=240, runner=subprocess.run
         result = runner(cmd, capture_output=True, text=True, timeout=timeout)
     except subprocess.TimeoutExpired as e:
         raise EngineTimeout(str(e))
-    except FileNotFoundError as e:
+    except OSError as e:
         raise EngineNotConfigured(str(e))
     if result.returncode != 0:
         raise EngineFailed((result.stderr or "claude failed").strip())
@@ -43,24 +45,24 @@ def draft(prompt, *, claude_path, model=None, timeout=240, runner=subprocess.run
 def parse_cards(raw):
     """Pull a JSON array of {Text, Extra} from Claude's output, tolerantly."""
     if raw is None:
-        raise BadDraftOutput("empty output")
+        raise BadDraftOutput("empty output", raw=raw)
     text = raw.strip()
     fence = re.search(r"```(?:json)?\s*(.*?)```", text, re.S)
     if fence:
         text = fence.group(1).strip()
-    start, end = text.find("["), text.rfind("]")
-    if start == -1 or end == -1 or end < start:
-        raise BadDraftOutput("no JSON array found")
+    start = text.find("[")
+    if start == -1:
+        raise BadDraftOutput("no JSON array found", raw=raw)
     try:
-        arr = json.loads(text[start:end + 1])
+        arr, _ = json.JSONDecoder().raw_decode(text[start:])
     except ValueError as e:
-        raise BadDraftOutput(str(e))
+        raise BadDraftOutput(str(e), raw=raw)
     if not isinstance(arr, list):
-        raise BadDraftOutput("not a list")
+        raise BadDraftOutput("not a list", raw=raw)
     cards = []
     for item in arr:
         if isinstance(item, dict) and "Text" in item:
             cards.append({"Text": item["Text"], "Extra": item.get("Extra", "") or ""})
     if not cards:
-        raise BadDraftOutput("no valid cards")
+        raise BadDraftOutput("no valid cards", raw=raw)
     return cards

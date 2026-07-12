@@ -12,6 +12,8 @@ from pathlib import Path
 import importlib.util
 import fitz  # PyMuPDF
 
+from platform_core import CARDS_SUBDIR
+
 SKILL_DIR = Path(os.environ.get("ID_SKILL_DIR", os.path.expanduser("~/.claude/skills/id-anki-cards")))
 SKILL_SCRIPTS = SKILL_DIR / "scripts"
 DECK = "Infectious Disease::Mandell"
@@ -142,10 +144,10 @@ def set_status(base_dir, job, status, **updates):
     job = dict(job)
     job["status"] = status
     job.update(updates)
-    if old and old != _job_path(base_dir, status, job["id"]):
+    newp = _job_path(base_dir, status, job["id"])
+    newp.write_text(json.dumps(job, ensure_ascii=False, indent=2), encoding="utf-8")
+    if old and old != newp:
         old.unlink()
-    _job_path(base_dir, status, job["id"]).write_text(
-        json.dumps(job, ensure_ascii=False, indent=2), encoding="utf-8")
     return job
 
 
@@ -177,15 +179,17 @@ def process_job(base_dir, job_id, draft_fn):
             raise ValueError("no cards produced (no usable highlights?)")
         set_status(base_dir, job, "drafted", cards=cards)
     except Exception as e:  # noqa: BLE001 — record any failure for the UI
-        set_status(base_dir, job, "error", error=str(e))
+        set_status(base_dir, job, "error", error=str(e), rawOutput=getattr(e, "raw", None))
 
 
 def _chapter_dir(base_dir, nn, title):
-    return Path(base_dir) / "ID Anki Cards" / (str(nn) + " - " + str(title))
+    # base_dir is the platform dir; chapter artifacts live in the PARENT (artifact root)
+    return Path(base_dir).parent / CARDS_SUBDIR / (str(nn) + " - " + str(title))
 
 
 def push(base_dir, job, approved_cards, runner=subprocess.run):
     """Push approved cards to Anki via add_cards.py; write durable chapter JSON."""
+    job = set_status(base_dir, job, "drafted", cards=approved_cards)  # persist edits first
     spec = {"deck": DECK, "model": MODEL,
             "tag": derive_tag(job["nn"], job["title"]), "cards": approved_cards}
     chdir = _chapter_dir(base_dir, job["nn"], job["title"])
@@ -193,10 +197,14 @@ def push(base_dir, job, approved_cards, runner=subprocess.run):
     spec_path = chdir / (datetime.now().strftime("%Y-%m-%d") + ".json")
     spec_path.write_text(json.dumps(spec, ensure_ascii=False, indent=2), encoding="utf-8")
     add_cards = str(SKILL_SCRIPTS / "add_cards.py")
-    result = runner([sys.executable, add_cards, str(spec_path)],
-                    capture_output=True, text=True, timeout=60)
+    try:
+        result = runner([sys.executable, add_cards, str(spec_path)],
+                        capture_output=True, text=True, timeout=60)
+    except subprocess.TimeoutExpired:
+        return {"anki": "error", "detail": "add_cards timed out"}
     if result.returncode == 0:
-        set_status(base_dir, job, "pushed", pushed={"stdout": (result.stdout or "").strip()})
+        set_status(base_dir, job, "pushed", cards=approved_cards,
+                   pushed={"stdout": (result.stdout or "").strip()})
         return {"anki": "ok", "detail": (result.stdout or "").strip()}
     if result.returncode == 2:
         # Anki closed: durable JSON + add_cards' .txt backup remain; leave drafted

@@ -63,6 +63,10 @@ def test_derive_tag_colons_and_ampersand():
     assert tag == "Chapter::20::Penicillins::and::B-Lactamase::Inhibitors"
 
 
+def test_derive_tag_literal_ampersand():
+    assert cc.derive_tag("31", "Fungi & Protozoa") == "Chapter::31::Fungi::&::Protozoa"
+
+
 def test_build_prompt_includes_grounding_and_highlights():
     hs = [{"highlight": "Vanco inhibits cell wall", "context": "Vancomycin ... cell wall."}]
     prompt = cc.build_prompt("29", "Glycopeptides", hs,
@@ -127,29 +131,30 @@ def test_process_job_records_error(tmp_path, monkeypatch):
 
 
 def test_push_writes_chapter_json_and_reports(tmp_path):
-    cc.ensure_queue(tmp_path)
-    job = cc.create_job(tmp_path, "29", "Glycopeptides", [])
-    job = cc.set_status(tmp_path, job, "drafted", cards=[{"Text": "a", "Extra": ""}])
-    calls = {}
+    platform = tmp_path / "ID Platform"; platform.mkdir()
+    cc.ensure_queue(platform)
+    job = cc.create_job(platform, "29", "Glycopeptides", [])
+    job = cc.set_status(platform, job, "drafted", cards=[{"Text": "a", "Extra": ""}])
     def runner(cmd, **kw):
-        calls["cmd"] = cmd
         import subprocess
         return subprocess.CompletedProcess(cmd, 0, stdout="added 1, skipped 0", stderr="")
-    res = cc.push(tmp_path, job, [{"Text": "a", "Extra": ""}], runner=runner)
+    res = cc.push(platform, job, [{"Text": "a", "Extra": ""}], runner=runner)
     assert res["anki"] == "ok"
-    chdir = tmp_path / "ID Anki Cards"
-    written = list(chdir.glob("29 - Glycopeptides/*.json"))
-    assert written, "durable chapter JSON should be written"
-    assert cc.load_job(tmp_path, job["id"])["status"] == "pushed"
+    written = list((tmp_path / "ID Anki Cards").glob("29 - Glycopeptides/*.json"))
+    assert written, "durable chapter JSON should be written to the artifact root"
+    assert cc.load_job(platform, job["id"])["status"] == "pushed"
 
 
 def test_push_anki_offline_keeps_drafted(tmp_path):
-    cc.ensure_queue(tmp_path)
-    job = cc.create_job(tmp_path, "29", "Glyco", [])
-    job = cc.set_status(tmp_path, job, "drafted", cards=[{"Text": "a", "Extra": ""}])
+    platform = tmp_path / "ID Platform"; platform.mkdir()
+    cc.ensure_queue(platform)
+    job = cc.create_job(platform, "29", "Glyco", [])
+    job = cc.set_status(platform, job, "drafted", cards=[{"Text": "a", "Extra": ""}])
     def runner(cmd, **kw):
         import subprocess
         return subprocess.CompletedProcess(cmd, 2, stdout="", stderr="AnkiConnect unreachable")
-    res = cc.push(tmp_path, job, [{"Text": "a", "Extra": ""}], runner=runner)
+    res = cc.push(platform, job, [{"Text": "EDITED", "Extra": ""}], runner=runner)
     assert res["anki"] == "offline"
-    assert cc.load_job(tmp_path, job["id"])["status"] == "drafted"
+    reloaded = cc.load_job(platform, job["id"])
+    assert reloaded["status"] == "drafted"
+    assert reloaded["cards"][0]["Text"] == "EDITED"  # edits persisted even when Anki offline
