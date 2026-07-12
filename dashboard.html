@@ -329,6 +329,13 @@ document.getElementById("scrim").onclick=closePanel;
 document.getElementById("jump").onclick=warpToActive;
 document.addEventListener("keydown",function(e){if(e.key==="Escape")closePanel();});
 
+function refreshStatus(){
+  var pb=document.getElementById("pbody"), sc=pb?pb.scrollTop:0;
+  return api("/api/status").then(function(s){
+    STATUS=s; render();
+    if(openSi!==null){ openPanel(openSi); var np=document.getElementById("pbody"); if(np) np.scrollTop=sc; }
+  }).catch(function(){});
+}
 function boot(){
   api("/api/status").then(function(s){STATUS=s;}).catch(function(){STATUS={done:{},chapters:{}};})
     .then(function(){
@@ -338,5 +345,9 @@ function boot(){
     });
 }
 boot();
+// live auto-refresh: pick up new cards/questions without a manual reload
+setInterval(function(){ if(!document.hidden) refreshStatus(); }, 20000);
+document.addEventListener("visibilitychange",function(){ if(!document.hidden) refreshStatus(); });
+window.addEventListener("focus", refreshStatus);
 </script>
 </body></html>
