@@ -187,6 +187,31 @@ def _chapter_dir(base_dir, nn, title):
     return Path(base_dir).parent / CARDS_SUBDIR / (str(nn) + " - " + str(title))
 
 
+def _ingest_upload(base_dir, nn, title, pdf_bytes):
+    """Save an uploaded PDF, extract highlights, and create a pending job."""
+    ensure_queue(base_dir)
+    job_id = uuid.uuid4().hex[:12]
+    pdf_path = Path(base_dir) / "queue" / "incoming" / (job_id + ".pdf")
+    pdf_path.write_bytes(pdf_bytes)
+    highlights = extract(str(pdf_path))
+    job = {
+        "id": job_id, "nn": str(nn), "title": str(title), "status": "pending",
+        "created": datetime.now().isoformat(timespec="seconds"), "highlights": highlights,
+    }
+    _job_path(base_dir, "pending", job_id).write_text(
+        json.dumps(job, ensure_ascii=False, indent=2), encoding="utf-8")
+    return job
+
+
+def discard_job(base_dir, job_id):
+    p = _find_job_file(base_dir, job_id)
+    if p:
+        p.unlink()
+    pdf = Path(base_dir) / "queue" / "incoming" / (job_id + ".pdf")
+    if pdf.exists():
+        pdf.unlink()
+
+
 def push(base_dir, job, approved_cards, runner=subprocess.run):
     """Push approved cards to Anki via add_cards.py; write durable chapter JSON."""
     job = set_status(base_dir, job, "drafted", cards=approved_cards)  # persist edits first

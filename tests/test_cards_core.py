@@ -158,3 +158,14 @@ def test_push_anki_offline_keeps_drafted(tmp_path):
     reloaded = cc.load_job(platform, job["id"])
     assert reloaded["status"] == "drafted"
     assert reloaded["cards"][0]["Text"] == "EDITED"  # edits persisted even when Anki offline
+
+
+def test_ingest_upload_creates_pending_with_highlights(tmp_path):
+    import fitz
+    doc = fitz.open(); page = doc.new_page()
+    s = "Daptomycin is a lipopeptide antibiotic."
+    page.insert_text((72, 100), s, fontsize=12)
+    for r in page.search_for(s): page.add_highlight_annot(r)
+    data = doc.tobytes(); doc.close()
+    job = cc._ingest_upload(tmp_path, "30", "Strepto", data)
+    assert job["status"] == "pending" and len(job["highlights"]) == 1

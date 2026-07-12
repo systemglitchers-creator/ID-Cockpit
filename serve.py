@@ -3,11 +3,15 @@ from __future__ import annotations
 
 import json
 import os
+import queue as _queue
+import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import urlparse, parse_qs
 
 import platform_core as core
+import cards_core
+import ai_engine
 
 PLATFORM_DIR = Path(__file__).resolve().parent
 DEFAULT_BASE = PLATFORM_DIR.parent  # the "8. Claude" artifact root
@@ -23,10 +27,25 @@ def _load_prompts():
     return json.loads((PLATFORM_DIR / "prompts.json").read_text(encoding="utf-8"))
 
 
+def _real_draft_fn(platform_dir):
+    """Build a draft_fn that runs headless Claude using config.json, or errors."""
+    def draft_fn(prompt):
+        cfg = cards_core.load_config(platform_dir)
+        raw = ai_engine.draft(prompt, claude_path=cfg.get("claudePath"),
+                              model=cfg.get("model"), timeout=cfg.get("timeoutSec", 240))
+        return ai_engine.parse_cards(raw)
+    return draft_fn
+
+
 class Handler(BaseHTTPRequestHandler):
     # base_dir is injected via the server instance (see make_server)
     def _base_dir(self):
         return self.server.base_dir
+
+    def _pdir(self):
+        # cards_core operates on the PLATFORM dir (config.json/queue/), which
+        # differs from base_dir (the artifact root used by platform_core).
+        return self.server.platform_dir
 
     def _state_path(self):
         # state.json always lives under <base>/<platform folder>/ (created on first write).
@@ -82,6 +101,20 @@ class Handler(BaseHTTPRequestHandler):
             fields = {k: q.get(k, "") for k in ("NN", "title", "ps", "pe")}
             self._send_json({"prompt": core.fill_prompt(template, fields)})
             return
+        if route == "/api/cards/config":
+            self._send_json({"configured": cards_core.is_configured(self._pdir())})
+            return
+        if route == "/api/cards/jobs":
+            self._send_json(cards_core.list_jobs(self._pdir()))
+            return
+        if route.startswith("/api/cards/job/"):
+            jid = route[len("/api/cards/job/"):]
+            job = cards_core.load_job(self._pdir(), jid)
+            if job is None:
+                self.send_error(404, "no such job")
+                return
+            self._send_json(job)
+            return
         self.send_error(404, "Not found")
 
     def do_POST(self):
@@ -100,6 +133,36 @@ class Handler(BaseHTTPRequestHandler):
             core.import_ids(self._state_path(), ids)
             self._send_json({"imported": len(ids)})
             return
+        if route == "/api/cards/upload":
+            q = {k: v[0] for k, v in parse_qs(urlparse(self.path).query).items()}
+            length = int(self.headers.get("Content-Length", 0))
+            pdf = self.rfile.read(length) if length else b""
+            job = cards_core._ingest_upload(self._pdir(), q.get("nn", ""), q.get("title", ""), pdf)
+            self.server.card_q.put(job["id"])
+            self._send_json({"jobId": job["id"]})
+            return
+        if route.startswith("/api/cards/job/") and route.endswith("/push"):
+            jid = route[len("/api/cards/job/"):-len("/push")]
+            job = cards_core.load_job(self._pdir(), jid)
+            if job is None:
+                self.send_error(404, "no such job")
+                return
+            body = self._read_body()
+            self._send_json(cards_core.push(self._pdir(), job, body.get("cards", [])))
+            return
+        if route.startswith("/api/cards/job/") and route.endswith("/discard"):
+            jid = route[len("/api/cards/job/"):-len("/discard")]
+            cards_core.discard_job(self._pdir(), jid)
+            self._send_json({"discarded": jid})
+            return
+        if route.startswith("/api/cards/job/") and route.endswith("/retry"):
+            jid = route[len("/api/cards/job/"):-len("/retry")]
+            job = cards_core.load_job(self._pdir(), jid)
+            if job:
+                cards_core.set_status(self._pdir(), job, "pending")
+                self.server.card_q.put(jid)
+            self._send_json({"retry": jid})
+            return
         self.send_error(404, "Not found")
 
     def log_message(self, *args):
@@ -108,9 +171,28 @@ class Handler(BaseHTTPRequestHandler):
 
 # Note: ThreadingHTTPServer + unlocked read-modify-write of state.json is fine for
 # single-user local use. Do not add multi-client usage without a lock in platform_core.
-def make_server(host="127.0.0.1", port=8756, base_dir=None):
+def make_server(host="127.0.0.1", port=8756, base_dir=None, platform_dir=None, draft_fn=None):
     httpd = ThreadingHTTPServer((host, port), Handler)
     httpd.base_dir = base_dir or str(os.environ.get("ID_PLATFORM_BASE", DEFAULT_BASE))
+    httpd.platform_dir = platform_dir or str(PLATFORM_DIR)
+    httpd.draft_fn = draft_fn or _real_draft_fn(httpd.platform_dir)
+    httpd.card_q = _queue.Queue()
+
+    def _worker():
+        while True:
+            jid = httpd.card_q.get()
+            if jid is None:
+                return
+            try:
+                cards_core.process_job(httpd.platform_dir, jid, httpd.draft_fn)
+            except Exception:
+                pass
+            finally:
+                httpd.card_q.task_done()
+
+    t = threading.Thread(target=_worker, daemon=True)
+    t.start()
+    httpd.card_worker = t
     return httpd
 
 
