@@ -3,6 +3,9 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="color-scheme" content="dark">
 <title>Infectious Diseases · Reading Plan</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500;1,600&family=Hanken+Grotesk:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
 :root{
   --bg:#0e1414;--surf:#151d1d;--surf2:#1c2726;--line:#26312f;--line2:#1a2322;
@@ -158,6 +161,45 @@ body.hidedone .rw.done{display:none}body.hidedone .rw.next,body.hidedone .rw.tod
   .sh{padding:15px 16px;gap:12px}.smini{display:none}.rw,.wk{padding-left:16px;padding-right:16px}
 }
 </style><style>.cockpit-badges{margin-left:auto;align-self:center;display:inline-flex;gap:8px;padding-left:10px}.cb{font-style:normal;font-size:11px;color:var(--faint,#748078);white-space:nowrap}.cb-q{color:var(--gold,#e8c26a)}body.cockpit-loading #wrap{pointer-events:none;opacity:.6}</style>
+<style id="editorial-noir">
+:root{
+  --bg:#14100d;--surf:#1c1712;--surf2:#241d16;--line:#332a20;--line2:#241d16;
+  --txt:#ece2d2;--soft:#b6a892;--faint:#8a7c68;--ghost:#5b503f;
+  --acc:#d9b877;--acc2:#ecd39a;--acc-deep:#b8923f;
+  --acc-wash:rgba(217,184,119,.085);--acc-line:rgba(217,184,119,.32);--acc-glow:rgba(217,184,119,.22);
+  --gold:#d9b877;
+  --serif:"Playfair Display",Georgia,"Times New Roman",serif;
+  --disp:"Hanken Grotesk",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  --sans:"Hanken Grotesk",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+}
+body{font-feature-settings:"liga" 1,"kern" 1}
+body:before{background:
+  radial-gradient(1200px 620px at 88% -14%,rgba(217,184,119,.11),transparent 60%),
+  radial-gradient(900px 540px at -8% 2%,rgba(120,86,38,.12),transparent 58%),
+  radial-gradient(125% 120% at 50% 46%,transparent 60%,rgba(0,0,0,.55) 100%)}
+body:after{content:"";position:fixed;inset:0;z-index:0;pointer-events:none;opacity:.05;mix-blend-mode:overlay;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
+/* editorial serif treatment */
+h1.title{font-family:var(--serif);font-weight:500;letter-spacing:-.4px;font-size:clamp(37px,6.2vw,64px);line-height:1.02}
+h1.title em{font-style:italic;font-weight:500;font-family:var(--serif);background:none;color:var(--acc);padding:0;border-radius:0;text-shadow:0 0 34px var(--acc-glow)}
+.eyebrow{color:var(--acc-deep);letter-spacing:3.4px}
+.stitle,.ntitle,.pphrase,.heat-head .htitle{font-family:var(--serif);font-weight:500;letter-spacing:0}
+.rtitle{font-family:var(--serif);font-size:16px;font-weight:400;letter-spacing:.1px}
+.rw.done .rtitle{font-style:italic}
+.rsub .g{font-family:var(--serif)}
+/* warm chrome + refined accents */
+.bar{background:rgba(20,16,13,.82)}
+.c-next{background:linear-gradient(160deg,rgba(217,184,119,.07),var(--surf) 55%)}
+.c-pages .big{text-shadow:0 0 30px var(--acc-glow)}
+.endcap:before{opacity:.7}
+/* cockpit badges + panel, noir/gold */
+.cb{font-family:var(--mono)}
+.cb-c{color:var(--acc)}
+.cb-q{color:var(--faint)}
+#cockpit-panel{font-family:var(--sans)}
+#cockpit-panel h3{font-family:var(--serif);font-weight:500;font-size:19px}
+</style>
 </head><body>
 <div class="bar"><div class="in">
   <div class="mark"><b>ID</b> · Reading Plan</div>
