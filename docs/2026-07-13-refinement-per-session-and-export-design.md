@@ -42,24 +42,37 @@ needs a dropped PDF.
 `nn`; endpoints pass `sessionId`; the dashboard renders generate controls per
 row. Anki tagging and chapter-folder output are unchanged.
 
-## 3. Question export → clean RC-exam PDF
+## 3. Question export → clean RC-exam PDF (two levels)
 
-**What:** an **⬇ Export PDF** action on a chapter (compiling all its saved
-questions) produces a print-ready PDF styled like a real Royal College exam:
-- Header: chapter number + title, date.
+Both levels produce a print-ready PDF styled like a real Royal College exam:
+- Header: chapter number + title (+ page range for a session), date.
 - **Questions section**: numbered questions; each shows the stem, then its
   sub-questions as `(marks)` + prompt with blank space to answer.
 - **Answer key section** (new page): the same numbering with the model-answer
   lists — mirroring the real "Qs / As" split so it doubles as self-test.
 
-**How:** a new `export_pdf.py` builds the PDF from a chapter's questions JSON
+**Level A — per session (primary).** An **⬇ Export PDF** on a session row (once
+its questions are saved) renders *that session's* questions, so you can practice
+right after the reading. Saved to
+`ID Practice Questions/<NN - Title>/<sessionId>.pdf`.
+
+**Level B — combined chapter.** A chapter-level **⬇ Export chapter (N sessions)**
+merges *all* of the chapter's saved session question-sets into one large exam
+sheet — the end-of-chapter cumulative practice. It reads every
+`ID Practice Questions/<NN - Title>/*.json`, concatenates the questions in
+reading order, and writes
+`ID Practice Questions/<NN - Title>/<NN> - <Title> - all questions.pdf`.
+Surfaced on the chapter (naturally used once all the chapter's readings are
+done, but available whenever ≥1 session has questions).
+
+**How:** a new `export_pdf.py` builds the PDF from a list of question objects
 using **PyMuPDF (`fitz`)** — already a dependency (used for highlight
 extraction), so no new install and it works offline. `fitz` supports multi-page
 layout and `insert_textbox` (word-wrapping within a rect), enough for a clean
-exam sheet. New endpoint `GET /api/questions/export?nn=&title=` streams
-`application/pdf` (a download); the dashboard button hits it and the browser
-saves the file. The PDF is also written to
-`ID Practice Questions/<NN - Title>/<NN> practice questions.pdf` for a durable copy.
+exam sheet. One endpoint serves both:
+`GET /api/questions/export?nn=&title=&session=<id>` streams *that session's* PDF;
+omitting `session` streams the *combined chapter* PDF. Both also write the
+durable copy noted above. Pure transform of saved questions — no AI, no cost.
 
 **Content fidelity:** export is a pure transform of already-saved questions — no
 AI call, no cost, deterministic.
