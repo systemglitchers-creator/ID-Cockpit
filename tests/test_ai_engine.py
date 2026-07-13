@@ -112,3 +112,24 @@ def test_parse_questions_bad_raises_with_raw():
         assert e.raw == "nope"
     else:
         assert False
+
+
+def test_parse_questions_float_count_trims():
+    raw = '[{"stem":"s","subquestions":[{"prompt":"Name 2","count":2.0,"marks":1,"answer":["a","b","c"]}]}]'
+    assert ae.parse_questions(raw)[0]["subquestions"][0]["answer"] == ["a", "b"]
+
+
+def test_parse_questions_string_count_trims():
+    raw = '[{"stem":"s","subquestions":[{"prompt":"Name 2","count":"2","marks":1,"answer":["a","b","c"]}]}]'
+    assert ae.parse_questions(raw)[0]["subquestions"][0]["answer"] == ["a", "b"]
+
+
+def test_parse_questions_negative_count_does_not_corrupt():
+    raw = '[{"stem":"s","subquestions":[{"prompt":"x","count":-1,"marks":1,"answer":["a","b","c"]}]}]'
+    sq = ae.parse_questions(raw)[0]["subquestions"][0]
+    assert sq["answer"] == ["a", "b", "c"] and sq["count"] == 3
+
+
+def test_parse_questions_marks_coerced_to_number():
+    raw = '[{"stem":"s","subquestions":[{"prompt":"x","count":1,"marks":"1.5","answer":["a"]}]}]'
+    assert ae.parse_questions(raw)[0]["subquestions"][0]["marks"] == 1.5

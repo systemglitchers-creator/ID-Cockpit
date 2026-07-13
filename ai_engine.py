@@ -44,21 +44,7 @@ def draft(prompt, *, claude_path, model=None, timeout=240, runner=subprocess.run
 
 def parse_cards(raw):
     """Pull a JSON array of {Text, Extra} from Claude's output, tolerantly."""
-    if raw is None:
-        raise BadDraftOutput("empty output", raw=raw)
-    text = raw.strip()
-    fence = re.search(r"```(?:json)?\s*(.*?)```", text, re.S)
-    if fence:
-        text = fence.group(1).strip()
-    start = text.find("[")
-    if start == -1:
-        raise BadDraftOutput("no JSON array found", raw=raw)
-    try:
-        arr, _ = json.JSONDecoder().raw_decode(text[start:])
-    except ValueError as e:
-        raise BadDraftOutput(str(e), raw=raw)
-    if not isinstance(arr, list):
-        raise BadDraftOutput("not a list", raw=raw)
+    arr = _extract_array(raw)
     cards = []
     for item in arr:
         if isinstance(item, dict) and "Text" in item:
@@ -102,12 +88,19 @@ def parse_questions(raw):
             ans = sq.get("answer") or []
             if not isinstance(ans, list):
                 ans = [str(ans)]
-            count = sq.get("count")
-            if isinstance(count, int) and count < len(ans):
+            try:                              # tolerate "3", 3.0, etc.; garbage -> no trim
+                count = int(sq.get("count"))
+            except (TypeError, ValueError):
+                count = None
+            if count is not None and 0 <= count < len(ans):
                 ans = ans[:count]            # trim over-long answer to stated count
             count = len(ans)                 # count always mirrors the final answer list
+            try:
+                marks = float(sq.get("marks", 0))
+            except (TypeError, ValueError):
+                marks = 0
             subs.append({"prompt": str(sq.get("prompt", "")), "count": count,
-                         "marks": sq.get("marks", 0), "answer": [str(a) for a in ans]})
+                         "marks": marks, "answer": [str(a) for a in ans]})
         out.append({"stem": str(item.get("stem", "")),
                     "archetype": str(item.get("archetype", "")), "subquestions": subs})
     if not out:
