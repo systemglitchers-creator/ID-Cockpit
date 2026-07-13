@@ -152,6 +152,17 @@ body.loading .treewrap,body.loading .quest{opacity:.4;pointer-events:none}
 .tcard .trow{display:flex;gap:8px;align-items:center;margin-top:6px}
 .tcard.dropped{opacity:.4}
 .tray .tfoot{padding:10px 12px;display:flex;gap:10px;align-items:center;background:var(--panel2)}
+.qtray{margin:2px 22px 12px;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.qq{padding:12px;border-top:1px solid var(--line2)}
+.qq .qstem{width:100%;background:var(--panel2);color:var(--txt);border:1px solid var(--line);border-radius:6px;font-family:var(--sans);font-size:13px;padding:7px;min-height:52px;resize:vertical}
+.qq .sub{margin:8px 0 0;padding:8px;border:1px solid var(--line2);border-radius:8px}
+.qq .sub .sp{display:flex;gap:8px;align-items:center}
+.qq .sub .sp input.p{flex:1;background:var(--panel2);color:var(--txt);border:1px solid var(--line);border-radius:6px;font-family:var(--mono);font-size:11px;padding:5px}
+.qq .sub .sp input.m{width:52px;background:var(--panel2);color:var(--txt);border:1px solid var(--line);border-radius:6px;font-family:var(--mono);font-size:11px;padding:5px;text-align:center}
+.qq .ans{display:flex;gap:6px;align-items:center;margin-top:5px}
+.qq .ans input{flex:1;background:var(--panel2);color:var(--txt);border:1px solid var(--line);border-radius:6px;font-family:var(--mono);font-size:11px;padding:5px}
+.qq.dropped{opacity:.4}
+.qtray .tfoot{padding:10px 12px;display:flex;gap:10px;align-items:center;background:var(--panel2)}
 </style>
 </head><body class="loading">
 <div class="hud"><div class="in">
@@ -297,7 +308,9 @@ function openPanel(si){
       html+='<div class="chapgen" data-nn="'+nn+'" data-title="'+esc(cleanTitle(r.r))+'">'
         +'<span class="cglabel">Chapter '+nn+'</span>'
         +'<button class="mbtn gbtn" data-nn="'+nn+'" data-title="'+esc(cleanTitle(r.r))+'">✦ Generate cards</button>'
-        +'<span class="cgstatus" id="cg-'+nn+'"></span></div>';
+        +'<span class="cgstatus" id="cg-'+nn+'"></span>'
+        +'<button class="mbtn gbtn qgbtn" data-nn="'+nn+'" data-title="'+esc(cleanTitle(r.r))+'">✦ Generate questions</button>'
+        +'<span class="cgstatus" id="qcg-'+nn+'"></span></div>';
     }
     html+='<div class="q'+(dn?' done':'')+'" data-id="'+r.id+'">'
       +'<div class="chk" data-toggle="'+r.id+'"></div>'
@@ -310,8 +323,10 @@ function openPanel(si){
   body.innerHTML=html;
   Array.prototype.forEach.call(body.querySelectorAll(".chk"),function(el){el.onclick=function(){toggle(el.dataset.toggle);};});
   Array.prototype.forEach.call(body.querySelectorAll(".q .mbtn[data-act]"),function(el){el.onclick=function(){var r=rowById(el.dataset.id);copyPrompt(el.dataset.act,r);};});
-  Array.prototype.forEach.call(body.querySelectorAll(".gbtn"),function(btn){btn.onclick=function(){showDropzone(btn.dataset.nn,btn.dataset.title,btn);};});
+  Array.prototype.forEach.call(body.querySelectorAll(".gbtn:not(.qgbtn)"),function(btn){btn.onclick=function(){showDropzone(btn.dataset.nn,btn.dataset.title,btn);};});
   refreshCardJobs();
+  Array.prototype.forEach.call(body.querySelectorAll(".qgbtn"),function(btn){btn.onclick=function(){ startQuestions(btn.dataset.nn, btn.dataset.title, btn); };});
+  refreshQJobs();
   document.getElementById("panel").classList.add("open");
   document.getElementById("scrim").classList.add("on");
 }
@@ -423,6 +438,100 @@ function pushTray(tray,jobId){
       else if(res.anki==="offline"){ msg.textContent="Anki closed — saved a backup, open Anki and push again"; }
       else { msg.textContent="Push error: "+(res.detail||""); }
     }).catch(function(){ msg.textContent="Push failed"; });
+}
+
+// ---- in-app practice questions (SP3) ----
+var QJOBS={};
+function startQuestions(nn,title,anchor){
+  var st=document.getElementById("qcg-"+nn); if(st) st.textContent="· checking…";
+  fetch("/api/questions/precheck?nn="+encodeURIComponent(nn)+"&title="+encodeURIComponent(title))
+    .then(function(r){return r.json();}).then(function(pc){
+      if(!pc.hasCards){ if(st) st.textContent="· make cards first"; return; }
+      if(!pc.hasPdf){ questionsDropzone(nn,title,anchor); if(st) st.textContent=""; return; }
+      genQuestions(nn,title,null,st);
+    }).catch(function(){ if(st) st.textContent="· error"; });
+}
+function questionsDropzone(nn,title,anchor){
+  var host=anchor.closest(".chapgen");
+  if(host.nextSibling && host.nextSibling.classList && host.nextSibling.classList.contains("dz")) return;
+  var dz=document.createElement("div"); dz.className="dz";
+  dz.textContent="No saved PDF — drop the Chapter "+nn+" PDF to make questions";
+  var inp=document.createElement("input"); inp.type="file"; inp.accept="application/pdf"; inp.style.display="none"; dz.appendChild(inp);
+  host.parentNode.insertBefore(dz,host.nextSibling);
+  dz.onclick=function(){ inp.click(); };
+  inp.onchange=function(){ if(inp.files[0]) genQuestions(nn,title,inp.files[0],document.getElementById("qcg-"+nn),dz); };
+  dz.ondragover=function(e){ e.preventDefault(); dz.classList.add("hot"); };
+  dz.ondragleave=function(){ dz.classList.remove("hot"); };
+  dz.ondrop=function(e){ e.preventDefault(); dz.classList.remove("hot"); if(e.dataTransfer.files[0]) genQuestions(nn,title,e.dataTransfer.files[0],document.getElementById("qcg-"+nn),dz); };
+}
+function genQuestions(nn,title,file,st,dz){
+  if(st) st.textContent="· drafting…"; if(dz) dz.remove();
+  var opts={method:"POST"};
+  if(file){ opts.headers={"Content-Type":"application/pdf"}; opts.body=file; }
+  fetch("/api/questions/generate?nn="+encodeURIComponent(nn)+"&title="+encodeURIComponent(title),opts)
+    .then(function(r){return r.json();}).then(function(){ toastMsg("Drafting questions…"); pollQJobs(); })
+    .catch(function(){ if(st) st.textContent="· failed"; });
+}
+function refreshQJobs(){
+  return fetch("/api/questions/jobs").then(function(r){return r.json();}).then(function(rows){
+    QJOBS={}; rows.forEach(function(j){ QJOBS[j.nn]=j; }); renderQStatuses();
+  }).catch(function(){});
+}
+function renderQStatuses(){
+  document.querySelectorAll(".chapgen").forEach(function(host){
+    var nn=host.dataset.nn, j=QJOBS[nn], el=document.getElementById("qcg-"+nn);
+    if(!el) return;
+    if(!j){ el.textContent=""; return; }
+    if(j.status==="pending"||j.status==="drafting") el.textContent="· drafting…";
+    else if(j.status==="drafted"){ el.textContent="· review ("+j.count+")"; ensureQTray(host,j.id); }
+    else if(j.status==="error") el.textContent="· failed — retry";
+    else if(j.status==="saved") el.textContent="· saved ✓";
+  });
+}
+function pollQJobs(){
+  var n=0; var iv=setInterval(function(){ n++; refreshQJobs();
+    var busy=Object.keys(QJOBS).some(function(k){var s=QJOBS[k].status;return s==="pending"||s==="drafting";});
+    if(!busy||n>120) clearInterval(iv);
+  },1500);
+}
+function ensureQTray(host,jobId){
+  if(host.nextSibling && host.nextSibling.classList && host.nextSibling.classList.contains("qtray")) return;
+  fetch("/api/questions/job/"+jobId).then(function(r){return r.json();}).then(function(job){
+    var tray=document.createElement("div"); tray.className="qtray"; var html="";
+    (job.questions||[]).forEach(function(q,i){
+      html+='<div class="qq" data-i="'+i+'"><textarea class="qstem">'+esc(q.stem)+'</textarea>';
+      (q.subquestions||[]).forEach(function(sq){
+        html+='<div class="sub"><div class="sp"><input class="p" value="'+esc(sq.prompt)+'"><input class="m" value="'+esc(String(sq.marks))+'"></div>';
+        (sq.answer||[]).forEach(function(a){ html+='<div class="ans"><input value="'+esc(a)+'"></div>'; });
+        html+='</div>';
+      });
+      html+='<div class="trow" style="margin-top:6px"><button class="mbtn qdrop">Delete question</button></div></div>';
+    });
+    html+='<div class="tfoot"><button class="mbtn gbtn qsave">⇩ Save approved</button>'
+      +'<button class="mbtn qdiscard">Discard</button><span class="cgstatus qmsg"></span></div>';
+    tray.innerHTML=html; host.parentNode.insertBefore(tray,host.nextSibling);
+    tray.querySelectorAll(".qdrop").forEach(function(b){ b.onclick=function(){ b.closest(".qq").classList.toggle("dropped"); }; });
+    tray.querySelector(".qsave").onclick=function(){ saveQTray(tray,jobId); };
+    tray.querySelector(".qdiscard").onclick=function(){ fetch("/api/questions/job/"+jobId+"/discard",{method:"POST"}).then(function(){ tray.remove(); refreshQJobs(); }); };
+  });
+}
+function saveQTray(tray,jobId){
+  var questions=[];
+  tray.querySelectorAll(".qq").forEach(function(qq){
+    if(qq.classList.contains("dropped")) return;
+    var stem=qq.querySelector(".qstem").value.trim(); if(!stem) return;
+    var subs=[];
+    qq.querySelectorAll(".sub").forEach(function(sub){
+      var ans=[]; sub.querySelectorAll(".ans input").forEach(function(ai){ var v=ai.value.trim(); if(v) ans.push(v); });
+      subs.push({prompt:sub.querySelector("input.p").value.trim(), marks:parseFloat(sub.querySelector("input.m").value)||0, count:ans.length, answer:ans});
+    });
+    questions.push({stem:stem, archetype:"", subquestions:subs});
+  });
+  var msg=tray.querySelector(".qmsg"); msg.textContent="Saving…";
+  fetch("/api/questions/job/"+jobId+"/save",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({questions:questions})})
+    .then(function(r){return r.json();}).then(function(res){
+      msg.textContent="Saved ✓ ("+res.saved+")"; toastMsg("Questions saved"); tray.remove(); refreshStatus(); refreshQJobs();
+    }).catch(function(){ msg.textContent="Save failed"; });
 }
 
 function warpToActive(){
