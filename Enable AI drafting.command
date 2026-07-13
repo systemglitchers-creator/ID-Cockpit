@@ -15,9 +15,7 @@ if [ -z "$CLAUDE" ]; then
   exit 1
 fi
 
-echo "Logging you into Claude (a browser window will open). Use your Claude subscription account..."
-"$CLAUDE" login || true
-
+# Save config first so the cockpit is wired up regardless of how login goes.
 python3 - "$DIR" "$CLAUDE" <<'PY'
 import json, sys, pathlib
 d, claude = sys.argv[1], sys.argv[2]
@@ -26,4 +24,18 @@ pathlib.Path(d, "config.json").write_text(json.dumps(cfg, indent=2))
 print("Saved config.json ->", claude)
 PY
 
-echo "Done. AI drafting is enabled. You can close this window."
+# Log in interactively — this Claude version authenticates via the /login command
+# inside the tool (not `claude login`), which reliably opens the browser (or prints
+# a URL to open). We drop you into Claude; just type /login, sign in, then /exit.
+if "$CLAUDE" -p "ok" >/dev/null 2>&1; then
+  echo "Already logged in — AI drafting is fully enabled. You can close this window."
+else
+  echo ""
+  echo "One step left: log in to Claude."
+  echo "  Claude will open below. Type  /login  and press Enter, sign in in your"
+  echo "  browser (or copy the URL it shows), then type  /exit  when done."
+  echo ""
+  read -r -p "Press Enter to open Claude and log in... " _
+  "$CLAUDE"
+  echo "AI drafting is enabled. You can close this window."
+fi
