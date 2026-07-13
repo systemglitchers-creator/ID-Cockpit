@@ -73,3 +73,42 @@ def test_bad_draft_output_carries_raw():
         assert e.raw == "totally not json"
     else:
         assert False, "should have raised"
+
+
+def test_parse_questions_basic():
+    raw = ('[{"stem":"A patient...","archetype":"clinical","subquestions":'
+           '[{"prompt":"Name 2 causes","count":2,"marks":1,"answer":["a","b"]}]}]')
+    qs = ae.parse_questions(raw)
+    assert len(qs) == 1
+    assert qs[0]["stem"].startswith("A patient")
+    assert qs[0]["subquestions"][0]["count"] == 2
+    assert qs[0]["subquestions"][0]["answer"] == ["a", "b"]
+
+
+def test_parse_questions_trims_answer_to_count():
+    raw = ('[{"stem":"s","archetype":"micro","subquestions":'
+           '[{"prompt":"Name 2","count":2,"marks":1,"answer":["a","b","c"]}]}]')
+    qs = ae.parse_questions(raw)
+    assert qs[0]["subquestions"][0]["answer"] == ["a", "b"]  # trimmed to count
+
+
+def test_parse_questions_fixes_count_when_fewer_answers():
+    raw = ('[{"stem":"s","archetype":"micro","subquestions":'
+           '[{"prompt":"Name 3","count":3,"marks":1.5,"answer":["a","b"]}]}]')
+    qs = ae.parse_questions(raw)
+    sq = qs[0]["subquestions"][0]
+    assert sq["count"] == 2 and sq["answer"] == ["a", "b"]  # count follows actual answers
+
+
+def test_parse_questions_code_fence_and_prose():
+    raw = 'Sure:\n```json\n[{"stem":"s","subquestions":[]}]\n```\n'
+    assert ae.parse_questions(raw)[0]["stem"] == "s"
+
+
+def test_parse_questions_bad_raises_with_raw():
+    try:
+        ae.parse_questions("nope")
+    except ae.BadDraftOutput as e:
+        assert e.raw == "nope"
+    else:
+        assert False

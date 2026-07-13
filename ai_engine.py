@@ -66,3 +66,50 @@ def parse_cards(raw):
     if not cards:
         raise BadDraftOutput("no valid cards", raw=raw)
     return cards
+
+
+def _extract_array(raw):
+    """Shared: pull the first JSON array from Claude output, tolerant of fences/prose."""
+    if raw is None:
+        raise BadDraftOutput("empty output", raw=raw)
+    text = raw.strip()
+    fence = re.search(r"```(?:json)?\s*(.*?)```", text, re.S)
+    if fence:
+        text = fence.group(1).strip()
+    start = text.find("[")
+    if start == -1:
+        raise BadDraftOutput("no JSON array found", raw=raw)
+    try:
+        arr, _ = json.JSONDecoder().raw_decode(text[start:])
+    except ValueError as e:
+        raise BadDraftOutput(str(e), raw=raw)
+    if not isinstance(arr, list):
+        raise BadDraftOutput("not a list", raw=raw)
+    return arr
+
+
+def parse_questions(raw):
+    """Parse RC questions; enforce count == len(answer) per sub-question."""
+    arr = _extract_array(raw)
+    out = []
+    for item in arr:
+        if not isinstance(item, dict) or "stem" not in item:
+            continue
+        subs = []
+        for sq in item.get("subquestions", []) or []:
+            if not isinstance(sq, dict):
+                continue
+            ans = sq.get("answer") or []
+            if not isinstance(ans, list):
+                ans = [str(ans)]
+            count = sq.get("count")
+            if isinstance(count, int) and count < len(ans):
+                ans = ans[:count]            # trim over-long answer to stated count
+            count = len(ans)                 # count always mirrors the final answer list
+            subs.append({"prompt": str(sq.get("prompt", "")), "count": count,
+                         "marks": sq.get("marks", 0), "answer": [str(a) for a in ans]})
+        out.append({"stem": str(item.get("stem", "")),
+                    "archetype": str(item.get("archetype", "")), "subquestions": subs})
+    if not out:
+        raise BadDraftOutput("no valid questions", raw=raw)
+    return out
