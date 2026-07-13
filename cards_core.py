@@ -20,7 +20,7 @@ DECK = "Infectious Disease::Mandell"
 MODEL = "Cloze-AnKingMaster-v3"
 QUEUE_SUBDIRS = ("incoming", "pending", "drafts", "done")
 _STATUS_DIR = {"pending": "pending", "drafting": "pending", "drafted": "drafts",
-               "pushed": "done", "error": "drafts"}
+               "pushed": "done", "saved": "done", "error": "drafts"}
 
 
 def ensure_queue(base_dir, *, kind="cards"):

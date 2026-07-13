@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+from datetime import datetime
 from pathlib import Path
 
 import cards_core
@@ -75,3 +76,53 @@ def build_qprompt(nn, title, cards, highlights, rc_format):
         "\"subquestions\" (array of {\"prompt\",\"count\",\"marks\",\"answer\":[…]}). "
         "No prose, no code fence."
     )
+
+
+def ingest(base_dir, nn, title, pdf_bytes=None):
+    """Create a pending questions job from an uploaded PDF, or the retained source PDF."""
+    cards_core.ensure_queue(base_dir, kind=KIND)
+    if pdf_bytes is not None:
+        src = Path(base_dir) / "queue" / "source" / (str(nn) + ".pdf")
+        src.parent.mkdir(parents=True, exist_ok=True)
+        src.write_bytes(pdf_bytes)
+        pdf_path = src
+    else:
+        pdf_path = source_pdf(base_dir, nn)
+        if pdf_path is None:
+            raise FileNotFoundError("no source PDF for chapter " + str(nn))
+    highlights = cards_core.extract(str(pdf_path))
+    return cards_core.create_job(base_dir, nn, title, highlights, kind=KIND)
+
+
+def process_job(base_dir, job_id, draft_fn):
+    """Draft questions for a pending job. draft_fn(prompt) -> list[question]."""
+    job = cards_core.load_job(base_dir, job_id, kind=KIND)
+    if not job:
+        return
+    cards_core.set_status(base_dir, job, "drafting", kind=KIND)
+    try:
+        cards = load_chapter_cards(base_dir, job["nn"], job["title"])
+        prompt = build_qprompt(job["nn"], job["title"], cards, job.get("highlights", []),
+                               read_rc_format())
+        questions = draft_fn(prompt)
+        if not questions:
+            raise ValueError("no questions produced")
+        cards_core.set_status(base_dir, job, "drafted", kind=KIND, questions=questions)
+    except Exception as e:  # noqa: BLE001
+        cards_core.set_status(base_dir, job, "error", kind=KIND,
+                              error=str(e), rawOutput=getattr(e, "raw", None))
+
+
+def _chapter_q_dir(base_dir, nn, title):
+    return _artifact_root(base_dir) / QUESTIONS_SUBDIR / (str(nn) + " - " + str(title))
+
+
+def save(base_dir, job, approved_questions):
+    """Write approved questions to ID Practice Questions/<NN - Title>/<date>.json."""
+    d = _chapter_q_dir(base_dir, job["nn"], job["title"])
+    d.mkdir(parents=True, exist_ok=True)
+    out = {"chapter": str(job["nn"]), "title": job["title"], "questions": approved_questions}
+    (d / (datetime.now().strftime("%Y-%m-%d") + ".json")).write_text(
+        json.dumps(out, ensure_ascii=False, indent=2), encoding="utf-8")
+    cards_core.set_status(base_dir, job, "saved", kind=KIND, questions=approved_questions)
+    return {"saved": len(approved_questions)}
