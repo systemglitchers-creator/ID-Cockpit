@@ -23,9 +23,10 @@ _STATUS_DIR = {"pending": "pending", "drafting": "pending", "drafted": "drafts",
                "pushed": "done", "error": "drafts"}
 
 
-def ensure_queue(base_dir):
+def ensure_queue(base_dir, *, kind="cards"):
     for sub in QUEUE_SUBDIRS:
-        (Path(base_dir) / "queue" / sub).mkdir(parents=True, exist_ok=True)
+        (Path(base_dir) / "queue" / kind / sub).mkdir(parents=True, exist_ok=True)
+    (Path(base_dir) / "queue" / "source").mkdir(parents=True, exist_ok=True)
 
 
 def load_config(base_dir):
@@ -105,81 +106,84 @@ def read_grounding():
     return _read("STYLE_GUIDE.md"), _read("examples.md")
 
 
-def _job_path(base_dir, status, job_id):
-    return Path(base_dir) / "queue" / _STATUS_DIR[status] / (job_id + ".json")
+def _job_path(base_dir, status, job_id, *, kind="cards"):
+    return Path(base_dir) / "queue" / kind / _STATUS_DIR[status] / (job_id + ".json")
 
 
-def _find_job_file(base_dir, job_id):
+def _find_job_file(base_dir, job_id, *, kind="cards"):
     for sub in ("pending", "drafts", "done"):
-        p = Path(base_dir) / "queue" / sub / (job_id + ".json")
+        p = Path(base_dir) / "queue" / kind / sub / (job_id + ".json")
         if p.exists():
             return p
     return None
 
 
-def create_job(base_dir, nn, title, highlights):
-    ensure_queue(base_dir)
-    job = {
-        "id": uuid.uuid4().hex[:12],
-        "nn": str(nn), "title": str(title),
-        "status": "pending",
-        "created": datetime.now().isoformat(timespec="seconds"),
-        "highlights": highlights,
-    }
-    _job_path(base_dir, "pending", job["id"]).write_text(
+def create_job(base_dir, nn, title, highlights, *, kind="cards"):
+    ensure_queue(base_dir, kind=kind)
+    job = {"id": uuid.uuid4().hex[:12], "nn": str(nn), "title": str(title),
+           "status": "pending", "created": datetime.now().isoformat(timespec="seconds"),
+           "highlights": highlights}
+    _job_path(base_dir, "pending", job["id"], kind=kind).write_text(
         json.dumps(job, ensure_ascii=False, indent=2), encoding="utf-8")
     return job
 
 
-def load_job(base_dir, job_id):
-    p = _find_job_file(base_dir, job_id)
+def load_job(base_dir, job_id, *, kind="cards"):
+    p = _find_job_file(base_dir, job_id, kind=kind)
     if not p:
         return None
     return json.loads(p.read_text(encoding="utf-8"))
 
 
-def set_status(base_dir, job, status, **updates):
-    """Update job dict, move its file to the folder for `status`, persist."""
-    old = _find_job_file(base_dir, job["id"])
-    job = dict(job)
-    job["status"] = status
-    job.update(updates)
-    newp = _job_path(base_dir, status, job["id"])
+def set_status(base_dir, job, status, *, kind="cards", **updates):
+    old = _find_job_file(base_dir, job["id"], kind=kind)
+    job = dict(job); job["status"] = status; job.update(updates)
+    newp = _job_path(base_dir, status, job["id"], kind=kind)
     newp.write_text(json.dumps(job, ensure_ascii=False, indent=2), encoding="utf-8")
     if old and old != newp:
         old.unlink()
     return job
 
 
-def list_jobs(base_dir):
-    ensure_queue(base_dir)
+def list_jobs(base_dir, *, kind="cards"):
+    ensure_queue(base_dir, kind=kind)
     rows = []
     for sub in ("pending", "drafts", "done"):
-        for f in sorted((Path(base_dir) / "queue" / sub).glob("*.json")):
+        for f in sorted((Path(base_dir) / "queue" / kind / sub).glob("*.json")):
             try:
                 j = json.loads(f.read_text(encoding="utf-8"))
             except (ValueError, OSError):
                 continue
+            items = j.get("cards") or j.get("questions") or []
             rows.append({"id": j["id"], "nn": j.get("nn"), "title": j.get("title"),
-                         "status": j.get("status"), "count": len(j.get("cards") or [])})
+                         "status": j.get("status"), "count": len(items)})
     return rows
 
 
-def process_job(base_dir, job_id, draft_fn):
+def discard_job(base_dir, job_id, *, kind="cards"):
+    p = _find_job_file(base_dir, job_id, kind=kind)
+    if p:
+        p.unlink()
+    pdf = Path(base_dir) / "queue" / kind / "incoming" / (job_id + ".pdf")
+    if pdf.exists():
+        pdf.unlink()
+
+
+def process_job(base_dir, job_id, draft_fn, *, kind="cards"):
     """Draft cards for a pending job. draft_fn(prompt) -> list[{Text,Extra}]."""
-    job = load_job(base_dir, job_id)
+    job = load_job(base_dir, job_id, kind=kind)
     if not job:
         return
-    set_status(base_dir, job, "drafting")
+    set_status(base_dir, job, "drafting", kind=kind)
     try:
         style, examples = read_grounding()
         prompt = build_prompt(job["nn"], job["title"], job.get("highlights", []), style, examples)
         cards = draft_fn(prompt)
         if not cards:
             raise ValueError("no cards produced (no usable highlights?)")
-        set_status(base_dir, job, "drafted", cards=cards)
+        set_status(base_dir, job, "drafted", kind=kind, cards=cards)
     except Exception as e:  # noqa: BLE001 — record any failure for the UI
-        set_status(base_dir, job, "error", error=str(e), rawOutput=getattr(e, "raw", None))
+        set_status(base_dir, job, "error", kind=kind, error=str(e), rawOutput=getattr(e, "raw", None))
 
 
 def _chapter_dir(base_dir, nn, title):
@@ -188,28 +192,19 @@ def _chapter_dir(base_dir, nn, title):
 
 
 def _ingest_upload(base_dir, nn, title, pdf_bytes):
-    """Save an uploaded PDF, extract highlights, and create a pending job."""
-    ensure_queue(base_dir)
+    ensure_queue(base_dir, kind="cards")
     job_id = uuid.uuid4().hex[:12]
-    pdf_path = Path(base_dir) / "queue" / "incoming" / (job_id + ".pdf")
+    pdf_path = Path(base_dir) / "queue" / "cards" / "incoming" / (job_id + ".pdf")
     pdf_path.write_bytes(pdf_bytes)
+    # retain a per-chapter source PDF so questions can reuse it without re-upload
+    src = Path(base_dir) / "queue" / "source" / (str(nn) + ".pdf")
+    src.write_bytes(pdf_bytes)
     highlights = extract(str(pdf_path))
-    job = {
-        "id": job_id, "nn": str(nn), "title": str(title), "status": "pending",
-        "created": datetime.now().isoformat(timespec="seconds"), "highlights": highlights,
-    }
-    _job_path(base_dir, "pending", job_id).write_text(
+    job = {"id": job_id, "nn": str(nn), "title": str(title), "status": "pending",
+           "created": datetime.now().isoformat(timespec="seconds"), "highlights": highlights}
+    _job_path(base_dir, "pending", job_id, kind="cards").write_text(
         json.dumps(job, ensure_ascii=False, indent=2), encoding="utf-8")
     return job
-
-
-def discard_job(base_dir, job_id):
-    p = _find_job_file(base_dir, job_id)
-    if p:
-        p.unlink()
-    pdf = Path(base_dir) / "queue" / "incoming" / (job_id + ".pdf")
-    if pdf.exists():
-        pdf.unlink()
 
 
 def push(base_dir, job, approved_cards, runner=subprocess.run):

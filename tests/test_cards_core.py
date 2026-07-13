@@ -7,7 +7,7 @@ import cards_core as cc
 def test_ensure_queue_creates_dirs(tmp_path):
     cc.ensure_queue(tmp_path)
     for sub in ("incoming", "pending", "drafts", "done"):
-        assert (tmp_path / "queue" / sub).is_dir()
+        assert (tmp_path / "queue" / "cards" / sub).is_dir()
 
 
 def test_load_config_missing_is_unconfigured(tmp_path):
@@ -84,15 +84,15 @@ def test_create_and_load_job(tmp_path):
     assert job["status"] == "pending" and job["nn"] == "29" and job["id"]
     loaded = cc.load_job(tmp_path, job["id"])
     assert loaded["title"] == "Glycopeptides"
-    assert (tmp_path / "queue" / "pending" / (job["id"] + ".json")).exists()
+    assert (tmp_path / "queue" / "cards" / "pending" / (job["id"] + ".json")).exists()
 
 
 def test_set_status_moves_file(tmp_path):
     cc.ensure_queue(tmp_path)
     job = cc.create_job(tmp_path, "29", "Glyco", [])
     cc.set_status(tmp_path, job, "drafted", cards=[{"Text": "a", "Extra": ""}])
-    assert not (tmp_path / "queue" / "pending" / (job["id"] + ".json")).exists()
-    assert (tmp_path / "queue" / "drafts" / (job["id"] + ".json")).exists()
+    assert not (tmp_path / "queue" / "cards" / "pending" / (job["id"] + ".json")).exists()
+    assert (tmp_path / "queue" / "cards" / "drafts" / (job["id"] + ".json")).exists()
     reloaded = cc.load_job(tmp_path, job["id"])
     assert reloaded["status"] == "drafted" and reloaded["cards"][0]["Text"] == "a"
 
@@ -169,3 +169,23 @@ def test_ingest_upload_creates_pending_with_highlights(tmp_path):
     data = doc.tobytes(); doc.close()
     job = cc._ingest_upload(tmp_path, "30", "Strepto", data)
     assert job["status"] == "pending" and len(job["highlights"]) == 1
+
+
+def test_ingest_upload_retains_source_pdf(tmp_path):
+    import fitz
+    doc = fitz.open(); page = doc.new_page()
+    s = "Linezolid is an oxazolidinone."
+    page.insert_text((72, 100), s, fontsize=12)
+    for r in page.search_for(s): page.add_highlight_annot(r)
+    data = doc.tobytes(); doc.close()
+    cc._ingest_upload(tmp_path, "28", "Oxazolidinones", data)
+    assert (tmp_path / "queue" / "source" / "28.pdf").exists()
+
+
+def test_list_jobs_counts_questions_too(tmp_path):
+    cc.ensure_queue(tmp_path, kind="questions")
+    j = cc.create_job(tmp_path, "29", "Glyco", [], kind="questions")
+    cc.set_status(tmp_path, j, "drafted", kind="questions",
+                  questions=[{"stem": "s", "subquestions": []}])
+    rows = cc.list_jobs(tmp_path, kind="questions")
+    assert any(r["id"] == j["id"] and r["count"] == 1 for r in rows)
