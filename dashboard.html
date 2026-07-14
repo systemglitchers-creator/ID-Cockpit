@@ -166,6 +166,8 @@ body.loading .treewrap,body.loading .quest{opacity:.4;pointer-events:none}
 .q .qsub .dt.overdue{color:var(--gold)}
 .q .qsub .dt.today{color:var(--cyan);font-weight:600}
 .pwkdt{color:var(--faint);font-weight:400}
+.q .qacts{flex-wrap:wrap;gap:6px 8px}
+.xbtn,.cxbtn{border-color:var(--gold) !important;color:var(--gold) !important;background:rgba(255,206,92,.06) !important}
 </style>
 </head><body class="loading">
 <div class="hud"><div class="in">
@@ -314,26 +316,38 @@ function openPanel(si){
       lastChap=nn;
       html+='<div class="chapgen" data-nn="'+nn+'" data-title="'+esc(cleanTitle(r.r))+'">'
         +'<span class="cglabel">Chapter '+nn+'</span>'
-        +'<button class="mbtn gbtn" data-nn="'+nn+'" data-title="'+esc(cleanTitle(r.r))+'">✦ Generate cards</button>'
-        +'<span class="cgstatus" id="cg-'+nn+'"></span>'
-        +'<button class="mbtn gbtn qgbtn" data-nn="'+nn+'" data-title="'+esc(cleanTitle(r.r))+'">✦ Generate questions</button>'
-        +'<span class="cgstatus" id="qcg-'+nn+'"></span></div>';
+        +'<button class="mbtn cxbtn" data-nn="'+nn+'" data-title="'+esc(cleanTitle(r.r))+'">⬇ Export chapter PDF</button>'
+        +'<span class="cgstatus" id="cx-'+nn+'"></span></div>';
     }
     html+='<div class="q'+(dn?' done':'')+'" data-id="'+r.id+'">'
       +'<div class="chk" data-toggle="'+r.id+'"></div>'
       +'<div class="qmid"><div class="qttl">'+esc(r.r)+'</div>'
       +'<div class="qsub"><span class="dt'+(!dn&&r.gi<todayIdx?' overdue':(r.gi===todayIdx?' today':''))+'">'+(r.gi===todayIdx?'Today · ':'')+fmtD(dayDate(r.gi))+'</span>'+(r.ps?'<span class="pg">pp. '+r.ps+(r.pe&&r.pe!==r.ps?'–'+r.pe:'')+'</span>':'')
       +(nn?'<span class="bc">◆ '+c.cards+'</span><span class="bq">● '+c.questions+'</span>':'')+'</div>'
-      +'<div class="qacts"><button class="mbtn" data-act="questions" data-id="'+r.id+'">⧉ RC Q</button></div>'
+      +'<div class="qacts">'
+      +'<button class="mbtn gbtn" data-sess="'+r.id+'" data-nn="'+nn+'" data-title="'+esc(cleanTitle(r.r))+'">✦ Cards</button>'
+      +'<span class="cgstatus" id="cg-'+r.id+'"></span>'
+      +'<button class="mbtn gbtn qgbtn" data-sess="'+r.id+'" data-nn="'+nn+'" data-title="'+esc(cleanTitle(r.r))+'">✦ Questions</button>'
+      +'<span class="cgstatus" id="qcg-'+r.id+'"></span>'
+      +'<button class="mbtn xbtn" data-sess="'+r.id+'" data-nn="'+nn+'" data-title="'+esc(cleanTitle(r.r))+'" style="display:none">⬇ PDF</button>'
+      +'</div>'
       +'</div></div>';
   });
   body.innerHTML=html;
   Array.prototype.forEach.call(body.querySelectorAll(".chk"),function(el){el.onclick=function(){toggle(el.dataset.toggle);};});
-  Array.prototype.forEach.call(body.querySelectorAll(".q .mbtn[data-act]"),function(el){el.onclick=function(){var r=rowById(el.dataset.id);copyPrompt(el.dataset.act,r);};});
-  Array.prototype.forEach.call(body.querySelectorAll(".gbtn:not(.qgbtn)"),function(btn){btn.onclick=function(){showDropzone(btn.dataset.nn,btn.dataset.title,btn);};});
-  refreshCardJobs();
-  Array.prototype.forEach.call(body.querySelectorAll(".qgbtn"),function(btn){btn.onclick=function(){ startQuestions(btn.dataset.nn, btn.dataset.title, btn); };});
-  refreshQJobs();
+  Array.prototype.forEach.call(body.querySelectorAll(".gbtn:not(.qgbtn)"),function(b){
+    b.onclick=function(){ showDropzone(b.dataset.sess, b.dataset.nn, b.dataset.title, b); };
+  });
+  Array.prototype.forEach.call(body.querySelectorAll(".qgbtn"),function(b){
+    b.onclick=function(){ startQuestions(b.dataset.sess, b.dataset.nn, b.dataset.title, b); };
+  });
+  Array.prototype.forEach.call(body.querySelectorAll(".xbtn"),function(b){
+    b.onclick=function(){ exportPDF(b.dataset.nn, b.dataset.title, b.dataset.sess); };
+  });
+  Array.prototype.forEach.call(body.querySelectorAll(".cxbtn"),function(b){
+    b.onclick=function(){ exportPDF(b.dataset.nn, b.dataset.title, null); };
+  });
+  refreshCardJobs(); refreshQJobs();
   document.getElementById("panel").classList.add("open");
   document.getElementById("scrim").classList.add("on");
 }
@@ -364,43 +378,33 @@ function toastMsg(t){var el=document.getElementById("toast");el.textContent=t;el
 
 // ---- in-app card generation (SP2) ----
 var CARDJOBS={};
-function showDropzone(nn,title,anchor){
-  var host=anchor.closest(".chapgen");
-  if(host.nextSibling && host.nextSibling.classList && host.nextSibling.classList.contains("dz")){ return; }
+function showDropzone(sess,nn,title,anchor){
+  var host=anchor.closest(".qacts");
+  if(host.querySelector(".dz")) return;
   var dz=document.createElement("div"); dz.className="dz";
-  dz.textContent="Drop the highlighted PDF for Chapter "+nn+" here, or click to choose";
-  var inp=document.createElement("input"); inp.type="file"; inp.accept="application/pdf"; inp.style.display="none";
-  dz.appendChild(inp);
-  host.parentNode.insertBefore(dz, host.nextSibling);
+  dz.textContent="Drop the highlighted PDF for this reading";
+  var inp=document.createElement("input"); inp.type="file"; inp.accept="application/pdf"; inp.style.display="none"; dz.appendChild(inp);
+  anchor.closest(".q").appendChild(dz);
   dz.onclick=function(){ inp.click(); };
-  inp.onchange=function(){ if(inp.files[0]) uploadPdf(nn,title,inp.files[0],dz); };
+  inp.onchange=function(){ if(inp.files[0]) uploadPdf(sess,nn,title,inp.files[0],dz); };
   dz.ondragover=function(e){ e.preventDefault(); dz.classList.add("hot"); };
   dz.ondragleave=function(){ dz.classList.remove("hot"); };
-  dz.ondrop=function(e){ e.preventDefault(); dz.classList.remove("hot");
-    if(e.dataTransfer.files[0]) uploadPdf(nn,title,e.dataTransfer.files[0],dz); };
+  dz.ondrop=function(e){ e.preventDefault(); dz.classList.remove("hot"); if(e.dataTransfer.files[0]) uploadPdf(sess,nn,title,e.dataTransfer.files[0],dz); };
 }
-function uploadPdf(nn,title,file,dz){
-  dz.textContent="Uploading & scanning highlights…";
-  fetch("/api/cards/upload?nn="+encodeURIComponent(nn)+"&title="+encodeURIComponent(title),
+function uploadPdf(sess,nn,title,file,dz){
+  dz.textContent="Uploading & scanning…";
+  fetch("/api/cards/upload?sessionId="+encodeURIComponent(sess)+"&nn="+encodeURIComponent(nn)+"&title="+encodeURIComponent(title),
     {method:"POST",headers:{"Content-Type":"application/pdf"},body:file})
-    .then(function(r){return r.json();})
-    .then(function(){ dz.remove(); toastMsg("Drafting cards… I'll show them when ready"); pollCardJobs(); })
-    .catch(function(){ dz.textContent="Upload failed — try again"; });
+    .then(function(r){return r.json();}).then(function(){ dz.remove(); toastMsg("Drafting cards…"); pollCardJobs(); })
+    .catch(function(){ dz.textContent="Upload failed"; });
 }
-function refreshCardJobs(){
-  return fetch("/api/cards/jobs").then(function(r){return r.json();}).then(function(rows){
-    CARDJOBS={}; rows.forEach(function(j){ CARDJOBS[j.nn]=j; });
-    renderCardStatuses();
-  }).catch(function(){});
-}
+function refreshCardJobs(){ return fetch("/api/cards/jobs").then(function(r){return r.json();}).then(function(rows){ CARDJOBS={}; rows.forEach(function(j){ if(j.sessionId) CARDJOBS[j.sessionId]=j; }); renderCardStatuses(); }).catch(function(){}); }
 function renderCardStatuses(){
-  document.querySelectorAll(".chapgen").forEach(function(host){
-    var nn=host.dataset.nn, j=CARDJOBS[nn], el=document.getElementById("cg-"+nn);
-    if(!el) return;
-    if(!j){ el.textContent=""; return; }
+  Object.keys(CARDJOBS).forEach(function(sess){
+    var j=CARDJOBS[sess], el=document.getElementById("cg-"+sess); if(!el) return;
     if(j.status==="pending"||j.status==="drafting") el.textContent="· drafting…";
-    else if(j.status==="drafted"){ el.textContent="· ready to review ("+j.count+")"; ensureTray(host,j.id); }
-    else if(j.status==="error") el.textContent="· failed — retry";
+    else if(j.status==="drafted"){ el.textContent="· review ("+j.count+")"; var host=el.closest(".q"); if(host) ensureTray(host.querySelector(".qacts"),j.id); }
+    else if(j.status==="error") el.textContent="· failed";
     else if(j.status==="pushed") el.textContent="· pushed ✓";
   });
 }
@@ -412,7 +416,8 @@ function pollCardJobs(){
   }, 1500);
 }
 function ensureTray(host,jobId){
-  if(host.nextSibling && host.nextSibling.classList && host.nextSibling.classList.contains("tray")) return;
+  var row=host.closest(".q");
+  if(row.nextSibling && row.nextSibling.classList && row.nextSibling.classList.contains("tray")) return;
   fetch("/api/cards/job/"+jobId).then(function(r){return r.json();}).then(function(job){
     var tray=document.createElement("div"); tray.className="tray";
     var html="";
@@ -424,7 +429,7 @@ function ensureTray(host,jobId){
     html+='<div class="tfoot"><button class="mbtn gbtn tpush">⇪ Push approved to Anki</button>'
       +'<button class="mbtn tdiscard">Discard</button><span class="cgstatus tmsg"></span></div>';
     tray.innerHTML=html;
-    host.parentNode.insertBefore(tray, host.nextSibling);
+    row.parentNode.insertBefore(tray, row.nextSibling);
     tray.querySelectorAll(".tdrop").forEach(function(b){ b.onclick=function(){ b.closest(".tcard").classList.toggle("dropped"); }; });
     tray.querySelector(".tpush").onclick=function(){ pushTray(tray,jobId); };
     tray.querySelector(".tdiscard").onclick=function(){
@@ -449,50 +454,37 @@ function pushTray(tray,jobId){
 
 // ---- in-app practice questions (SP3) ----
 var QJOBS={};
-function startQuestions(nn,title,anchor){
-  var st=document.getElementById("qcg-"+nn); if(st) st.textContent="· checking…";
-  fetch("/api/questions/precheck?nn="+encodeURIComponent(nn)+"&title="+encodeURIComponent(title))
+function startQuestions(sess,nn,title,anchor){
+  var st=document.getElementById("qcg-"+sess); if(st) st.textContent="· checking…";
+  fetch("/api/questions/precheck?nn="+encodeURIComponent(nn)+"&title="+encodeURIComponent(title)+"&sessionId="+encodeURIComponent(sess))
     .then(function(r){return r.json();}).then(function(pc){
       if(!pc.hasCards){ if(st) st.textContent="· make cards first"; return; }
-      if(!pc.hasPdf){ questionsDropzone(nn,title,anchor); if(st) st.textContent=""; return; }
-      genQuestions(nn,title,null,st);
+      if(!pc.hasPdf){ if(st) st.textContent="· drop the PDF via ✦ Cards first"; return; }
+      genQuestions(sess,nn,title,st);
     }).catch(function(){ if(st) st.textContent="· error"; });
 }
-function questionsDropzone(nn,title,anchor){
-  var host=anchor.closest(".chapgen");
-  if(host.nextSibling && host.nextSibling.classList && host.nextSibling.classList.contains("dz")) return;
-  var dz=document.createElement("div"); dz.className="dz";
-  dz.textContent="No saved PDF — drop the Chapter "+nn+" PDF to make questions";
-  var inp=document.createElement("input"); inp.type="file"; inp.accept="application/pdf"; inp.style.display="none"; dz.appendChild(inp);
-  host.parentNode.insertBefore(dz,host.nextSibling);
-  dz.onclick=function(){ inp.click(); };
-  inp.onchange=function(){ if(inp.files[0]) genQuestions(nn,title,inp.files[0],document.getElementById("qcg-"+nn),dz); };
-  dz.ondragover=function(e){ e.preventDefault(); dz.classList.add("hot"); };
-  dz.ondragleave=function(){ dz.classList.remove("hot"); };
-  dz.ondrop=function(e){ e.preventDefault(); dz.classList.remove("hot"); if(e.dataTransfer.files[0]) genQuestions(nn,title,e.dataTransfer.files[0],document.getElementById("qcg-"+nn),dz); };
-}
-function genQuestions(nn,title,file,st,dz){
-  if(st) st.textContent="· drafting…"; if(dz) dz.remove();
-  var opts={method:"POST"};
-  if(file){ opts.headers={"Content-Type":"application/pdf"}; opts.body=file; }
-  fetch("/api/questions/generate?nn="+encodeURIComponent(nn)+"&title="+encodeURIComponent(title),opts)
+function genQuestions(sess,nn,title,st){
+  if(st) st.textContent="· drafting…";
+  fetch("/api/questions/generate?sessionId="+encodeURIComponent(sess)+"&nn="+encodeURIComponent(nn)+"&title="+encodeURIComponent(title),{method:"POST"})
     .then(function(r){return r.json();}).then(function(){ toastMsg("Drafting questions…"); pollQJobs(); })
     .catch(function(){ if(st) st.textContent="· failed"; });
 }
+function exportPDF(nn,title,sess){
+  var qs="nn="+encodeURIComponent(nn)+"&title="+encodeURIComponent(title)+(sess?"&session="+encodeURIComponent(sess):"");
+  window.open("/api/questions/export?"+qs, "_blank");
+}
 function refreshQJobs(){
   return fetch("/api/questions/jobs").then(function(r){return r.json();}).then(function(rows){
-    QJOBS={}; rows.forEach(function(j){ QJOBS[j.nn]=j; }); renderQStatuses();
+    QJOBS={}; rows.forEach(function(j){ if(j.sessionId) QJOBS[j.sessionId]=j; }); renderQStatuses();
   }).catch(function(){});
 }
 function renderQStatuses(){
-  document.querySelectorAll(".chapgen").forEach(function(host){
-    var nn=host.dataset.nn, j=QJOBS[nn], el=document.getElementById("qcg-"+nn);
-    if(!el) return;
-    if(!j){ el.textContent=""; return; }
+  Object.keys(QJOBS).forEach(function(sess){
+    var j=QJOBS[sess], el=document.getElementById("qcg-"+sess); if(!el) return;
     if(j.status==="pending"||j.status==="drafting") el.textContent="· drafting…";
-    else if(j.status==="drafted"){ el.textContent="· review ("+j.count+")"; ensureQTray(host,j.id); }
-    else if(j.status==="error") el.textContent="· failed — retry";
-    else if(j.status==="saved") el.textContent="· saved ✓";
+    else if(j.status==="drafted"){ el.textContent="· review ("+j.count+")"; var host=el.closest(".q"); if(host) ensureQTray(host.querySelector(".qacts"),j.id); }
+    else if(j.status==="error") el.textContent="· failed";
+    else if(j.status==="saved"){ el.textContent="· saved ✓"; var row=el.closest(".q"); if(row){ var x=row.querySelector(".xbtn"); if(x) x.style.display=""; } }
   });
 }
 function pollQJobs(){
@@ -502,7 +494,8 @@ function pollQJobs(){
   },1500);
 }
 function ensureQTray(host,jobId){
-  if(host.nextSibling && host.nextSibling.classList && host.nextSibling.classList.contains("qtray")) return;
+  var row=host.closest(".q");
+  if(row.nextSibling && row.nextSibling.classList && row.nextSibling.classList.contains("qtray")) return;
   fetch("/api/questions/job/"+jobId).then(function(r){return r.json();}).then(function(job){
     var tray=document.createElement("div"); tray.className="qtray"; var html="";
     (job.questions||[]).forEach(function(q,i){
@@ -516,7 +509,7 @@ function ensureQTray(host,jobId){
     });
     html+='<div class="tfoot"><button class="mbtn gbtn qsave">⇩ Save approved</button>'
       +'<button class="mbtn qdiscard">Discard</button><span class="cgstatus qmsg"></span></div>';
-    tray.innerHTML=html; host.parentNode.insertBefore(tray,host.nextSibling);
+    tray.innerHTML=html; row.parentNode.insertBefore(tray,row.nextSibling);
     tray.querySelectorAll(".qdrop").forEach(function(b){ b.onclick=function(){ b.closest(".qq").classList.toggle("dropped"); }; });
     tray.querySelector(".qsave").onclick=function(){ saveQTray(tray,jobId); };
     tray.querySelector(".qdiscard").onclick=function(){ fetch("/api/questions/job/"+jobId+"/discard",{method:"POST"}).then(function(){ tray.remove(); refreshQJobs(); }); };

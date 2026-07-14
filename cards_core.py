@@ -155,7 +155,8 @@ def list_jobs(base_dir, *, kind="cards"):
             except (ValueError, OSError):
                 continue
             items = j.get("cards") or j.get("questions") or []
-            rows.append({"id": j["id"], "nn": j.get("nn"), "title": j.get("title"),
+            rows.append({"id": j["id"], "sessionId": j.get("sessionId"),
+                         "nn": j.get("nn"), "title": j.get("title"),
                          "status": j.get("status"), "count": len(items)})
     return rows
 
