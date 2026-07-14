@@ -44,7 +44,7 @@ def test_config_reports_unconfigured(tmp_path):
 def test_upload_then_draft_then_list(tmp_path):
     httpd, port = _start(tmp_path)
     try:
-        st, body = _req(port, "/api/cards/upload?nn=29&title=Glycopeptides",
+        st, body = _req(port, "/api/cards/upload?sessionId=ch29-p1&nn=29&title=Glycopeptides",
                         data=_highlighted_pdf_bytes(), method="POST", ctype="application/pdf")
         assert st == 200
         job_id = json.loads(body)["jobId"]

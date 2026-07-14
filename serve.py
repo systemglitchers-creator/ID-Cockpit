@@ -13,6 +13,7 @@ import platform_core as core
 import cards_core
 import ai_engine
 import questions_core
+import export_pdf
 
 PLATFORM_DIR = Path(__file__).resolve().parent
 DEFAULT_BASE = PLATFORM_DIR.parent  # the "8. Claude" artifact root
@@ -127,7 +128,8 @@ class Handler(BaseHTTPRequestHandler):
             return
         if route == "/api/questions/precheck":
             q = {k: v[0] for k, v in parse_qs(urlparse(self.path).query).items()}
-            self._send_json(questions_core.precheck(self._pdir(), q.get("nn", ""), q.get("title", "")))
+            self._send_json(questions_core.precheck(self._pdir(), q.get("nn", ""),
+                                                    q.get("title", ""), q.get("sessionId", "")))
             return
         if route == "/api/questions/jobs":
             self._send_json(cards_core.list_jobs(self._pdir(), kind="questions"))
@@ -138,6 +140,30 @@ class Handler(BaseHTTPRequestHandler):
             if job is None:
                 self.send_error(404, "no such job"); return
             self._send_json(job)
+            return
+        if route == "/api/questions/export":
+            q = {k: v[0] for k, v in parse_qs(urlparse(self.path).query).items()}
+            nn, title, sess = q.get("nn", ""), q.get("title", ""), q.get("session")
+            if sess:
+                qs = questions_core.load_session_questions(self._pdir(), nn, title, sess)
+                sub = "session " + sess + " · practice questions"
+                fname = sess + ".pdf"
+            else:
+                qs = questions_core.load_all_questions(self._pdir(), nn, title)
+                sub = "all sessions · practice questions"
+                fname = str(nn) + " - " + title + " - all questions.pdf"
+            header = {"chapter": "Chapter " + str(nn) + " — " + title, "subtitle": sub}
+            data = export_pdf.build(header, qs)
+            # durable copy alongside the question JSON
+            outdir = questions_core._chapter_q_dir(self._pdir(), nn, title)
+            outdir.mkdir(parents=True, exist_ok=True)
+            (outdir / fname).write_bytes(data)
+            self.send_response(200)
+            self.send_header("Content-Type", "application/pdf")
+            self.send_header("Content-Disposition", 'attachment; filename="' + fname + '"')
+            self.send_header("Content-Length", str(len(data)))
+            self.end_headers()
+            self.wfile.write(data)
             return
         self.send_error(404, "Not found")
 
@@ -161,7 +187,8 @@ class Handler(BaseHTTPRequestHandler):
             q = {k: v[0] for k, v in parse_qs(urlparse(self.path).query).items()}
             length = int(self.headers.get("Content-Length", 0))
             pdf = self.rfile.read(length) if length else b""
-            job = cards_core._ingest_upload(self._pdir(), q.get("nn", ""), q.get("title", ""), pdf)
+            job = cards_core._ingest_upload(self._pdir(), q.get("sessionId", ""),
+                                            q.get("nn", ""), q.get("title", ""), pdf)
             self.server.card_q.put(("cards", job["id"]))
             self._send_json({"jobId": job["id"]})
             return
@@ -192,7 +219,8 @@ class Handler(BaseHTTPRequestHandler):
             length = int(self.headers.get("Content-Length", 0))
             pdf = self.rfile.read(length) if length else None
             try:
-                job = questions_core.ingest(self._pdir(), q.get("nn", ""), q.get("title", ""), pdf)
+                job = questions_core.ingest(self._pdir(), q.get("sessionId", ""),
+                                            q.get("nn", ""), q.get("title", ""), pdf)
             except FileNotFoundError:
                 self.send_error(409, "no source PDF; upload one"); return
             self.server.card_q.put(("questions", job["id"]))

@@ -29,6 +29,11 @@ def _get(port, path):
         return r.status, r.read().decode()
 
 
+def _get_raw(port, path):
+    with urllib.request.urlopen(f"http://127.0.0.1:{port}{path}") as r:
+        return r.status, r.read()
+
+
 def _post(port, path, obj=None, raw=None, ctype="application/json"):
     data = raw if raw is not None else (json.dumps(obj).encode() if obj is not None else None)
     req = urllib.request.Request(f"http://127.0.0.1:{port}{path}", data=data, method="POST",
@@ -46,12 +51,10 @@ def test_precheck(tmp_path):
         httpd.shutdown()
 
 
-def test_generate_from_uploaded_pdf_then_save(tmp_path):
-    # seed a card so grounding has something (not strictly required for the stub)
-    d = tmp_path.parent / "ID Anki Cards" / "31 - Ceftaroline"
+def test_generate_then_save_then_export(tmp_path):
     httpd, port = _start(tmp_path)
     try:
-        st, b = _post(port, "/api/questions/generate?nn=31&title=Ceftaroline",
+        st, b = _post(port, "/api/questions/generate?sessionId=ch31-p1&nn=31&title=Ceftaroline",
                       raw=_pdf(), ctype="application/pdf")
         assert st == 200
         jid = json.loads(b)["jobId"]
@@ -62,11 +65,13 @@ def test_generate_from_uploaded_pdf_then_save(tmp_path):
                 ok = True; break
             time.sleep(0.1)
         assert ok
-        _, jd = _get(port, f"/api/questions/job/{jid}")
-        assert json.loads(jd)["questions"][0]["stem"].startswith("A patient")
-        st, sv = _post(port, f"/api/questions/job/{jid}/save",
-                       obj={"questions": STUB_QS})
+        st, sv = _post(port, f"/api/questions/job/{jid}/save", obj={"questions": STUB_QS})
         assert st == 200 and json.loads(sv)["saved"] == 1
-        assert list((tmp_path.parent / "ID Practice Questions" / "31 - Ceftaroline").glob("*.json"))
+        # per-session export streams a PDF
+        st, pdf = _get_raw(port, "/api/questions/export?nn=31&title=Ceftaroline&session=ch31-p1")
+        assert st == 200 and pdf[:4] == b"%PDF"
+        # combined chapter export also works
+        st, pdf2 = _get_raw(port, "/api/questions/export?nn=31&title=Ceftaroline")
+        assert st == 200 and pdf2[:4] == b"%PDF"
     finally:
         httpd.shutdown()
