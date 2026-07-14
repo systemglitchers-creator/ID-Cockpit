@@ -167,19 +167,19 @@ def test_ingest_upload_creates_pending_with_highlights(tmp_path):
     page.insert_text((72, 100), s, fontsize=12)
     for r in page.search_for(s): page.add_highlight_annot(r)
     data = doc.tobytes(); doc.close()
-    job = cc._ingest_upload(tmp_path, "30", "Strepto", data)
-    assert job["status"] == "pending" and len(job["highlights"]) == 1
+    job = cc._ingest_upload(tmp_path, "ch30-p1", "30", "Strepto", data)
+    assert job["status"] == "pending" and job["sessionId"] == "ch30-p1" and len(job["highlights"]) == 1
 
 
-def test_ingest_upload_retains_source_pdf(tmp_path):
+def test_ingest_upload_retains_session_source_pdf(tmp_path):
     import fitz
     doc = fitz.open(); page = doc.new_page()
     s = "Linezolid is an oxazolidinone."
     page.insert_text((72, 100), s, fontsize=12)
     for r in page.search_for(s): page.add_highlight_annot(r)
     data = doc.tobytes(); doc.close()
-    cc._ingest_upload(tmp_path, "28", "Oxazolidinones", data)
-    assert (tmp_path / "queue" / "source" / "28.pdf").exists()
+    cc._ingest_upload(tmp_path, "ch28-p2", "28", "Oxazolidinones", data)
+    assert (tmp_path / "queue" / "source" / "ch28-p2.pdf").exists()
 
 
 def test_list_jobs_counts_questions_too(tmp_path):

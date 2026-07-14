@@ -191,17 +191,18 @@ def _chapter_dir(base_dir, nn, title):
     return Path(base_dir).parent / CARDS_SUBDIR / (str(nn) + " - " + str(title))
 
 
-def _ingest_upload(base_dir, nn, title, pdf_bytes):
+def _ingest_upload(base_dir, session_id, nn, title, pdf_bytes):
     ensure_queue(base_dir, kind="cards")
     job_id = uuid.uuid4().hex[:12]
     pdf_path = Path(base_dir) / "queue" / "cards" / "incoming" / (job_id + ".pdf")
     pdf_path.write_bytes(pdf_bytes)
-    # retain a per-chapter source PDF so questions can reuse it without re-upload
-    src = Path(base_dir) / "queue" / "source" / (str(nn) + ".pdf")
+    # retain a per-session source PDF so questions can reuse it without re-upload
+    src = Path(base_dir) / "queue" / "source" / (str(session_id) + ".pdf")
     src.write_bytes(pdf_bytes)
     highlights = extract(str(pdf_path))
-    job = {"id": job_id, "nn": str(nn), "title": str(title), "status": "pending",
-           "created": datetime.now().isoformat(timespec="seconds"), "highlights": highlights}
+    job = {"id": job_id, "sessionId": str(session_id), "nn": str(nn), "title": str(title),
+           "status": "pending", "created": datetime.now().isoformat(timespec="seconds"),
+           "highlights": highlights}
     _job_path(base_dir, "pending", job_id, kind="cards").write_text(
         json.dumps(job, ensure_ascii=False, indent=2), encoding="utf-8")
     return job

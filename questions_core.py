@@ -36,14 +36,14 @@ def load_chapter_cards(base_dir, nn, title):
     return cards
 
 
-def source_pdf(base_dir, nn):
-    p = Path(base_dir) / "queue" / "source" / (str(nn) + ".pdf")
+def source_pdf(base_dir, session_id):
+    p = Path(base_dir) / "queue" / "source" / (str(session_id) + ".pdf")
     return p if p.exists() else None
 
 
-def precheck(base_dir, nn, title):
+def precheck(base_dir, nn, title, session_id):
     return {"hasCards": len(load_chapter_cards(base_dir, nn, title)) > 0,
-            "hasPdf": source_pdf(base_dir, nn) is not None}
+            "hasPdf": source_pdf(base_dir, session_id) is not None}
 
 
 def read_rc_format():
@@ -78,20 +78,21 @@ def build_qprompt(nn, title, cards, highlights, rc_format):
     )
 
 
-def ingest(base_dir, nn, title, pdf_bytes=None):
-    """Create a pending questions job from an uploaded PDF, or the retained source PDF."""
+def ingest(base_dir, session_id, nn, title, pdf_bytes=None):
+    """Create a pending questions job from an uploaded PDF, or the session's source PDF."""
     cards_core.ensure_queue(base_dir, kind=KIND)
     if pdf_bytes is not None:
-        src = Path(base_dir) / "queue" / "source" / (str(nn) + ".pdf")
+        src = Path(base_dir) / "queue" / "source" / (str(session_id) + ".pdf")
         src.parent.mkdir(parents=True, exist_ok=True)
         src.write_bytes(pdf_bytes)
         pdf_path = src
     else:
-        pdf_path = source_pdf(base_dir, nn)
+        pdf_path = source_pdf(base_dir, session_id)
         if pdf_path is None:
-            raise FileNotFoundError("no source PDF for chapter " + str(nn))
+            raise FileNotFoundError("no source PDF for session " + str(session_id))
     highlights = cards_core.extract(str(pdf_path))
-    return cards_core.create_job(base_dir, nn, title, highlights, kind=KIND)
+    job = cards_core.create_job(base_dir, nn, title, highlights, kind=KIND)
+    return cards_core.set_status(base_dir, job, "pending", kind=KIND, sessionId=str(session_id))
 
 
 def process_job(base_dir, job_id, draft_fn):
