@@ -1,30 +1,61 @@
-"""Render practice questions to a clean RC-exam-styled PDF using PyMuPDF."""
+"""Render practice questions to a clean RC-exam-styled PDF using PyMuPDF.
+
+Embeds a Unicode system font (Arial) so medical characters (β, μ, ≥, α, ×, en/em
+dashes) render correctly; falls back to PyMuPDF's built-in Latin-1 fonts if those
+system fonts aren't present. Fonts are subset on save to keep the PDF small.
+"""
 from __future__ import annotations
+
+import os
 
 import fitz
 
 _MARGIN = 54
-_REG, _BOLD, _ITAL = "helv", "hebo", "heit"
+
+_CANDIDATES = {
+    "reg":  ["/System/Library/Fonts/Supplemental/Arial.ttf", "/Library/Fonts/Arial.ttf"],
+    "bold": ["/System/Library/Fonts/Supplemental/Arial Bold.ttf", "/Library/Fonts/Arial Bold.ttf"],
+    "ital": ["/System/Library/Fonts/Supplemental/Arial Italic.ttf", "/Library/Fonts/Arial Italic.ttf"],
+}
+_BUILTIN = {"reg": "helv", "bold": "hebo", "ital": "heit"}
+
+
+def _resolve():
+    return {style: next((c for c in cands if os.path.exists(c)), None)
+            for style, cands in _CANDIDATES.items()}
+
+
+_FILES = _resolve()
 
 
 def _wrap(font, size, width, text):
-    words = str(text).split()
-    lines, cur = [], ""
-    for w in words:
-        t = (cur + " " + w).strip()
-        if font.text_length(t, size) <= width or not cur:
-            cur = t
-        else:
-            lines.append(cur); cur = w
-    if cur:
-        lines.append(cur)
-    return lines or [""]
+    out = []
+    for para in str(text).split("\n"):
+        cur = ""
+        for w in para.split():
+            t = (cur + " " + w).strip()
+            if font.text_length(t, size) <= width or not cur:
+                cur = t
+            else:
+                out.append(cur); cur = w
+        out.append(cur)
+    return out or [""]
 
 
 class _Doc:
     def __init__(self):
         self.doc = fitz.open()
-        self.rf, self.bf, self.itf = fitz.Font(_REG), fitz.Font(_BOLD), fitz.Font(_ITAL)
+        self.fonts, self.tag, self.file = {}, {}, {}
+        for style in ("reg", "bold", "ital"):
+            f = _FILES.get(style)
+            if f:
+                self.fonts[style] = fitz.Font(fontfile=f)
+                self.tag[style] = "id" + style
+                self.file[style] = f
+            else:
+                self.fonts[style] = fitz.Font(_BUILTIN[style])
+                self.tag[style] = _BUILTIN[style]
+                self.file[style] = None
         self.page = None
         self.y = 0
         self.rect = fitz.paper_rect("letter")
@@ -34,16 +65,17 @@ class _Doc:
         self.y = _MARGIN
 
     def line(self, text, size=11, style="reg", indent=0, gap=3):
-        font = {"bold": self.bf, "ital": self.itf}.get(style, self.rf)
-        fname = {"bold": _BOLD, "ital": _ITAL}.get(style, _REG)
         if self.page is None:
             self._newpage()
+        font = self.fonts[style]
         width = self.rect.width - 2 * _MARGIN - indent
         for ln in _wrap(font, size, width, text):
             if self.y + size + gap > self.rect.height - _MARGIN:
                 self._newpage()
-            self.page.insert_text((_MARGIN + indent, self.y + size), ln,
-                                  fontname=fname, fontsize=size)
+            kw = {"fontname": self.tag[style], "fontsize": size}
+            if self.file[style]:
+                kw["fontfile"] = self.file[style]
+            self.page.insert_text((_MARGIN + indent, self.y + size), ln, **kw)
             self.y += size + gap
 
     def space(self, h=8):
@@ -81,4 +113,8 @@ def build(header, questions):
             for a in sq.get("answer", []) or []:
                 d.line("•  " + str(a), size=10, indent=30)
         d.space(6)
+    try:
+        d.doc.subset_fonts()
+    except Exception:
+        pass
     return d.doc.tobytes()

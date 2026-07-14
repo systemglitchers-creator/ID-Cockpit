@@ -15,7 +15,9 @@ def test_build_returns_pdf_with_questions_and_answers():
     data = export_pdf.build(HEADER, QS)
     assert data[:4] == b"%PDF"
     doc = fitz.open(stream=data, filetype="pdf")
-    txt = "".join(p.get_text() for p in doc)
+    # PyMuPDF extraction of embedded-font text uses non-breaking spaces; normalize
+    # them so content checks aren't fooled (the rendered PDF spacing is correct).
+    txt = "".join(p.get_text() for p in doc).replace("\xa0", " ")
     assert "Endocarditis" in txt
     assert "Name 2 empiric agents" in txt
     assert "(1.5)" in txt              # mark weighting rendered
