@@ -119,11 +119,34 @@ def _chapter_q_dir(base_dir, nn, title):
 
 
 def save(base_dir, job, approved_questions):
-    """Write approved questions to ID Practice Questions/<NN - Title>/<date>.json."""
+    """Write approved questions to ID Practice Questions/<NN - Title>/<sessionId>.json."""
     d = _chapter_q_dir(base_dir, job["nn"], job["title"])
     d.mkdir(parents=True, exist_ok=True)
-    out = {"chapter": str(job["nn"]), "title": job["title"], "questions": approved_questions}
-    (d / (datetime.now().strftime("%Y-%m-%d") + ".json")).write_text(
-        json.dumps(out, ensure_ascii=False, indent=2), encoding="utf-8")
+    name = (job.get("sessionId") or datetime.now().strftime("%Y-%m-%d")) + ".json"
+    out = {"chapter": str(job["nn"]), "title": job["title"],
+           "sessionId": job.get("sessionId", ""), "questions": approved_questions}
+    (d / name).write_text(json.dumps(out, ensure_ascii=False, indent=2), encoding="utf-8")
     cards_core.set_status(base_dir, job, "saved", kind=KIND, questions=approved_questions)
     return {"saved": len(approved_questions)}
+
+
+def load_session_questions(base_dir, nn, title, session_id):
+    f = _chapter_q_dir(base_dir, nn, title) / (str(session_id) + ".json")
+    if not f.exists():
+        return []
+    try:
+        return json.loads(f.read_text(encoding="utf-8")).get("questions", []) or []
+    except (ValueError, OSError):
+        return []
+
+
+def load_all_questions(base_dir, nn, title):
+    d = _chapter_q_dir(base_dir, nn, title)
+    out = []
+    if d.is_dir():
+        for f in sorted(d.glob("*.json")):  # session files sort in reading order (p1, p2, …)
+            try:
+                out.extend(json.loads(f.read_text(encoding="utf-8")).get("questions", []) or [])
+            except (ValueError, OSError):
+                continue
+    return out
