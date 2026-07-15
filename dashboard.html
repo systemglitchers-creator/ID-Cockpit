@@ -206,7 +206,6 @@ function chapNum(t){var m=/^\s*(?:Chapter\s+)?(\d+)/.exec(t||"");return m?m[1]:"
 function cleanTitle(t){return String(t||"").replace(/\s+·.*$/,"").replace(/^\s*(?:Chapter\s+)?\d+\s*[—–-]\s*/,"").trim();}
 function esc(s){return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
 function isDone(id){var e=STATUS.done[id];return !!(e&&e.done);}
-function counts(nn){return STATUS.chapters[nn]||{cards:0,questions:0};}
 
 function compute(){
   var gTot=0,gDone=0,pTot=0,pDone=0,completed=0,overdue=0,nextQuest=null;
@@ -258,10 +257,8 @@ function render(){
     q.innerHTML='<div><div class="qk">▸ Next quest</div>'
       +'<div class="qt">'+esc(cleanTitle(r.r)||r.r)+'</div>'
       +'<div class="qm">'+(r.ps?'pp. '+r.ps+(r.pe&&r.pe!==r.ps?'–'+r.pe:''):'')+' · sector <b>'+esc(sec.title)+'</b></div></div>'
-      +'<div class="qacts"><button class="qbtn go" id="qOpen">Open sector →</button>'
-      +'<button class="qbtn ghost" id="qCopy">⧉ Make cards</button></div>';
+      +'<div class="qacts"><button class="qbtn go" id="qOpen">Open sector →</button></div>';
     document.getElementById("qOpen").onclick=function(){openPanel(m.nextQuest.si);};
-    document.getElementById("qCopy").onclick=function(){copyPrompt("cards",r);};
   } else { q.innerHTML='<div><div class="qk">✦ Curriculum complete</div><div class="qt">Every sector cleared — onward to the exam.</div></div>'; }
   // tree
   var tree=document.getElementById("tree");
@@ -307,47 +304,19 @@ function openPanel(si){
   document.getElementById("pt").textContent=s.title;
   document.getElementById("psub").textContent=x.dn+" / "+x.tot+" sessions · "+x.ppd+" / "+x.pp+" pp · "+Math.round(x.frac*100)+"%";
   document.getElementById("pbar").style.width=(x.frac*100)+"%";
-  var body=document.getElementById("pbody"), html="", lastWk=null, lastChap=null;
+  var body=document.getElementById("pbody"), html="", lastWk=null;
   var todayIdx=Math.floor((Date.now()-START_DATE.getTime())/DAY);
   s.rows.forEach(function(r){
-    var nn=chapNum(r.r), c=counts(nn), dn=isDone(r.id);
+    var dn=isDone(r.id);
     if(r.wk!==lastWk){ html+='<div class="pwk">Week '+r.wk+' <span class="pwkdt">· '+fmtD(dayDate((r.wk-1)*7))+' – '+fmtD(dayDate((r.wk-1)*7+6))+'</span></div>'; lastWk=r.wk; }
-    if(nn && nn!==lastChap){
-      lastChap=nn;
-      html+='<div class="chapgen" data-nn="'+nn+'" data-title="'+esc(cleanTitle(r.r))+'">'
-        +'<span class="cglabel">Chapter '+nn+'</span>'
-        +'<button class="mbtn cxbtn" data-nn="'+nn+'" data-title="'+esc(cleanTitle(r.r))+'">⬇ Export chapter PDF</button>'
-        +'<span class="cgstatus" id="cx-'+nn+'"></span></div>';
-    }
     html+='<div class="q'+(dn?' done':'')+'" data-id="'+r.id+'">'
       +'<div class="chk" data-toggle="'+r.id+'"></div>'
       +'<div class="qmid"><div class="qttl">'+esc(r.r)+'</div>'
-      +'<div class="qsub"><span class="dt'+(!dn&&r.gi<todayIdx?' overdue':(r.gi===todayIdx?' today':''))+'">'+(r.gi===todayIdx?'Today · ':'')+fmtD(dayDate(r.gi))+'</span>'+(r.ps?'<span class="pg">pp. '+r.ps+(r.pe&&r.pe!==r.ps?'–'+r.pe:'')+'</span>':'')
-      +(nn?'<span class="bc">◆ '+c.cards+'</span><span class="bq">● '+c.questions+'</span>':'')+'</div>'
-      +'<div class="qacts">'
-      +'<button class="mbtn gbtn" data-sess="'+r.id+'" data-nn="'+nn+'" data-title="'+esc(cleanTitle(r.r))+'">✦ Cards</button>'
-      +'<span class="cgstatus" id="cg-'+r.id+'"></span>'
-      +'<button class="mbtn gbtn qgbtn" data-sess="'+r.id+'" data-nn="'+nn+'" data-title="'+esc(cleanTitle(r.r))+'">✦ Questions</button>'
-      +'<span class="cgstatus" id="qcg-'+r.id+'"></span>'
-      +'<button class="mbtn xbtn" data-sess="'+r.id+'" data-nn="'+nn+'" data-title="'+esc(cleanTitle(r.r))+'" style="display:none">⬇ PDF</button>'
-      +'</div>'
+      +'<div class="qsub"><span class="dt'+(!dn&&r.gi<todayIdx?' overdue':(r.gi===todayIdx?' today':''))+'">'+(r.gi===todayIdx?'Today · ':'')+fmtD(dayDate(r.gi))+'</span>'+(r.ps?'<span class="pg">pp. '+r.ps+(r.pe&&r.pe!==r.ps?'–'+r.pe:'')+'</span>':'')+'</div>'
       +'</div></div>';
   });
   body.innerHTML=html;
   Array.prototype.forEach.call(body.querySelectorAll(".chk"),function(el){el.onclick=function(){toggle(el.dataset.toggle);};});
-  Array.prototype.forEach.call(body.querySelectorAll(".gbtn:not(.qgbtn)"),function(b){
-    b.onclick=function(){ showDropzone(b.dataset.sess, b.dataset.nn, b.dataset.title, b); };
-  });
-  Array.prototype.forEach.call(body.querySelectorAll(".qgbtn"),function(b){
-    b.onclick=function(){ startQuestions(b.dataset.sess, b.dataset.nn, b.dataset.title, b); };
-  });
-  Array.prototype.forEach.call(body.querySelectorAll(".xbtn"),function(b){
-    b.onclick=function(){ exportPDF(b.dataset.nn, b.dataset.title, b.dataset.sess); };
-  });
-  Array.prototype.forEach.call(body.querySelectorAll(".cxbtn"),function(b){
-    b.onclick=function(){ exportPDF(b.dataset.nn, b.dataset.title, null); };
-  });
-  refreshCardJobs(); refreshQJobs();
   document.getElementById("panel").classList.add("open");
   document.getElementById("scrim").classList.add("on");
 }
@@ -364,175 +333,9 @@ function toggle(id){
     .catch(function(){toastMsg("Sync failed — will retry on reload");});
 }
 
-function copyPrompt(action,r){
-  if(!r){return;}
-  var nn=chapNum(r.r), title=cleanTitle(r.r);
-  var qs="action="+action+"&NN="+encodeURIComponent(nn)+"&title="+encodeURIComponent(title)+"&ps="+encodeURIComponent(r.ps||"")+"&pe="+encodeURIComponent(r.pe||r.ps||"");
-  api("/api/prompt?"+qs).then(function(d){
-    return navigator.clipboard.writeText(d.prompt).then(function(){toastMsg("Copied — paste into Claude Code");});
-  }).catch(function(){toastMsg("Couldn't copy — check clipboard permissions");});
-}
 
 var toastT=null;
 function toastMsg(t){var el=document.getElementById("toast");el.textContent=t;el.classList.add("show");clearTimeout(toastT);toastT=setTimeout(function(){el.classList.remove("show");},2600);}
-
-// ---- in-app card generation (SP2) ----
-var CARDJOBS={};
-function showDropzone(sess,nn,title,anchor){
-  var host=anchor.closest(".qacts");
-  if(host.querySelector(".dz")) return;
-  var dz=document.createElement("div"); dz.className="dz";
-  dz.textContent="Drop the highlighted PDF for this reading";
-  var inp=document.createElement("input"); inp.type="file"; inp.accept="application/pdf"; inp.style.display="none"; dz.appendChild(inp);
-  anchor.closest(".q").appendChild(dz);
-  dz.onclick=function(){ inp.click(); };
-  inp.onchange=function(){ if(inp.files[0]) uploadPdf(sess,nn,title,inp.files[0],dz); };
-  dz.ondragover=function(e){ e.preventDefault(); dz.classList.add("hot"); };
-  dz.ondragleave=function(){ dz.classList.remove("hot"); };
-  dz.ondrop=function(e){ e.preventDefault(); dz.classList.remove("hot"); if(e.dataTransfer.files[0]) uploadPdf(sess,nn,title,e.dataTransfer.files[0],dz); };
-}
-function uploadPdf(sess,nn,title,file,dz){
-  dz.textContent="Uploading & scanning…";
-  fetch("/api/cards/upload?sessionId="+encodeURIComponent(sess)+"&nn="+encodeURIComponent(nn)+"&title="+encodeURIComponent(title),
-    {method:"POST",headers:{"Content-Type":"application/pdf"},body:file})
-    .then(function(r){return r.json();}).then(function(){ dz.remove(); toastMsg("Drafting cards…"); pollCardJobs(); })
-    .catch(function(){ dz.textContent="Upload failed"; });
-}
-function refreshCardJobs(){ return fetch("/api/cards/jobs").then(function(r){return r.json();}).then(function(rows){ CARDJOBS={}; rows.forEach(function(j){ if(j.sessionId) CARDJOBS[j.sessionId]=j; }); renderCardStatuses(); }).catch(function(){}); }
-function renderCardStatuses(){
-  Object.keys(CARDJOBS).forEach(function(sess){
-    var j=CARDJOBS[sess], el=document.getElementById("cg-"+sess); if(!el) return;
-    if(j.status==="pending"||j.status==="drafting") el.textContent="· drafting…";
-    else if(j.status==="drafted"){ el.textContent="· review ("+j.count+")"; var host=el.closest(".q"); if(host) ensureTray(host.querySelector(".qacts"),j.id); }
-    else if(j.status==="error") el.textContent="· failed";
-    else if(j.status==="pushed") el.textContent="· pushed ✓";
-  });
-}
-function pollCardJobs(){
-  var n=0; var iv=setInterval(function(){
-    n++; refreshCardJobs();
-    var anyDrafting=Object.keys(CARDJOBS).some(function(k){var s=CARDJOBS[k].status;return s==="pending"||s==="drafting";});
-    if(!anyDrafting || n>120){ clearInterval(iv); }
-  }, 1500);
-}
-function ensureTray(host,jobId){
-  var row=host.closest(".q");
-  if(row.nextSibling && row.nextSibling.classList && row.nextSibling.classList.contains("tray")) return;
-  fetch("/api/cards/job/"+jobId).then(function(r){return r.json();}).then(function(job){
-    var tray=document.createElement("div"); tray.className="tray";
-    var html="";
-    (job.cards||[]).forEach(function(c,i){
-      html+='<div class="tcard" data-i="'+i+'"><textarea class="ttext">'+esc(c.Text)+'</textarea>'
-        +'<textarea class="textra" placeholder="Extra (optional)">'+esc(c.Extra||"")+'</textarea>'
-        +'<div class="trow"><button class="mbtn tdrop">Delete</button></div></div>';
-    });
-    html+='<div class="tfoot"><button class="mbtn gbtn tpush">⇪ Push approved to Anki</button>'
-      +'<button class="mbtn tdiscard">Discard</button><span class="cgstatus tmsg"></span></div>';
-    tray.innerHTML=html;
-    row.parentNode.insertBefore(tray, row.nextSibling);
-    tray.querySelectorAll(".tdrop").forEach(function(b){ b.onclick=function(){ b.closest(".tcard").classList.toggle("dropped"); }; });
-    tray.querySelector(".tpush").onclick=function(){ pushTray(tray,jobId); };
-    tray.querySelector(".tdiscard").onclick=function(){
-      fetch("/api/cards/job/"+jobId+"/discard",{method:"POST"}).then(function(){ tray.remove(); refreshCardJobs(); }); };
-  });
-}
-function pushTray(tray,jobId){
-  var cards=[];
-  tray.querySelectorAll(".tcard").forEach(function(c){
-    if(c.classList.contains("dropped")) return;
-    var t=c.querySelector(".ttext").value.trim(); if(!t) return;
-    cards.push({Text:t, Extra:c.querySelector(".textra").value.trim()});
-  });
-  var msg=tray.querySelector(".tmsg"); msg.textContent="Pushing…";
-  fetch("/api/cards/job/"+jobId+"/push",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({cards:cards})})
-    .then(function(r){return r.json();}).then(function(res){
-      if(res.anki==="ok"){ msg.textContent="Pushed ✓"; toastMsg("Cards pushed to Anki"); tray.remove(); refreshStatus(); refreshCardJobs(); }
-      else if(res.anki==="offline"){ msg.textContent="Anki closed — saved a backup, open Anki and push again"; }
-      else { msg.textContent="Push error: "+(res.detail||""); }
-    }).catch(function(){ msg.textContent="Push failed"; });
-}
-
-// ---- in-app practice questions (SP3) ----
-var QJOBS={};
-function startQuestions(sess,nn,title,anchor){
-  var st=document.getElementById("qcg-"+sess); if(st) st.textContent="· checking…";
-  fetch("/api/questions/precheck?nn="+encodeURIComponent(nn)+"&title="+encodeURIComponent(title)+"&sessionId="+encodeURIComponent(sess))
-    .then(function(r){return r.json();}).then(function(pc){
-      if(!pc.hasCards){ if(st) st.textContent="· make cards first"; return; }
-      if(!pc.hasPdf){ if(st) st.textContent="· drop the PDF via ✦ Cards first"; return; }
-      genQuestions(sess,nn,title,st);
-    }).catch(function(){ if(st) st.textContent="· error"; });
-}
-function genQuestions(sess,nn,title,st){
-  if(st) st.textContent="· drafting…";
-  fetch("/api/questions/generate?sessionId="+encodeURIComponent(sess)+"&nn="+encodeURIComponent(nn)+"&title="+encodeURIComponent(title),{method:"POST"})
-    .then(function(r){return r.json();}).then(function(){ toastMsg("Drafting questions…"); pollQJobs(); })
-    .catch(function(){ if(st) st.textContent="· failed"; });
-}
-function exportPDF(nn,title,sess){
-  var qs="nn="+encodeURIComponent(nn)+"&title="+encodeURIComponent(title)+(sess?"&session="+encodeURIComponent(sess):"");
-  window.open("/api/questions/export?"+qs, "_blank");
-}
-function refreshQJobs(){
-  return fetch("/api/questions/jobs").then(function(r){return r.json();}).then(function(rows){
-    QJOBS={}; rows.forEach(function(j){ if(j.sessionId) QJOBS[j.sessionId]=j; }); renderQStatuses();
-  }).catch(function(){});
-}
-function renderQStatuses(){
-  Object.keys(QJOBS).forEach(function(sess){
-    var j=QJOBS[sess], el=document.getElementById("qcg-"+sess); if(!el) return;
-    if(j.status==="pending"||j.status==="drafting") el.textContent="· drafting…";
-    else if(j.status==="drafted"){ el.textContent="· review ("+j.count+")"; var host=el.closest(".q"); if(host) ensureQTray(host.querySelector(".qacts"),j.id); }
-    else if(j.status==="error") el.textContent="· failed";
-    else if(j.status==="saved"){ el.textContent="· saved ✓"; var row=el.closest(".q"); if(row){ var x=row.querySelector(".xbtn"); if(x) x.style.display=""; } }
-  });
-}
-function pollQJobs(){
-  var n=0; var iv=setInterval(function(){ n++; refreshQJobs();
-    var busy=Object.keys(QJOBS).some(function(k){var s=QJOBS[k].status;return s==="pending"||s==="drafting";});
-    if(!busy||n>120) clearInterval(iv);
-  },1500);
-}
-function ensureQTray(host,jobId){
-  var row=host.closest(".q");
-  if(row.nextSibling && row.nextSibling.classList && row.nextSibling.classList.contains("qtray")) return;
-  fetch("/api/questions/job/"+jobId).then(function(r){return r.json();}).then(function(job){
-    var tray=document.createElement("div"); tray.className="qtray"; var html="";
-    (job.questions||[]).forEach(function(q,i){
-      html+='<div class="qq" data-i="'+i+'"><textarea class="qstem">'+esc(q.stem)+'</textarea>';
-      (q.subquestions||[]).forEach(function(sq){
-        html+='<div class="sub"><div class="sp"><input class="p" value="'+esc(sq.prompt)+'"><input class="m" value="'+esc(String(sq.marks))+'"></div>';
-        (sq.answer||[]).forEach(function(a){ html+='<div class="ans"><input value="'+esc(a)+'"></div>'; });
-        html+='</div>';
-      });
-      html+='<div class="trow" style="margin-top:6px"><button class="mbtn qdrop">Delete question</button></div></div>';
-    });
-    html+='<div class="tfoot"><button class="mbtn gbtn qsave">⇩ Save approved</button>'
-      +'<button class="mbtn qdiscard">Discard</button><span class="cgstatus qmsg"></span></div>';
-    tray.innerHTML=html; row.parentNode.insertBefore(tray,row.nextSibling);
-    tray.querySelectorAll(".qdrop").forEach(function(b){ b.onclick=function(){ b.closest(".qq").classList.toggle("dropped"); }; });
-    tray.querySelector(".qsave").onclick=function(){ saveQTray(tray,jobId); };
-    tray.querySelector(".qdiscard").onclick=function(){ fetch("/api/questions/job/"+jobId+"/discard",{method:"POST"}).then(function(){ tray.remove(); refreshQJobs(); }); };
-  });
-}
-function saveQTray(tray,jobId){
-  var questions=[];
-  tray.querySelectorAll(".qq").forEach(function(qq){
-    if(qq.classList.contains("dropped")) return;
-    var stem=qq.querySelector(".qstem").value.trim(); if(!stem) return;
-    var subs=[];
-    qq.querySelectorAll(".sub").forEach(function(sub){
-      var ans=[]; sub.querySelectorAll(".ans input").forEach(function(ai){ var v=ai.value.trim(); if(v) ans.push(v); });
-      subs.push({prompt:sub.querySelector("input.p").value.trim(), marks:parseFloat(sub.querySelector("input.m").value)||0, count:ans.length, answer:ans});
-    });
-    questions.push({stem:stem, archetype:"", subquestions:subs});
-  });
-  var msg=tray.querySelector(".qmsg"); msg.textContent="Saving…";
-  fetch("/api/questions/job/"+jobId+"/save",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({questions:questions})})
-    .then(function(r){return r.json();}).then(function(res){
-      msg.textContent="Saved ✓ ("+res.saved+")"; toastMsg("Questions saved"); tray.remove(); refreshStatus(); refreshQJobs();
-    }).catch(function(){ msg.textContent="Save failed"; });
-}
 
 function warpToActive(){
   var n=document.querySelector('.node.active')||document.querySelector('.node');
@@ -544,15 +347,8 @@ document.getElementById("scrim").onclick=closePanel;
 document.getElementById("jump").onclick=warpToActive;
 document.addEventListener("keydown",function(e){if(e.key==="Escape")closePanel();});
 
-function refreshStatus(){
-  var pb=document.getElementById("pbody"), sc=pb?pb.scrollTop:0;
-  return api("/api/status").then(function(s){
-    STATUS=s; render();
-    if(openSi!==null){ openPanel(openSi); var np=document.getElementById("pbody"); if(np) np.scrollTop=sc; }
-  }).catch(function(){});
-}
 function boot(){
-  api("/api/status").then(function(s){STATUS=s;}).catch(function(){STATUS={done:{},chapters:{}};})
+  api("/api/status").then(function(s){STATUS=s;}).catch(function(){STATUS={done:{}};})
     .then(function(){
       document.body.classList.remove("loading");
       render();
@@ -560,9 +356,5 @@ function boot(){
     });
 }
 boot();
-// live auto-refresh: pick up new cards/questions without a manual reload
-setInterval(function(){ if(!document.hidden) refreshStatus(); }, 20000);
-document.addEventListener("visibilitychange",function(){ if(!document.hidden) refreshStatus(); });
-window.addEventListener("focus", refreshStatus);
 </script>
 </body></html>

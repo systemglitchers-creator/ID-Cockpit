@@ -30,16 +30,12 @@ def _post(port, path, obj):
         return r.status, r.read().decode()
 
 
-def test_status_reports_counts(tmp_path):
-    cards = tmp_path / "ID Anki Cards" / "20 - Penicillins"
-    cards.mkdir(parents=True)
-    (cards / "2026-07-01.json").write_text(json.dumps({"cards": [{"Text": "a"}, {"Text": "b"}]}))
+def test_status_reports_done(tmp_path):
     httpd, port = _start_server(tmp_path)
     try:
         st, body = _get(port, "/api/status")
         data = json.loads(body)
         assert st == 200
-        assert data["chapters"]["20"]["cards"] == 2
         assert data["done"] == {}
     finally:
         httpd.shutdown()
@@ -63,16 +59,6 @@ def test_import_seeds_done(tmp_path):
         assert st == 200
         _, body = _get(port, "/api/status")
         assert set(json.loads(body)["done"]) == {"ch20-p1", "ch21-p1"}
-    finally:
-        httpd.shutdown()
-
-
-def test_prompt_endpoint_fills_template(tmp_path):
-    httpd, port = _start_server(tmp_path)
-    try:
-        _, body = _get(port, "/api/prompt?action=cards&NN=20&title=Penicillins&ps=263&pe=268")
-        prompt = json.loads(body)["prompt"]
-        assert "Chapter 20" in prompt and "Penicillins" in prompt and "263-268" in prompt
     finally:
         httpd.shutdown()
 

@@ -1,58 +1,13 @@
-"""Pure logic for the ID Study Platform cockpit. No HTTP here."""
+"""Pure logic for the ID Study reading schedule. No HTTP here.
+
+Only read-state tracking remains — card/question counting was removed along with
+the in-app generation (that work is done via the Claude Code skills).
+"""
 from __future__ import annotations
 
 import json
-import os
-import re
 from datetime import datetime
 from pathlib import Path
-
-_CHAPTER_RE = re.compile(r"(?:Chapter\s+)?(\d+)")
-CARDS_SUBDIR = "ID Anki Cards"
-QUESTIONS_SUBDIR = "ID Practice Questions"
-
-
-def parse_chapter_num(title):
-    """Return the chapter number as a string, or None if the title has none.
-
-    Matches 'Chapter 20 — ...' and '20 - ...'. Returns the first integer that
-    appears at, or right after an optional 'Chapter ' prefix at, the start.
-    """
-    m = _CHAPTER_RE.match(title.strip())
-    return m.group(1) if m else None
-
-
-def _count_items(json_path, key):
-    """Number of items under `key` in a JSON file; 0 if unreadable or absent."""
-    try:
-        obj = json.loads(json_path.read_text(encoding="utf-8"))
-    except (ValueError, OSError):
-        return 0
-    items = obj.get(key) if isinstance(obj, dict) else None
-    return len(items) if isinstance(items, list) else 0
-
-
-def _scan_subdir(base_dir, subdir, key, counts):
-    root = Path(base_dir) / subdir
-    if not root.is_dir():
-        return
-    for chapter_dir in root.iterdir():
-        if not chapter_dir.is_dir():
-            continue
-        nn = parse_chapter_num(chapter_dir.name)
-        if nn is None:
-            continue
-        total = sum(_count_items(f, key) for f in chapter_dir.glob("*.json"))
-        counts.setdefault(nn, {"cards": 0, "questions": 0})
-        counts[nn][key] += total
-
-
-def scan_counts(base_dir):
-    """Map chapter number -> {'cards': n, 'questions': m} by scanning artifact folders."""
-    counts = {}
-    _scan_subdir(base_dir, CARDS_SUBDIR, "cards", counts)
-    _scan_subdir(base_dir, QUESTIONS_SUBDIR, "questions", counts)
-    return counts
 
 
 def _now_iso():
@@ -99,11 +54,3 @@ def import_ids(state_path, ids):
             state["sessions"][sid] = {"done": True, "doneAt": _now_iso()}
     _save_state(state_path, state)
     return state
-
-
-def fill_prompt(template, fields):
-    """Replace {key} placeholders with values. Unknown placeholders are left as-is."""
-    out = template
-    for key, val in fields.items():
-        out = out.replace("{" + key + "}", str(val))
-    return out

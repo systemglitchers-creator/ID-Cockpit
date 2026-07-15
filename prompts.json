@@ -1,4 +1,0 @@
-{
-  "cards": "Using the id-anki-cards skill, make Anki cards from the highlighted PDF for Chapter {NN} — {title}, pages {ps}-{pe}. Confirm the PDF path with me before extracting.",
-  "questions": "Using the id-practice-questions skill, make RC-format practice questions for Chapter {NN} — {title} from my existing Anki cards."
-}
