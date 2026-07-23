@@ -13,6 +13,11 @@ from urllib.parse import urlparse
 
 import platform_core as core
 
+
+def _sync_cfg():
+    return core.load_sync_config(PLATFORM_DIR)
+
+
 PLATFORM_DIR = Path(__file__).resolve().parent
 DEFAULT_BASE = PLATFORM_DIR.parent  # the "8. Claude" artifact root
 STATIC_FILES = {
@@ -77,6 +82,10 @@ class Handler(BaseHTTPRequestHandler):
             session_id = route[len("/api/session/"):-len("/done")]
             body = self._read_body()
             entry = core.toggle_done(self._state_path(), session_id, bool(body.get("done")))
+            cfg = _sync_cfg()
+            if cfg:
+                try: core.push_remote(cfg, core.load_state(self._state_path()))
+                except Exception: pass
             self._send_json(entry)
             return
         if route == "/api/import":
@@ -85,6 +94,10 @@ class Handler(BaseHTTPRequestHandler):
             if not isinstance(ids, list):
                 ids = []
             core.import_ids(self._state_path(), ids)
+            cfg = _sync_cfg()
+            if cfg:
+                try: core.push_remote(cfg, core.load_state(self._state_path()))
+                except Exception: pass
             self._send_json({"imported": len(ids)})
             return
         self.send_error(404, "Not found")
@@ -98,6 +111,15 @@ class Handler(BaseHTTPRequestHandler):
 def make_server(host="127.0.0.1", port=8756, base_dir=None):
     httpd = ThreadingHTTPServer((host, port), Handler)
     httpd.base_dir = base_dir or str(os.environ.get("ID_PLATFORM_BASE", DEFAULT_BASE))
+    cfg = core.load_sync_config(PLATFORM_DIR)
+    if cfg:
+        try:
+            state_path = Path(httpd.base_dir) / PLATFORM_DIR.name / "state.json"
+            local = core.load_state(state_path)
+            merged = {"sessions": core.merge_sessions(local["sessions"], core.pull_remote(cfg))}
+            core._save_state(state_path, merged)
+        except Exception:
+            pass  # offline / bad token: keep local
     return httpd
 
 
