@@ -527,7 +527,7 @@ Immediately AFTER it, insert:
 
 - [ ] **Step 2: Add the settings overlay markup**
 
-In `phone/index.html`, immediately BEFORE the closing `</body>` tag, insert:
+In `phone/index.html`, immediately AFTER the `<div class="toast" id="toast"></div>` line (i.e. BEFORE the `<script src="sync.js">` tag). The overlay markup MUST be parsed before the inline script runs, because `setupSettings` (Step 4) wires these elements synchronously at script-execution time — placing it after the script leaves the elements unparsed and throws, aborting `boot()`. Insert:
 
 ```html
 <div id="cfgScrim" class="cfg-scrim"></div>

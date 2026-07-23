@@ -225,6 +225,25 @@ html{-webkit-text-size-adjust:100%}
   <div class="pbody" id="pbody"></div>
 </aside>
 <div class="toast" id="toast"></div>
+<div id="cfgScrim" class="cfg-scrim"></div>
+<div id="cfgModal" class="cfg-modal" role="dialog" aria-label="Sync settings">
+  <div class="cfg-h">Sync &amp; Backup <button id="cfgClose" class="cfg-x">✕</button></div>
+  <label class="cfg-l">GitHub token (gist scope)</label>
+  <input id="cfgToken" class="cfg-i" type="password" autocomplete="off" placeholder="github_pat_…">
+  <label class="cfg-l">Gist ID</label>
+  <input id="cfgGist" class="cfg-i" type="text" autocomplete="off" placeholder="e.g. 3f9a…">
+  <div class="cfg-row">
+    <button id="cfgSave" class="qbtn go">Save</button>
+    <button id="cfgSync" class="qbtn ghost">Sync now</button>
+  </div>
+  <div id="cfgStatus" class="cfg-s"></div>
+  <div class="cfg-sep"></div>
+  <div class="cfg-row">
+    <button id="cfgExport" class="qbtn ghost">Export JSON</button>
+    <button id="cfgImport" class="qbtn ghost">Import JSON</button>
+    <input id="cfgFile" type="file" accept="application/json" hidden>
+  </div>
+</div>
 
 <script src="sync.js"></script>
 <script>
@@ -478,23 +497,4 @@ function boot(){
 }
 boot();
 </script>
-<div id="cfgScrim" class="cfg-scrim"></div>
-<div id="cfgModal" class="cfg-modal" role="dialog" aria-label="Sync settings">
-  <div class="cfg-h">Sync &amp; Backup <button id="cfgClose" class="cfg-x">✕</button></div>
-  <label class="cfg-l">GitHub token (gist scope)</label>
-  <input id="cfgToken" class="cfg-i" type="password" autocomplete="off" placeholder="github_pat_…">
-  <label class="cfg-l">Gist ID</label>
-  <input id="cfgGist" class="cfg-i" type="text" autocomplete="off" placeholder="e.g. 3f9a…">
-  <div class="cfg-row">
-    <button id="cfgSave" class="qbtn go">Save</button>
-    <button id="cfgSync" class="qbtn ghost">Sync now</button>
-  </div>
-  <div id="cfgStatus" class="cfg-s"></div>
-  <div class="cfg-sep"></div>
-  <div class="cfg-row">
-    <button id="cfgExport" class="qbtn ghost">Export JSON</button>
-    <button id="cfgImport" class="qbtn ghost">Import JSON</button>
-    <input id="cfgFile" type="file" accept="application/json" hidden>
-  </div>
-</div>
 </body></html>
