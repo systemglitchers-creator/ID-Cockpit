@@ -174,6 +174,22 @@ body.loading .treewrap,body.loading .quest{opacity:.4;pointer-events:none}
 .pwkdt{color:var(--faint);font-weight:400}
 .q .qacts{flex-wrap:wrap;gap:6px 8px}
 .xbtn,.cxbtn{border-color:var(--gold) !important;color:var(--gold) !important;background:rgba(255,206,92,.06) !important}
+/* ---- phone ---- */
+@media (max-width:640px){
+  .hud .in{flex-wrap:wrap;gap:12px;padding:10px 14px calc(10px + env(safe-area-inset-bottom,0px));padding-top:calc(10px + env(safe-area-inset-top,0px))}
+  .xpwrap{order:3;flex-basis:100%}
+  .hstats{gap:12px}
+  .hstat .v{font-size:16px}
+  .jbtn{padding:7px 10px}
+  .quest{padding:0 14px}
+  .qcard{flex-direction:column;align-items:flex-start;gap:10px}
+  .qcard .qacts{margin-left:0}
+  .treewrap{padding:20px 0 28px}
+  /* larger tap targets in the sector panel */
+  .chk{width:26px;height:26px}
+  .q{padding-top:10px;padding-bottom:10px}
+}
+html{-webkit-text-size-adjust:100%}
 </style>
 </head><body class="loading">
 <div class="hud"><div class="in">
