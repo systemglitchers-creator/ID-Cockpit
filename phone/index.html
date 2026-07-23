@@ -190,6 +190,17 @@ body.loading .treewrap,body.loading .quest{opacity:.4;pointer-events:none}
   .q{padding-top:10px;padding-bottom:10px}
 }
 html{-webkit-text-size-adjust:100%}
+.cfg-scrim{position:fixed;inset:0;background:rgba(3,2,10,.72);opacity:0;pointer-events:none;transition:opacity .2s;z-index:90}
+.cfg-scrim.on{opacity:1;pointer-events:auto}
+.cfg-modal{position:fixed;z-index:91;left:50%;top:50%;transform:translate(-50%,-46%) scale(.98);opacity:0;pointer-events:none;transition:all .2s;width:min(420px,92vw);background:var(--panel2);border:1px solid var(--line);border-radius:16px;padding:18px 18px calc(18px + env(safe-area-inset-bottom,0px));box-shadow:0 20px 60px rgba(0,0,0,.6)}
+.cfg-modal.open{opacity:1;pointer-events:auto;transform:translate(-50%,-50%) scale(1)}
+.cfg-h{font-family:var(--disp);font-weight:700;font-size:16px;display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.cfg-x{background:none;border:0;color:var(--dim);font-size:16px;cursor:pointer}
+.cfg-l{display:block;font-family:var(--mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--dim);margin:10px 0 5px}
+.cfg-i{width:100%;background:#0b0820;border:1px solid var(--line);border-radius:9px;color:var(--txt);font-family:var(--mono);font-size:13px;padding:10px 11px}
+.cfg-row{display:flex;gap:9px;margin-top:14px;flex-wrap:wrap}
+.cfg-s{font-family:var(--mono);font-size:11px;color:var(--dim);margin-top:10px;min-height:14px}
+.cfg-sep{height:1px;background:var(--line);margin:16px 0 2px}
 </style>
 </head><body class="loading">
 <div class="hud"><div class="in">
@@ -201,6 +212,7 @@ html{-webkit-text-size-adjust:100%}
     <div class="hstat"><div class="v warn" id="sOver">0</div><div class="l">Overdue</div></div>
   </div>
   <button class="jbtn" id="jump">◎ Warp to active</button>
+  <button class="jbtn" id="cfgBtn" title="Settings">⚙ Sync</button>
 </div></div>
 
 <div class="quest"><div class="qcard" id="quest"></div></div>
@@ -407,6 +419,52 @@ function applyTreeZoom(){
   else { t.style.zoom=""; }
 }
 window.addEventListener("resize", applyTreeZoom);
+(function setupSettings(){
+  var scrim=document.getElementById("cfgScrim"), modal=document.getElementById("cfgModal");
+  var status=document.getElementById("cfgStatus");
+  function open(){
+    var c=IDSync.cfg();
+    document.getElementById("cfgToken").value=c.token||"";
+    document.getElementById("cfgGist").value=c.gistId||"";
+    status.textContent=IDSync.configured()?"Sync configured.":"Not configured — progress stays on this device.";
+    scrim.classList.add("on"); modal.classList.add("open");
+  }
+  function close(){ scrim.classList.remove("on"); modal.classList.remove("open"); }
+  document.getElementById("cfgBtn").onclick=open;
+  document.getElementById("cfgClose").onclick=close;
+  scrim.onclick=close;
+  document.getElementById("cfgSave").onclick=function(){
+    IDSync.setCfg({token:document.getElementById("cfgToken").value.trim(), gistId:document.getElementById("cfgGist").value.trim()});
+    status.textContent="Saved. Syncing…";
+    IDSync.syncNow().then(function(ok){ status.textContent=ok?"Synced ✓":"Saved (sync unavailable)."; })
+      .catch(function(){ status.textContent="Saved, but sync failed — check token/gist."; });
+  };
+  document.getElementById("cfgSync").onclick=function(){
+    status.textContent="Syncing…";
+    IDSync.syncNow().then(function(ok){ status.textContent=ok?"Synced ✓":"Nothing to sync."; })
+      .catch(function(){ status.textContent="Sync failed — check token/gist."; });
+  };
+  document.getElementById("cfgExport").onclick=function(){
+    var blob=new Blob([JSON.stringify(IDStore.getState(),null,2)],{type:"application/json"});
+    var a=document.createElement("a"); a.href=URL.createObjectURL(blob);
+    a.download="id-cockpit-state.json"; a.click(); setTimeout(function(){URL.revokeObjectURL(a.href);},1000);
+  };
+  document.getElementById("cfgImport").onclick=function(){ document.getElementById("cfgFile").click(); };
+  document.getElementById("cfgFile").onchange=function(e){
+    var f=e.target.files[0]; if(!f) return;
+    var rd=new FileReader();
+    rd.onload=function(){
+      try{
+        var data=JSON.parse(rd.result);
+        if(!data||typeof data.sessions!=="object") throw new Error("bad");
+        IDStore.mergeRemote(data.sessions);
+        refreshFromStore(); IDSync.schedulePush();
+        status.textContent="Imported ✓";
+      }catch(err){ status.textContent="Import failed — not a valid state file."; }
+    };
+    rd.readAsText(f); e.target.value="";
+  };
+})();
 function boot(){
   api("/api/status").then(function(s){STATUS=s;}).catch(function(){STATUS={done:{}};})
     .then(function(){
@@ -420,4 +478,23 @@ function boot(){
 }
 boot();
 </script>
+<div id="cfgScrim" class="cfg-scrim"></div>
+<div id="cfgModal" class="cfg-modal" role="dialog" aria-label="Sync settings">
+  <div class="cfg-h">Sync &amp; Backup <button id="cfgClose" class="cfg-x">✕</button></div>
+  <label class="cfg-l">GitHub token (gist scope)</label>
+  <input id="cfgToken" class="cfg-i" type="password" autocomplete="off" placeholder="github_pat_…">
+  <label class="cfg-l">Gist ID</label>
+  <input id="cfgGist" class="cfg-i" type="text" autocomplete="off" placeholder="e.g. 3f9a…">
+  <div class="cfg-row">
+    <button id="cfgSave" class="qbtn go">Save</button>
+    <button id="cfgSync" class="qbtn ghost">Sync now</button>
+  </div>
+  <div id="cfgStatus" class="cfg-s"></div>
+  <div class="cfg-sep"></div>
+  <div class="cfg-row">
+    <button id="cfgExport" class="qbtn ghost">Export JSON</button>
+    <button id="cfgImport" class="qbtn ghost">Import JSON</button>
+    <input id="cfgFile" type="file" accept="application/json" hidden>
+  </div>
+</div>
 </body></html>
