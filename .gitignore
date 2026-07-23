@@ -5,3 +5,5 @@ __pycache__/
 server.log
 config.json
 queue/
+
+sync.json
