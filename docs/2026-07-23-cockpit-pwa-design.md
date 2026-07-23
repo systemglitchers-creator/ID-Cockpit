@@ -13,11 +13,12 @@ no network required after first load.
 ## Constraints & decisions (from brainstorming)
 
 - **Approach:** Installable PWA, fully self-contained. Progress stored on the phone.
-- **Non-destructive:** The existing Mac app (`serve.py` + `dashboard.html` + `state.json`) must
-  keep working exactly as-is. Anything that reads `state.json` (skills, imports) is untouched.
-  The phone build is therefore a **separate build**, not an edit to the served `dashboard.html`.
-- **Separate progress:** Phone and Mac keep independent state (accepted). A manual JSON
-  export/import is the bridge between them — no cloud sync in this iteration (YAGNI).
+- **Non-destructive to the UI:** The existing served `dashboard.html` and the schedule data are
+  not rewritten. The phone build is a **separate build**. The Mac's `serve.py`/`platform_core.py`
+  gain an *additive* sync capability (below) but their existing local behavior is preserved.
+- **Cloud sync (chosen):** Mac ↔ phone share one source of truth via a **private GitHub Gist**
+  holding the same `state.json` schema. Same GitHub account used for Pages; no extra server.
+  Manual JSON export/import is retained as a fallback/seed path.
 - **Hosting:** GitHub Pages. The repo is currently local-only (no remote). A one-time push +
   Pages enable gives the https origin required for service-worker registration and
   "Add to Home Screen".
@@ -50,7 +51,8 @@ Output lives in a new subfolder so the Mac build is never touched:
 ```
 ID Platform/
   phone/                 # the entire deployable PWA (this is what GitHub Pages serves)
-    index.html           # dashboard.html with the storage shim + PWA head tags
+    index.html           # dashboard.html with the storage shim + sync + PWA head tags
+    sync.js              # Gist pull/merge/push layer + Settings panel wiring
     manifest.webmanifest
     sw.js                # service worker (offline shell + font caching)
     icons/
@@ -73,12 +75,38 @@ shapes**, so `boot()`, `toggle()`, and everything downstream stay byte-for-byte 
 - Returns Promises so the existing `.then()/.catch()` call sites are unchanged. Writes are
   synchronous, so the "Sync failed" toast path effectively never fires.
 
-### 2. Export / Import (manual Mac↔phone bridge)
+### 2. Cloud sync — GitHub Gist (shared source of truth)
 
-- **Export:** a HUD button dumps `localStorage[idcockpit.v1.state]` as a downloaded
-  `id-cockpit-state.json` (same schema as the Mac's `state.json` — directly interchangeable).
-- **Import:** file-picker reads a JSON file, validates it has a `sessions` object, replaces
-  local state, re-renders. This lets Tyler seed the phone from his Mac's `state.json` once.
+Both the phone PWA and the Mac app read/write one **private Gist** containing a single file
+whose contents are the `state.json` schema (`{sessions: {...}}`).
+
+- **Merge rule (conflict-free):** state is a per-session map with `doneAt` timestamps. Merge =
+  for each session id, keep the entry with the newer `doneAt` (a `done:false`/`doneAt:null`
+  toggle carries the time it happened via a companion `updatedAt`, so un-ticking also merges by
+  recency). Union of keys. This makes concurrent edits across devices conflict-free in practice.
+- **Offline-first:** local writes always hit localStorage immediately (app stays fully usable
+  offline). A sync layer (a) pulls+merges on load and on regaining connectivity, (b) debounced-
+  pushes after local changes. A `syncedAt`/dirty flag drives ret/retry; failures are silent and
+  retried, surfaced only via the existing toast if persistent.
+- **Auth:** a GitHub **fine-grained token scoped to Gist only** is stored per device in
+  localStorage (`idcockpit.v1.gist`), alongside the Gist id. Entered via a small Settings panel.
+  Low blast radius (gist-only). No token is committed to the repo.
+- **Client API layer** (`sync.js` or inline): `pullRemote()` → fetch Gist, parse, merge into
+  local; `pushRemote()` → PATCH Gist file with merged state. Wraps `fetch` to
+  `https://api.github.com/gists/<id>` with the token.
+- **Mac side (additive):** `platform_core.py` gains `pull_remote()`/`push_remote()` helpers and
+  `serve.py`'s `toggle_done`/`import` paths call `push_remote()` after writing `state.json`; a
+  `pull_remote()` merge runs on server start. Config (token + gist id) read from a gitignored
+  `sync.json` or env vars — never checked in. Existing local-only behavior is preserved when no
+  config is present, so the Mac app still runs standalone.
+
+### 2b. Export / Import (fallback + first seed)
+
+- **Export:** a Settings button dumps local state as a downloaded `id-cockpit-state.json`
+  (same schema as the Mac's `state.json` — directly interchangeable).
+- **Import:** file-picker reads a JSON file, validates it has a `sessions` object, merges into
+  local state, re-renders. Used to seed the very first Gist from the Mac's current `state.json`,
+  and as a manual recovery path if a device has no connectivity/token.
 
 ### 3. Offline (service worker)
 
@@ -120,13 +148,22 @@ One-time, done by Tyler with commands I provide (I can't push to his account):
 1. Create a GitHub repo, add it as remote, push.
 2. Settings → Pages → serve from `main` branch, `/` root (or set the Pages source to the
    `phone/` folder via an action, or move `phone/*` to repo root of a dedicated Pages repo).
-3. Open the resulting `https://<user>.github.io/<repo>/` URL on the phone → Share →
-   Add to Home Screen. Import his Mac `state.json` once via the Import button.
+3. Open the resulting `https://<user>.github.io/<repo>/phone/` URL on the phone → Share →
+   Add to Home Screen.
+4. Create a private Gist (seeded from the Mac's current `state.json`) + a gist-scoped
+   fine-grained token. Enter token + gist id in the app's Settings panel on the phone, and in
+   the Mac's gitignored `sync.json`. From then on both devices share progress automatically.
+
+## Security note
+
+- Gist is **private**; contents are de-identified study progress (session ids + timestamps only).
+- Token is **fine-grained, gist-scope only**, stored per device, never committed. `sync.json` and
+  any token files are gitignored.
 
 ## Explicitly out of scope (YAGNI)
 
-- Cloud sync / real-time Mac↔phone state (manual export/import instead).
-- Rewriting or touching the Mac server, `state.json`, or the schedule data.
+- Real-time/push-based sync (polling on load + on-change debounced push is enough for one user).
+- Rewriting the dashboard UI or the schedule data.
 - Native (App Store) packaging.
 - Push notifications / reminders.
 
@@ -137,4 +174,8 @@ One-time, done by Tyler with commands I provide (I can't push to his account):
   import restores it.
 - Lighthouse/PWA check: manifest valid, installable, service worker controls the page, offline
   reload works.
-- Confirm the Mac app (`serve.py` → `dashboard.html`) still behaves identically (unchanged file).
+- Sync: with a test Gist + token, tick a session on device A → appears on device B after pull;
+  concurrent ticks on both merge (union, newest `doneAt` wins); no token/offline → app still fully
+  usable, syncs on reconnect.
+- Confirm the Mac app still runs standalone with **no** sync config present (backward compatible),
+  and with config present it pushes/pulls against the Gist.
