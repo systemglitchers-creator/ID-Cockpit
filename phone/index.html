@@ -117,7 +117,8 @@ body:after{content:none}
 .phead .psub{font-family:var(--mono);font-size:11px;color:var(--dim)}
 .phead .pbar{height:6px;background:#140f2c;border-radius:4px;margin-top:12px;overflow:hidden;border:1px solid var(--line2)}
 .phead .pbar i{display:block;height:100%;background:linear-gradient(90deg,var(--vio),var(--cyan));box-shadow:0 0 12px rgba(55,230,207,.5)}
-.pbody{overflow-y:auto;padding:8px 0 26px;flex:1}
+.pbody{overflow-y:auto;padding:8px 0 26px;flex:1;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
+body.locked{position:fixed;width:100%;overflow:hidden}
 .pwk{font-family:var(--mono);font-size:9.5px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:var(--faint);padding:14px 22px 6px}
 .q{display:flex;align-items:flex-start;gap:12px;padding:11px 22px;border-top:1px solid var(--line2);transition:background .12s}
 .q:hover{background:var(--panel2)}
@@ -376,6 +377,24 @@ function render(){
 }
 
 var openSi=null;
+// Freeze the page behind overlays. iOS ignores overflow:hidden on body, so we
+// pin it with position:fixed and restore the scroll offset on close.
+var _lockY=0,_locked=false;
+function lockScroll(on){
+  if(on){
+    if(_locked) return;
+    _lockY=window.scrollY||window.pageYOffset||0;
+    document.body.style.top=(-_lockY)+"px";
+    document.body.classList.add("locked");
+    _locked=true;
+  }else{
+    if(!_locked) return;
+    document.body.classList.remove("locked");
+    document.body.style.top="";
+    window.scrollTo(0,_lockY);
+    _locked=false;
+  }
+}
 function openPanel(si){
   openSi=si;
   var x=META.secs[si], s=x.s;
@@ -398,8 +417,9 @@ function openPanel(si){
   Array.prototype.forEach.call(body.querySelectorAll(".chk"),function(el){el.onclick=function(){toggle(el.dataset.toggle);};});
   document.getElementById("panel").classList.add("open");
   document.getElementById("scrim").classList.add("on");
+  lockScroll(true);
 }
-function closePanel(){document.getElementById("panel").classList.remove("open");document.getElementById("scrim").classList.remove("on");openSi=null;}
+function closePanel(){document.getElementById("panel").classList.remove("open");document.getElementById("scrim").classList.remove("on");lockScroll(false);openSi=null;}
 
 function rowById(id){for(var i=0;i<SECTIONS.length;i++){var r=SECTIONS[i].rows.find(function(x){return x.id===id;});if(r)return r;}return null;}
 
@@ -446,9 +466,9 @@ window.addEventListener("resize", applyTreeZoom);
     document.getElementById("cfgToken").value=c.token||"";
     document.getElementById("cfgGist").value=c.gistId||"";
     status.textContent=IDSync.configured()?"Sync configured.":"Not configured — progress stays on this device.";
-    scrim.classList.add("on"); modal.classList.add("open");
+    scrim.classList.add("on"); modal.classList.add("open"); lockScroll(true);
   }
-  function close(){ scrim.classList.remove("on"); modal.classList.remove("open"); }
+  function close(){ scrim.classList.remove("on"); modal.classList.remove("open"); lockScroll(false); }
   document.getElementById("cfgBtn").onclick=open;
   document.getElementById("cfgClose").onclick=close;
   scrim.onclick=close;

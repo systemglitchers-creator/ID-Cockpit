@@ -1,5 +1,5 @@
 /* ID Cockpit service worker — offline shell + font caching. */
-var CACHE = "idcockpit-v1";
+var CACHE = "idcockpit-v2";
 var SHELL = [
   "./", "./index.html", "./sync.js", "./manifest.webmanifest",
   "./icons/icon-192.png", "./icons/icon-512.png",
@@ -29,6 +29,24 @@ self.addEventListener("fetch", function (e) {
 
   var isFont = url.hostname === "fonts.googleapis.com" || url.hostname === "fonts.gstatic.com";
   var sameOrigin = url.origin === self.location.origin;
+
+  // App code (the HTML/JS itself) is network-first so a deployed update shows up
+  // on the next launch instead of a launch later; cache is the offline fallback.
+  var isAppCode = sameOrigin && (req.mode === "navigate" || /\.(html|js)$/.test(url.pathname) || url.pathname.endsWith("/"));
+  if (isAppCode) {
+    e.respondWith(fetch(req).then(function (res) {
+      if (res && res.status === 200) {
+        var copy = res.clone();
+        caches.open(CACHE).then(function (c) { c.put(req, copy); });
+      }
+      return res;
+    }).catch(function () {
+      return caches.match(req).then(function (hit) {
+        return hit || caches.match("./index.html");
+      });
+    }));
+    return;
+  }
 
   if (isFont || sameOrigin) {
     // cache-first, refresh in background (stale-while-revalidate)
