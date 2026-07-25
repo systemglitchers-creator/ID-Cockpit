@@ -122,10 +122,10 @@ body.locked{position:fixed;width:100%;overflow:hidden}
 .pwk{font-family:var(--mono);font-size:9.5px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:var(--faint);padding:14px 22px 6px}
 .q{display:flex;align-items:flex-start;gap:12px;padding:11px 22px;border-top:1px solid var(--line2);transition:background .12s}
 .q:hover{background:var(--panel2)}
-.q .chk{flex:none;width:20px;height:20px;margin-top:1px;border:1.5px solid var(--faint);border-radius:6px;cursor:pointer;position:relative;transition:all .15s}
-.q:hover .chk{border-color:var(--cyan)}
-.q.done .chk{background:var(--cyan);border-color:var(--cyan);box-shadow:0 0 10px rgba(55,230,207,.5)}
-.q.done .chk:after{content:"";position:absolute;left:6px;top:2px;width:5px;height:10px;border:solid #07120f;border-width:0 2.5px 2.5px 0;transform:rotate(45deg)}
+.q .chk,.srow .chk{flex:none;width:20px;height:20px;margin-top:1px;border:1.5px solid var(--faint);border-radius:6px;cursor:pointer;position:relative;transition:all .15s}
+.q:hover .chk,.srow:hover .chk{border-color:var(--cyan)}
+.q.done .chk,.srow.done .chk{background:var(--cyan);border-color:var(--cyan);box-shadow:0 0 10px rgba(55,230,207,.5)}
+.q.done .chk:after,.srow.done .chk:after{content:"";position:absolute;left:6px;top:2px;width:5px;height:10px;border:solid #07120f;border-width:0 2.5px 2.5px 0;transform:rotate(45deg)}
 .q .qmid{flex:1;min-width:0}
 .q .qttl{font-size:14px;font-weight:500;line-height:1.3}
 .q.done .qttl{color:var(--dim);text-decoration:line-through;text-decoration-color:var(--faint)}
@@ -191,6 +191,31 @@ body.loading .treewrap,body.loading .quest{opacity:.4;pointer-events:none}
   .q{padding-top:10px;padding-bottom:10px}
 }
 html{-webkit-text-size-adjust:100%}
+/* find / search */
+.find{position:fixed;inset:0;z-index:95;background:var(--bg);display:none;flex-direction:column;
+  padding-top:env(safe-area-inset-top,0px)}
+.find.open{display:flex}
+.find-top{display:flex;gap:10px;align-items:center;padding:14px 16px;border-bottom:1px solid var(--line);background:#0c0a1a}
+.find-i{flex:1;min-width:0;background:#0b0820;border:1px solid var(--line);border-radius:10px;color:var(--txt);
+  font-family:var(--disp);font-size:16px;padding:12px 13px;-webkit-appearance:none}
+.find-i:focus{outline:none;border-color:var(--vio);box-shadow:0 0 0 3px rgba(123,92,255,.18)}
+.find-x{flex:none;background:none;border:0;color:var(--cyan);font-family:var(--mono);font-size:12px;
+  letter-spacing:.1em;text-transform:uppercase;cursor:pointer;padding:8px}
+.find-body{flex:1;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;padding:10px 0 40px}
+.find-hint{color:var(--dim);font-family:var(--mono);font-size:12px;text-align:center;padding:36px 24px;line-height:1.7}
+.sgrp{border-bottom:1px solid var(--line2);padding:14px 16px}
+.sgt{font-size:15px;font-weight:600;line-height:1.25}
+.sgm{font-family:var(--mono);font-size:10px;letter-spacing:.06em;color:var(--faint);margin-top:4px;text-transform:uppercase}
+.sgall{margin-top:10px;font-family:var(--mono);font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;
+  padding:9px 12px;border-radius:9px;cursor:pointer;border:1px solid var(--cyan);color:#07120f;background:var(--cyan);width:100%}
+.sgall.undo{background:rgba(123,92,255,.10);color:var(--vio2);border-color:rgba(123,92,255,.4)}
+.srow{display:flex;align-items:flex-start;gap:11px;padding:11px 2px 0}
+.srow .stxt{flex:1;min-width:0}
+.srow .sp{font-size:13px;line-height:1.3}
+.srow.done .sp{color:var(--dim);text-decoration:line-through}
+.srow .ssub{font-family:var(--mono);font-size:10px;color:var(--faint);margin-top:3px;display:flex;gap:10px;flex-wrap:wrap}
+.srow .dt.today{color:var(--cyan);font-weight:700}
+.srow .dt.read{color:var(--gold)}
 .cfg-scrim{position:fixed;inset:0;background:rgba(3,2,10,.72);opacity:0;pointer-events:none;transition:opacity .2s;z-index:90}
 .cfg-scrim.on{opacity:1;pointer-events:auto}
 .cfg-modal{position:fixed;z-index:91;left:50%;top:50%;transform:translate(-50%,-46%) scale(.98);opacity:0;pointer-events:none;transition:all .2s;width:min(420px,92vw);background:var(--panel2);border:1px solid var(--line);border-radius:16px;padding:18px 18px calc(18px + env(safe-area-inset-bottom,0px));box-shadow:0 20px 60px rgba(0,0,0,.6)}
@@ -210,9 +235,10 @@ html{-webkit-text-size-adjust:100%}
   <div class="hstats">
     <div class="hstat"><div class="v" id="sPct">0%</div><div class="l">Complete</div></div>
     <div class="hstat"><div class="v" id="sSess">0</div><div class="l">Sessions</div></div>
-    <div class="hstat"><div class="v warn" id="sOver">0</div><div class="l">Overdue</div></div>
+    <div class="hstat"><div class="v" id="sOver">—</div><div class="l">vs plan</div></div>
   </div>
   <button class="jbtn" id="jump">◎ Warp to active</button>
+  <button class="jbtn" id="findBtn" title="Find a chapter">🔍 Find</button>
   <button class="jbtn" id="cfgBtn" title="Settings">⚙ Sync</button>
 </div></div>
 
@@ -226,6 +252,13 @@ html{-webkit-text-size-adjust:100%}
   <div class="pbody" id="pbody"></div>
 </aside>
 <div class="toast" id="toast"></div>
+<div id="findPane" class="find">
+  <div class="find-top">
+    <input id="findInput" class="find-i" type="search" autocomplete="off" placeholder="Search a topic or chapter — e.g. salmonella, 44">
+    <button id="findClose" class="find-x">Done</button>
+  </div>
+  <div id="findBody" class="find-body"></div>
+</div>
 <div id="cfgScrim" class="cfg-scrim"></div>
 <div id="cfgModal" class="cfg-modal" role="dialog" aria-label="Sync settings">
   <div class="cfg-h">Sync &amp; Backup <button id="cfgClose" class="cfg-x">✕</button></div>
@@ -287,15 +320,44 @@ function cleanTitle(t){return String(t||"").replace(/\s+·.*$/,"").replace(/^\s*
 function esc(s){return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
 function isDone(id){var e=STATUS.done[id];return !!(e&&e.done);}
 
+// Dates re-flow: remaining sessions are dealt onto consecutive study days starting
+// today, in curriculum order. Reading a chapter early (out of order) therefore pulls
+// everything after it forward. Completed sessions keep the date they were read.
+var EFF={};            // session id -> effective day index (incomplete sessions only)
+function sameDay(iso,ref){
+  if(!iso) return false;
+  var d=new Date(iso);
+  return d.getFullYear()===ref.getFullYear()&&d.getMonth()===ref.getMonth()&&d.getDate()===ref.getDate();
+}
+function doneDate(id){var e=STATUS.done[id];return e&&e.doneAt?new Date(e.doneAt):null;}
+// One rendering of a session's date — shared by the sector panel and search results.
+function dateHTML(r){
+  if(isDone(r.id)){ var d=doneDate(r.id); return '<span class="dt read">✓ '+(d?fmtD(d):"read")+'</span>'; }
+  var idx=EFF[r.id];
+  if(idx==null) return '<span class="dt"></span>';
+  var today=!META.flexToday&&idx===META.todayIdx;
+  return '<span class="dt'+(today?' today':'')+'">'+(today?"Today · ":"")+fmtD(dayDate(idx))+'</span>';
+}
+
 function compute(){
-  var gTot=0,gDone=0,pTot=0,pDone=0,completed=0,overdue=0,nextQuest=null;
-  var todayIdx=studyIdx(Date.now()), flexToday=isFlexDay(new Date());
+  var gTot=0,gDone=0,pTot=0,pDone=0,completed=0,nextQuest=null;
+  var now=new Date(), todayIdx=studyIdx(Date.now()), flexToday=isFlexDay(now);
+  // If anything was read today, today's slot is spent, so the queue resumes tomorrow.
+  // The shift is capped at one day: reading several chapters in one day must actually
+  // buy time back, not just push the whole tail along with it.
+  var readToday=false, planEndIdx=0;
+  SECTIONS.forEach(function(s){s.rows.forEach(function(r){
+    if(r.gi!=null&&r.gi>planEndIdx) planEndIdx=r.gi;
+    if(isDone(r.id)&&sameDay((STATUS.done[r.id]||{}).doneAt,now)) readToday=true;
+  });});
+  EFF={};
+  var k=todayIdx+(readToday?1:0), remaining=0;
   var secs=SECTIONS.map(function(s,si){
     var tot=s.rows.length,dn=0,ppd=0,pp=0;
     s.rows.forEach(function(r){
       var w=r.pp||0; pp+=w; gTot++; pTot+=w;
       if(isDone(r.id)){dn++;gDone++;ppd+=w;pDone+=w;}
-      else{ if(!nextQuest) nextQuest={si:si,r:r}; if((r.gi!=null?r.gi:1e9)<todayIdx) overdue++; }
+      else{ if(!nextQuest) nextQuest={si:si,r:r}; EFF[r.id]=k++; remaining++; }
     });
     var complete=tot>0&&dn===tot; if(complete) completed++;
     return {si:si,s:s,tot:tot,dn:dn,pp:pp,ppd:ppd,complete:complete,frac:tot?dn/tot:0};
@@ -308,7 +370,14 @@ function compute(){
     else if(x.si<activeSi) x.state="available";
     else x.state="locked";
   });
-  return {secs:secs,gTot:gTot,gDone:gDone,pTot:pTot,pDone:pDone,completed:completed,overdue:overdue,nextQuest:nextQuest};
+  // drift: projected finish vs the plan's original end date, in whole days
+  var drift=0;
+  if(remaining>0){
+    var proj=dayDate(k-1), planEnd=dayDate(planEndIdx);
+    drift=Math.round((proj-planEnd)/DAY);
+  }
+  return {secs:secs,gTot:gTot,gDone:gDone,pTot:pTot,pDone:pDone,completed:completed,
+          nextQuest:nextQuest,todayIdx:todayIdx,flexToday:flexToday,remaining:remaining,drift:drift};
 }
 
 var W=720, CX=360, AMP=176, TOP=70, GAP=124, ORB=92, HALF=75;
@@ -329,7 +398,11 @@ function render(){
   document.getElementById("xpFill").style.width=(m.pTot?m.pDone/m.pTot*100:0)+"%";
   document.getElementById("sPct").textContent=Math.round(m.gTot?m.gDone/m.gTot*100:0)+"%";
   document.getElementById("sSess").textContent=m.gDone+" / "+m.gTot;
-  document.getElementById("sOver").textContent=m.overdue;
+  var dEl=document.getElementById("sOver");
+  dEl.textContent = m.remaining===0 ? "done" : (m.drift>0?"+"+m.drift+"d":(m.drift<0?"−"+Math.abs(m.drift)+"d":"on plan"));
+  dEl.className = "v" + (m.drift>0?" warn":"");
+  dEl.style.color = m.drift<0 ? "var(--cyan)" : "";
+  dEl.style.fontSize = Math.abs(m.drift)>0 ? "" : "15px";
   // quest
   var q=document.getElementById("quest");
   if(m.nextQuest){
@@ -403,14 +476,13 @@ function openPanel(si){
   document.getElementById("psub").textContent=x.dn+" / "+x.tot+" sessions · "+x.ppd+" / "+x.pp+" pp · "+Math.round(x.frac*100)+"%";
   document.getElementById("pbar").style.width=(x.frac*100)+"%";
   var body=document.getElementById("pbody"), html="", lastWk=null;
-  var todayIdx=studyIdx(Date.now()), flexToday=isFlexDay(new Date());
   s.rows.forEach(function(r){
     var dn=isDone(r.id);
-    if(r.wk!==lastWk){ html+='<div class="pwk">Week '+r.wk+' <span class="pwkdt">· '+fmtD(dayDate((r.wk-1)*7))+' – '+fmtD(dayDate((r.wk-1)*7+6))+'</span></div>'; lastWk=r.wk; }
+    if(r.wk!==lastWk){ html+='<div class="pwk">Week '+r.wk+'</div>'; lastWk=r.wk; }
     html+='<div class="q'+(dn?' done':'')+'" data-id="'+r.id+'">'
       +'<div class="chk" data-toggle="'+r.id+'"></div>'
       +'<div class="qmid"><div class="qttl">'+esc(r.r)+'</div>'
-      +'<div class="qsub"><span class="dt'+(!dn&&r.gi<todayIdx?' overdue':(!flexToday&&r.gi===todayIdx?' today':''))+'">'+(!flexToday&&r.gi===todayIdx?'Today · ':'')+fmtD(dayDate(r.gi))+'</span>'+(r.ps?'<span class="pg">pp. '+r.ps+(r.pe&&r.pe!==r.ps?'–'+r.pe:'')+'</span>':'')+'</div>'
+      +'<div class="qsub">'+dateHTML(r)+(r.ps?'<span class="pg">pp. '+r.ps+(r.pe&&r.pe!==r.ps?'–'+r.pe:'')+'</span>':'')+'</div>'
       +'</div></div>';
   });
   body.innerHTML=html;
@@ -422,6 +494,20 @@ function openPanel(si){
 function closePanel(){document.getElementById("panel").classList.remove("open");document.getElementById("scrim").classList.remove("on");lockScroll(false);openSi=null;}
 
 function rowById(id){for(var i=0;i<SECTIONS.length;i++){var r=SECTIONS[i].rows.find(function(x){return x.id===id;});if(r)return r;}return null;}
+
+// Mark a whole chapter at once: one re-render and one sync push, not N of each.
+function markMany(ids,done){
+  if(!ids.length) return;
+  var iso=new Date().toISOString();
+  ids.forEach(function(id){
+    STATUS.done[id]={done:done,doneAt:done?iso:null,updatedAt:iso};
+    IDStore.setEntry(id,done);
+  });
+  IDSync.schedulePush();
+  render();
+  if(openSi!==null) openPanel(openSi);
+  if(searchOpen) renderSearch();
+}
 
 function toggle(id){
   var now=!isDone(id);
@@ -444,7 +530,7 @@ function warpToActive(){
 document.getElementById("pclose").onclick=closePanel;
 document.getElementById("scrim").onclick=closePanel;
 document.getElementById("jump").onclick=warpToActive;
-document.addEventListener("keydown",function(e){if(e.key==="Escape")closePanel();});
+document.addEventListener("keydown",function(e){if(e.key==="Escape"){ if(searchOpen) closeSearch(); else closePanel(); }});
 
 function refreshFromStore(){
   STATUS={done: IDStore.getState().sessions};
@@ -458,6 +544,93 @@ function applyTreeZoom(){
   else { t.style.zoom=""; }
 }
 window.addEventListener("resize", applyTreeZoom);
+/* ---- find a chapter -------------------------------------------------------
+   Ad-hoc reading: a ward case or talk sends Tyler into a chapter that may sit
+   months away in the plan. Search finds it, and "mark all parts" credits the
+   whole chapter in one tap — the schedule re-flows around it. */
+var searchOpen=false, SEARCH_ROWS=null;
+function searchRows(){
+  if(SEARCH_ROWS) return SEARCH_ROWS;
+  SEARCH_ROWS=[];
+  SECTIONS.forEach(function(s,si){ s.rows.forEach(function(r){
+    SEARCH_ROWS.push({r:r,si:si,sec:s.title,hay:((r.r||"")+" "+(s.title||"")+" "+(r.g||"")).toLowerCase()});
+  });});
+  return SEARCH_ROWS;
+}
+function chapKey(r){var m=/^(ch\d+)/.exec(r.id||"");return m?m[1]:(r.id||"");}
+function chapLabel(r){return String(r.r||"").replace(/\s*·\s*Part\s+\d+\s+of\s+\d+\s*$/i,"").trim();}
+function partLabel(r){var m=/·\s*(Part\s+\d+\s+of\s+\d+)\s*$/i.exec(r.r||"");return m?m[1]:cleanTitle(r.r)||r.id;}
+function matchItem(it,q){
+  if(/^\d+$/.test(q)) return new RegExp("^ch"+q+"(-|$)").test(it.r.id||"")||it.hay.indexOf("chapter "+q+" ")>=0;
+  return q.split(/\s+/).filter(Boolean).every(function(t){return it.hay.indexOf(t)>=0;});
+}
+// The chapter actually named in the query beats chapters that merely share its
+// sector — searching "endocarditis" should surface Chapter 82, not its neighbours.
+function titleMatch(it,q){
+  var t=(it.r.r||"").toLowerCase();
+  if(/^\d+$/.test(q)) return new RegExp("^ch"+q+"(-|$)").test(it.r.id||"");
+  return q.split(/\s+/).filter(Boolean).every(function(tok){return t.indexOf(tok)>=0;});
+}
+function renderSearch(){
+  var q=(document.getElementById("findInput").value||"").trim().toLowerCase();
+  var body=document.getElementById("findBody");
+  if(!q){ body.innerHTML='<div class="find-hint">Search by topic or chapter number.<br>e.g. <b>salmonella</b> · <b>endocarditis</b> · <b>44</b><br><br>Marking a chapter read credits it wherever<br>it sits in the plan — the rest re-flows.</div>'; return; }
+  var hits=searchRows().filter(function(it){return matchItem(it,q);});
+  if(!hits.length){ body.innerHTML='<div class="find-hint">No match for “'+esc(q)+'”.</div>'; return; }
+  var order=[],groups={};
+  hits.forEach(function(it){
+    var k=chapKey(it.r);
+    if(!groups[k]){groups[k]={items:[],sec:it.sec,direct:false};order.push(k);}
+    groups[k].items.push(it);
+    if(titleMatch(it,q)) groups[k].direct=true;
+  });
+  order.sort(function(a,b){return (groups[b].direct?1:0)-(groups[a].direct?1:0);});
+  var html="";
+  order.slice(0,40).forEach(function(k){
+    var g=groups[k], rows=g.items, first=rows[0].r;
+    var allDone=rows.every(function(it){return isDone(it.r.id);});
+    var ids=rows.map(function(it){return it.r.id;}).join(",");
+    var ps=Math.min.apply(null,rows.map(function(it){return it.r.ps||1e9;}));
+    var pe=Math.max.apply(null,rows.map(function(it){return it.r.pe||it.r.ps||0;}));
+    html+='<div class="sgrp"><div class="sgt">'+esc(chapLabel(first))+'</div>'
+      +'<div class="sgm">'+esc(g.sec.replace(/\s*—.*$/,""))+(ps<1e9?' · pp. '+ps+(pe&&pe!==ps?'–'+pe:''):'')+' · '+rows.length+' part'+(rows.length>1?'s':'')+'</div>'
+      +'<button class="sgall'+(allDone?' undo':'')+'" data-ids="'+ids+'" data-done="'+(allDone?"0":"1")+'">'
+      +(allDone?'Unmark all '+rows.length:'Mark all '+rows.length+' read')+'</button>';
+    rows.forEach(function(it){
+      var r=it.r,dn=isDone(r.id);
+      html+='<div class="srow'+(dn?' done':'')+'"><div class="chk" data-toggle="'+r.id+'"></div>'
+        +'<div class="stxt"><div class="sp">'+esc(partLabel(r))+'</div>'
+        +'<div class="ssub">'+dateHTML(r)+'</div></div></div>';
+    });
+    html+='</div>';
+  });
+  if(order.length>40) html+='<div class="find-hint">'+(order.length-40)+' more — refine your search.</div>';
+  body.innerHTML=html;
+}
+function openSearch(){
+  searchOpen=true;
+  document.getElementById("findPane").classList.add("open");
+  lockScroll(true);
+  renderSearch();
+  setTimeout(function(){document.getElementById("findInput").focus();},60);
+}
+function closeSearch(){
+  searchOpen=false;
+  document.getElementById("findPane").classList.remove("open");
+  lockScroll(false);
+}
+(function setupSearch(){
+  document.getElementById("findBtn").onclick=openSearch;
+  document.getElementById("findClose").onclick=closeSearch;
+  document.getElementById("findInput").addEventListener("input",renderSearch);
+  document.getElementById("findBody").addEventListener("click",function(e){
+    var all=e.target.closest(".sgall");
+    if(all){ markMany(all.dataset.ids.split(","),all.dataset.done==="1"); return; }
+    var chk=e.target.closest(".chk");
+    if(chk){ markMany([chk.dataset.toggle],!isDone(chk.dataset.toggle)); }
+  });
+})();
+
 (function setupSettings(){
   var scrim=document.getElementById("cfgScrim"), modal=document.getElementById("cfgModal");
   var status=document.getElementById("cfgStatus");

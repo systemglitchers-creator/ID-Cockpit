@@ -35,6 +35,8 @@ A 🔍 button in the HUD opens a full-screen search.
 
 - **Input:** live filter, autofocused. Matches against the session title and its sector title,
   case-insensitive. A numeric query (`44`) also matches that chapter number.
+- **Ranking:** groups whose *chapter title* matches rank above groups that matched only via
+  their sector name — searching `endocarditis` must surface Chapter 82, not its sector-mates.
 - **Results grouped by chapter** (group key = the `chNN` prefix of the session id, so a combined
   row like "Chapter 22 + Chapter 23" groups correctly under `ch22`). Each group shows:
   - chapter title (with the `· Part X of Y` suffix stripped)
@@ -48,9 +50,12 @@ A 🔍 button in the HUD opens a full-screen search.
 Computed fresh on every render, never stored:
 
 - `todayIdx = studyIdx(today)` — study days elapsed (already skips flex Saturdays).
-- `doneToday` = sessions whose `doneAt` falls on today's date.
+- `readToday` = whether *anything* was read today. If so the queue resumes tomorrow.
+  **This shift is capped at one day, not the count of sessions read.** Offsetting by the count
+  would exactly cancel the work done (finish date never moves), so reading three chapters in
+  one day must move the projected finish three days earlier — verified in implementation.
 - Walking all sessions in curriculum order, the *j*-th still-incomplete session is assigned
-  index `todayIdx + doneToday + j`; its date is `dayDate(thatIndex)`.
+  index `todayIdx + (readToday ? 1 : 0) + j`; its date is `dayDate(thatIndex)`.
 - Completed sessions display the date they were actually read (`doneAt`), not a planned date.
 - A session is highlighted **Today** when its effective index equals `todayIdx` and today is not
   a flex day. Once the day's session is done, `doneToday` shifts the next one to tomorrow.
