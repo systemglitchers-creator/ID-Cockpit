@@ -1,0 +1,120 @@
+{
+  "sessions": {
+    "ch20-p1": {
+      "done": true,
+      "doneAt": "2026-07-13T12:46:24Z"
+    },
+    "ch20-p2": {
+      "done": true,
+      "doneAt": "2026-07-13T12:46:24Z"
+    },
+    "ch20-p3": {
+      "done": true,
+      "doneAt": "2026-07-13T12:46:24Z"
+    },
+    "ch21-p1": {
+      "done": true,
+      "doneAt": "2026-07-13T12:46:24Z"
+    },
+    "ch21-p2": {
+      "done": true,
+      "doneAt": "2026-07-13T12:46:24Z"
+    },
+    "ch21-p3": {
+      "done": true,
+      "doneAt": "2026-07-13T12:46:24Z"
+    },
+    "ch22-p1": {
+      "done": true,
+      "doneAt": "2026-07-13T12:46:24Z"
+    },
+    "ch22-p2": {
+      "done": true,
+      "doneAt": "2026-07-13T12:46:24Z"
+    },
+    "ch22-p3": {
+      "done": true,
+      "doneAt": "2026-07-13T12:46:24Z"
+    },
+    "ch24-p1": {
+      "done": true,
+      "doneAt": "2026-07-13T12:46:24Z"
+    },
+    "ch24-p2": {
+      "done": true,
+      "doneAt": "2026-07-13T12:46:24Z"
+    },
+    "ch24-p3": {
+      "done": true,
+      "doneAt": "2026-07-13T12:46:24Z"
+    },
+    "ch29-p1": {
+      "done": true,
+      "doneAt": "2026-07-13T12:46:24Z"
+    },
+    "ch30-p2": {
+      "done": true,
+      "doneAt": "2026-07-13T12:46:24Z"
+    },
+    "ch75-p3": {
+      "done": true,
+      "doneAt": "2026-07-13T12:46:24Z"
+    },
+    "ch75-p1": {
+      "done": true,
+      "doneAt": "2026-07-13T12:46:24Z"
+    },
+    "ch75-p2": {
+      "done": true,
+      "doneAt": "2026-07-13T12:46:24Z"
+    },
+    "ch29-p2": {
+      "done": true,
+      "doneAt": "2026-07-13T12:46:24Z"
+    },
+    "ch29-p3": {
+      "done": true,
+      "doneAt": "2026-07-13T12:46:24Z"
+    },
+    "ch30-p1": {
+      "done": true,
+      "doneAt": "2026-07-13T12:46:24Z"
+    },
+    "ch82-p1": {
+      "done": true,
+      "doneAt": "2026-07-13T12:46:24Z"
+    },
+    "ch82-p2": {
+      "done": true,
+      "doneAt": "2026-07-13T12:46:24Z"
+    },
+    "testx": {
+      "done": false,
+      "doneAt": null
+    },
+    "ch82-p3": {
+      "done": true,
+      "doneAt": "2026-07-15T19:32:34Z"
+    },
+    "ch82-p4": {
+      "done": true,
+      "doneAt": "2026-07-17T01:27:48Z"
+    },
+    "ch82-p5": {
+      "done": true,
+      "doneAt": "2026-07-17T01:27:49Z"
+    },
+    "ch82-p6": {
+      "done": true,
+      "doneAt": "2026-07-18T02:58:51Z"
+    },
+    "ch306-p1": {
+      "done": true,
+      "doneAt": "2026-07-20T04:27:09Z"
+    },
+    "ch306-p2": {
+      "done": true,
+      "doneAt": "2026-07-21T02:49:01Z"
+    }
+  }
+}

@@ -1,94 +1,79 @@
-# ID Study Platform — Cockpit (SP0 + SP1)
+# ID Cockpit
 
-A free, local "cockpit" for Tyler's Infectious Disease study: it serves the
-two-year Mandell reading schedule and, for each session, shows whether it's been
-read and how many Anki cards / practice questions exist for that chapter. It
-hands work off to Claude Code via copy-a-prompt buttons — it never runs the AI
-itself, so it costs nothing to run.
+A skill-tree view of Tyler's two-year Mandell reading schedule — 584 sessions
+across 31 sectors — as an installable phone app. Tick off what you've read; the
+remaining sessions re-deal themselves onto the days ahead.
 
-This is the first slice of a larger platform. See `docs/` for the full design
-and the five-sub-project plan.
+It is static files. No server, no build step, no dependencies. Card and question
+generation happen in the Claude Code skills (`id-anki-cards`), not here.
 
-## Run it
-
-```bash
-cd "8. Claude/ID Platform"
-python3 serve.py
-```
-
-Then open <http://127.0.0.1:8756/>. Python 3.9+ standard library only — no
-`pip install` needed. Stop with Ctrl+C.
-
-## What it does
-
-- **Reading plan** — the existing `ID Study Schedule` HTML, served as the
-  dashboard with its look preserved.
-- **Status badges** — each session row shows `◆ N` Anki cards and `● N` practice
-  questions for its chapter, counted live from the artifact folders.
-- **Read-state** — clicking a row marks it read; state is saved server-side in
-  `state.json` and survives reloads. On first run it imports your existing
-  browser `localStorage` progress once.
-- **Copy-a-prompt** — click a row's `ⓘ` to open a panel with "Copy: make Anki
-  cards" / "Copy: make RC questions" buttons. Paste the copied prompt into
-  Claude Code to generate; the new artifacts show up as badges on next reload.
-
-## Folder contract
+## Layout
 
 ```
-8. Claude/
-  ID Anki Cards/<NN - Chapter Title>/<date>.json        # cards (id-anki-cards skill)
-  ID Practice Questions/<NN - Chapter Title>/<date>.json # questions (future SP3 skill)
-  ID Platform/
-    serve.py           # the server
-    platform_core.py   # pure logic (state, counting, prompts)
-    dashboard.html     # schedule copy + injected cockpit
-    cockpit.js         # client layer
-    prompts.json       # copy-a-prompt templates (editable)
-    state.json         # read-state (git-ignored, created on first write)
+8. Claude/ID Platform/
+  phone/
+    index.html         # markup + CSS
+    schedule.js        # the reading plan (generated data, one line per session)
+    cockpit.js         # all app logic
+    sync.js            # device store + gist sync
+    sw.js              # offline shell — bump CACHE when app files change
+    manifest.webmanifest, icons/
+  mac-progress.json    # progress exported from the retired Mac server
+  tests/js/            # node tests
+  docs/                # design notes
 ```
+
+Editing the schedule means editing `phone/schedule.js` — one line per session, so
+changes stay reviewable.
+
+## Deploy
+
+Push, then GitHub → Settings → Pages → Deploy from branch → `main` / `/root`.
+The app is at `https://<user>.github.io/<repo>/phone/`. Open it in Safari →
+Share → **Add to Home Screen**.
+
+To preview locally: `python3 -m http.server 8795`, then
+<http://127.0.0.1:8795/phone/>.
+
+## Progress and sync
+
+Progress is stored on the device and shared between devices through a **private**
+GitHub Gist. It works fully offline and syncs when back online.
+
+1. **Create the store:** a private Gist with one file `state.json` containing
+   `{"sessions":{}}`. Note the Gist ID from its URL.
+2. **Create a token:** GitHub → Settings → Developer settings → Fine-grained
+   tokens → **Gist: read and write**.
+3. **Connect:** in the app, **⚙ Sync** → paste token + Gist ID → **Save**.
+
+Merge is conflict-free: newest timestamp wins per session, keys union. Both
+devices write UTC timestamps (`toISOString`), which is what makes that comparison
+sound — a stamp written in local time would sort hours away from where it belongs.
+
+Import/export live in the same **⚙ Sync** panel. Anything shaped
+`{"sessions": {...}}` imports and merges.
+
+The token is stored only on your devices and is Gist-scoped. Never commit it.
+Anyone holding it can read and write that gist, so treat it like a password and
+revoke it on GitHub if a device is lost.
 
 ## Tests
 
 ```bash
-python3 -m pytest tests/ -v
+node --test "tests/js/*.test.mjs"
 ```
 
-Covers `platform_core` (parsing, counting, state, prompts) and the server
-endpoints over real HTTP.
+The tests load the real browser files in a `node:vm` sandbox with a stub DOM — no
+build step, so the app stays plain `<script>` tags. They cover the store, the
+merge, timestamp shape, the schedule re-flow, and chapter search.
 
-## Phone app (PWA) + Mac↔phone sync
+## History
 
-The `phone/` folder is a self-contained installable web app — the same cockpit UI,
-but with no Python server: progress is stored on the device and synced between Mac
-and phone through a private GitHub Gist (conflict-free: newest timestamp wins per
-session, keys union). Works fully offline; syncs when back online.
+This began as a Python server serving a dashboard on the Mac, with the phone app
+added later; the Mac half was retired on 2026-07-26 once the PWA did everything
+it did. See `docs/` for the design notes, including what the two-copy era cost.
 
-### One-time setup
-1. **Create the shared store:** make a **private** Gist with one file `state.json`
-   containing your current Mac progress (copy the contents of `state.json`, or
-   `{"sessions":{}}` to start). Note the Gist ID (the hash in its URL).
-2. **Create a token:** GitHub → Settings → Developer settings → Fine-grained tokens →
-   new token with **Gist: read and write**. Copy it.
-3. **Publish the app:** push this repo to GitHub and enable Pages:
-   ```bash
-   git push -u origin main            # after merging the phone-pwa branch
-   ```
-   GitHub → repo → Settings → Pages → Source: Deploy from branch → `main` / `/root`.
-   Your app URL is `https://<user>.github.io/<repo>/phone/`.
-4. **Install on phone:** open that URL in Safari/Chrome → Share → **Add to Home Screen**.
-5. **Connect sync:** open **⚙ Sync** in the app, paste the token + Gist ID, **Save**.
-6. **Mac:** create `ID Platform/sync.json` = `{"token":"…","gist_id":"…"}` (gitignored).
-   Restart `serve.py`. Both devices now share progress.
+## Not yet built
 
-Regenerate the app icons (only needed if you change the design) with
-`python3 phone/make_icons.py` (requires `pip install pillow`).
-
-### Notes
-- The token is stored only on your devices and is Gist-scoped (low risk). Never commit it.
-- Sync is opt-in on the Mac: with no `sync.json`/env vars, `serve.py` runs exactly as before.
-
-## Not yet built (later slices)
-
-PDF upload + card/question generation in-app (SP2/SP3), and a question
-bank / self-test mode (SP4). Today those steps run through Claude Code skills,
-launched via the copy-a-prompt buttons.
+In-app PDF upload and card/question generation (SP2/SP3), and a question bank /
+self-test mode (SP4). Today that work runs through the Claude Code skills.

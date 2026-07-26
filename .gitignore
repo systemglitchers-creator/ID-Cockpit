@@ -1,9 +1,5 @@
-state.json
-__pycache__/
-*.pyc
 .DS_Store
-server.log
-config.json
-queue/
 
-sync.json
+# The retired Mac server's progress file. Superseded by mac-progress.json,
+# which is tracked. Safe to delete once the phone has imported it.
+state.json
