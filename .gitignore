@@ -1,5 +1,9 @@
 .DS_Store
 
+# Design bundles dropped in from the design tool. The spec that matters is
+# extracted into docs/; the zip itself stays out of the repo.
+*.zip
+
 # The retired Mac server's progress file. Superseded by mac-progress.json,
 # which is tracked. Safe to delete once the phone has imported it.
 state.json

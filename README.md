@@ -1,8 +1,10 @@
 # ID Cockpit
 
-A skill-tree view of Tyler's two-year Mandell reading schedule — 584 sessions
-across 31 sectors — as an installable phone app. Tick off what you've read; the
-remaining sessions re-deal themselves onto the days ahead.
+Tyler's two-year Mandell reading schedule — 584 sessions across 31 sectors — as
+an installable phone app. Tick off what you've read; the remaining sessions
+re-deal themselves onto the days ahead. Four tabs: **Today** (the day's quest,
+streak, level), **Path** (the sector trail), **Find** (search any chapter), and
+**Stats** (standing, badges, per-sector bars).
 
 It is static files. No server, no build step, no dependencies. Card and question
 generation happen in the Claude Code skills (`id-anki-cards`), not here.
@@ -11,29 +13,36 @@ generation happen in the Claude Code skills (`id-anki-cards`), not here.
 
 ```
 8. Claude/ID Platform/
-  phone/
+  public/              # the current app — berry/editorial redesign, deployed on Vercel
     index.html         # markup + CSS
+    app.js             # all app logic (Today / Path / Find / Stats / sector sheet)
     schedule.js        # the reading plan (generated data, one line per session)
-    cockpit.js         # all app logic
     sync.js            # device store + gist sync
     sw.js              # offline shell — bump CACHE when app files change
     manifest.webmanifest, icons/
+  phone/               # the previous dark "skill tree" build, still on GitHub Pages
+  vercel.json          # static deploy config (outputDirectory: public)
   mac-progress.json    # progress exported from the retired Mac server
   tests/js/            # node tests
   docs/                # design notes
 ```
 
-Editing the schedule means editing `phone/schedule.js` — one line per session, so
-changes stay reviewable.
+Editing the schedule means editing `public/schedule.js` — one line per session, so
+changes stay reviewable. `schedule.js` and `sync.js` are identical in `public/`
+and `phone/`: the redesign changed only the presentation layer, so both builds
+read and write the same `idcockpit.v1.state` and the same gist.
 
 ## Deploy
 
-Push, then GitHub → Settings → Pages → Deploy from branch → `main` / `/root`.
-The app is at `https://<user>.github.io/<repo>/phone/`. Open it in Safari →
-Share → **Add to Home Screen**.
+Vercel → New Project → import this repo. It is a static site: no framework, no
+build command, and `vercel.json` points the output at `public/`. Every push to
+`main` redeploys. Open the deployment in Safari → Share → **Add to Home Screen**.
 
-To preview locally: `python3 -m http.server 8795`, then
-<http://127.0.0.1:8795/phone/>.
+The old build stays reachable on GitHub Pages at
+`https://<user>.github.io/<repo>/phone/` until you delete `phone/`.
+
+To preview locally: `python3 -m http.server 8797 --directory public`, then
+<http://127.0.0.1:8797/>.
 
 ## Progress and sync
 
