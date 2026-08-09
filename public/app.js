@@ -12,6 +12,14 @@
   var RANKS = ["Initiate", "Junior Resident", "Senior Resident", "ID Fellow",
                "Senior Fellow", "Chief Fellow", "Attending", "Consultant"];
   var PAGES_PER_LEVEL = 200;
+  // First day a catch-up double may land — two study weeks after the Aug 2026
+  // slip, so coming back from time away isn't punished immediately.
+  //
+  // A fixed date, not "today + 12": a relative window is recomputed on every
+  // render, so the first double would recede one day per day and the make-up
+  // would never actually come due. Once this date is past, doubles start from
+  // the next open day.
+  var CATCHUP_FROM = new Date(2026, 7, 23);
 
   /* ---- study-day calendar (ported verbatim from the original cockpit.js) ---- */
   function isFlex(d) { return d.getDay() === 6 && d >= FLEX_START; }
@@ -96,16 +104,42 @@
     // already passed. Resume on the next study day instead, and don't charge a
     // second day for an opportunistic read on a Saturday.
     var dayOff = isFlex(now);
-    var EFF = {}, k = todayIdx + (dayOff || readToday ? 1 : 0);
+    var k0 = todayIdx + (dayOff || readToday ? 1 : 0);
+    var remaining = sessTotal - sessDone;
+
+    // Catch-up. Rather than let missed days push the finish date out, the
+    // remaining sessions are packed into the study days still available before
+    // the plan's *original* end: on track that is exactly one a day, and behind
+    // it means a handful of days carry two so the end date holds.
+    //
+    // Days before CATCHUP_FROM always stay single, so a week away doesn't come
+    // due the very next morning. floor(i*slots/count) spreads the doubles evenly
+    // across everything after that.
+    var slots = planEnd - k0 + 1;
+    var doubling = slots >= 1 && remaining > slots;
+    var graced = doubling
+      ? Math.max(0, Math.min(studyIdx(CATCHUP_FROM) - k0, slots - 1))
+      : 0;
+    var packSlots = slots - graced, packCount = remaining - graced;
+
+    var EFF = {}, perDay = {}, i = 0, lastDay = k0;
     var firstOpen = null, firstOpenSec = 0, upcoming = [];
     SECS.forEach(function (s, si) { s.rows.forEach(function (r) {
       if (isDone(r.id)) return;
       if (!firstOpen) { firstOpen = r; firstOpenSec = si; }
       else if (upcoming.length < 3) upcoming.push({ r: r, si: si });
-      EFF[r.id] = k++;
+      var d = (!doubling || i < graced)
+        ? k0 + i
+        : k0 + graced + Math.floor((i - graced) * packSlots / packCount);
+      EFF[r.id] = d;
+      perDay[d] = (perDay[d] || 0) + 1;
+      if (d > lastDay) lastDay = d;
+      i++;
     }); });
-    var remaining = sessTotal - sessDone;
-    var drift = remaining > 0 ? Math.round((dayDate(k - 1) - dayDate(planEnd)) / DAY) : 0;
+    // Sessions owed beyond one-a-day — the honest measure of how far behind he
+    // is once the schedule has absorbed the slip. Zero when on track.
+    var makeup = doubling ? remaining - slots : 0;
+    var drift = remaining > 0 ? Math.round((dayDate(lastDay) - dayDate(planEnd)) / DAY) : 0;
 
     // streak — consecutive study days back from today with at least one read
     var readDays = {};
@@ -139,6 +173,7 @@
       pagesTotal: pagesTotal, pagesDone: pagesDone, sessTotal: sessTotal, sessDone: sessDone,
       pctAll: pagesTotal ? Math.round(pagesDone / pagesTotal * 100) : 0,
       remaining: remaining, drift: drift, streak: streak, readDays: readDays,
+      makeup: makeup, perDay: perDay,
       level: level, intoLevel: intoLevel,
       rankName: RANKS[Math.min(RANKS.length - 1, Math.floor((level - 1) / 2))],
       firstOpen: firstOpen, firstOpenSec: firstOpenSec, upcoming: upcoming
@@ -155,9 +190,13 @@
     if (tab === "path")       h = { e: "The two-year path", t: "Sectors", r: m.earned + " of " + m.secs.length + " cleared" };
     else if (tab === "find")  h = { e: "The whole plan", t: "Find a chapter", r: m.sessTotal + " sessions" };
     else if (tab === "stats") h = { e: "Where you stand", t: "Progress", r: m.pagesDone + " pages read" };
+    // Home screen leads with the catch-up debt when there is one: it is the
+    // thing worth knowing, and it stays true where "days behind" would read 0
+    // once the schedule has absorbed the slip.
     else h = { e: fmtD(m.now).toUpperCase(),
                t: m.streak > 1 ? m.streak + "-day streak" : "Good morning",
-               r: m.remaining + " sessions left" };
+               r: m.makeup > 0 ? "Catching up · " + m.makeup + " to make up"
+                               : m.remaining + " sessions left" };
     $("hEyebrow").textContent = h.e;
     $("hTitle").textContent = h.t;
     $("hMeta").textContent = h.r;
@@ -195,6 +234,9 @@
       var qDay = m.EFF[q.id];
       var qLabel = qDay === m.todayIdx ? "Today's quest"
                                        : "Next up · " + fmtD(dayDate(qDay));
+      // A catch-up day carries two sessions; say so, or the second is a surprise
+      // that only appears after the first is marked.
+      if (m.perDay[qDay] > 1) qLabel += " · " + m.perDay[qDay] + " sessions";
       $("questCard").innerHTML =
         '<div class="quest">'
         + '<div class="baseline"><span class="qk">' + esc(qLabel) + '</span>'
@@ -291,9 +333,12 @@
   /* ---- Stats ---- */
   function renderStats() {
     var m = M;
-    var driftTxt = m.drift === 0 ? "on track"
+    // With catch-up absorbing a slip, drift is 0 and the debt shows as sessions
+    // owed instead — otherwise the row would read "on track" and say nothing.
+    var driftTxt = m.makeup > 0 ? "making up " + m.makeup
+      : m.drift === 0 ? "on track"
       : (m.drift > 0 ? m.drift + " days behind" : Math.abs(m.drift) + " days ahead");
-    var driftCls = m.drift > 0 ? " behind" : (m.drift < 0 ? " ahead" : "");
+    var driftCls = (m.drift > 0 || m.makeup > 0) ? " behind" : (m.drift < 0 ? " ahead" : "");
     $("statSummary").innerHTML =
       '<div class="summary">'
       + '<div class="ring" style="' + conic(ACC, m.pctAll, "var(--track)") + '">'
