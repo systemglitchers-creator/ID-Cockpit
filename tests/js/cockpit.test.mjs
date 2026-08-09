@@ -70,7 +70,9 @@ test("merge falls back to doneAt when updatedAt is absent", () => {
 /* ---- schedule re-flow ----------------------------------------------------- */
 
 test("remaining sessions are dealt onto consecutive study days in order", () => {
-  const app = loadApp();
+  // Pinned to an ordinary study day: on a day off the queue correctly starts
+  // tomorrow instead, and an unpinned clock made this fail every Saturday.
+  const app = loadApp({ now: new Date(2026, 7, 7, 21, 0, 0) });   // Fri Aug 7
   const m = app.compute();
   const ids = app.SECTIONS.flatMap((s) => s.rows).map((r) => r.id);
   const idx = ids.map((id) => app.EFF[id]);

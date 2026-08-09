@@ -69,7 +69,10 @@ function compute(){
     if(isDone(r.id)&&sameDay((STATUS.done[r.id]||{}).doneAt,now)) readToday=true;
   });});
   EFF={};
-  var k=todayIdx+(readToday?1:0), remaining=0;
+  // On a flex day studyIdx() has returned the *previous* study day's index, so
+  // the queue would be dealt from a date already past; resume on the next study
+  // day instead. A read on a day off spends no slot, so it costs nothing extra.
+  var k=todayIdx+((flexToday||readToday)?1:0), remaining=0;
   var secs=SECTIONS.map(function(s,si){
     var tot=s.rows.length,dn=0,ppd=0,pp=0;
     s.rows.forEach(function(r){
