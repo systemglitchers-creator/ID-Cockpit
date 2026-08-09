@@ -89,7 +89,14 @@
 
     // Remaining sessions are dealt onto consecutive study days starting today
     // (tomorrow if something was already read today).
-    var EFF = {}, k = todayIdx + (readToday ? 1 : 0);
+    //
+    // On a day off there is no slot to fill, and studyIdx() has counted only the
+    // days before today — so it has handed back the index of the *previous*
+    // study day. Left alone, the queue would be dealt from a date that has
+    // already passed. Resume on the next study day instead, and don't charge a
+    // second day for an opportunistic read on a Saturday.
+    var dayOff = isFlex(now);
+    var EFF = {}, k = todayIdx + (dayOff || readToday ? 1 : 0);
     var firstOpen = null, firstOpenSec = 0, upcoming = [];
     SECS.forEach(function (s, si) { s.rows.forEach(function (r) {
       if (isDone(r.id)) return;
@@ -183,9 +190,14 @@
 
     var q = m.firstOpen;
     if (q) {
+      // On a rest day, or once today's session is read, the next one belongs to
+      // a later date — say which, rather than calling it today's.
+      var qDay = m.EFF[q.id];
+      var qLabel = qDay === m.todayIdx ? "Today's quest"
+                                       : "Next up · " + fmtD(dayDate(qDay));
       $("questCard").innerHTML =
         '<div class="quest">'
-        + '<div class="baseline"><span class="qk">Today\'s quest</span>'
+        + '<div class="baseline"><span class="qk">' + esc(qLabel) + '</span>'
         +   '<span class="qp">pp ' + q.ps + '–' + q.pe + ' · ' + q.pp + ' pages</span></div>'
         + '<div class="qc">Chapter ' + esc(chapNum(q.r)) + ' · ' + esc(partOf(q.r)) + '</div>'
         + '<div class="qt">' + esc(cleanTitle(q.r)) + '</div>'

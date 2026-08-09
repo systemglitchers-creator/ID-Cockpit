@@ -6,11 +6,23 @@ import path from "node:path";
 import vm from "node:vm";
 import { fileURLToPath } from "node:url";
 
-const APP = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "..", "phone");
+const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
+const APP = path.join(ROOT, "phone");
+
+/** Freeze the clock inside the sandbox. Date with arguments still behaves. */
+function fixedDateClass(nowMs) {
+  return class extends Date {
+    constructor(...args) {
+      if (args.length === 0) super(nowMs);
+      else super(...args);
+    }
+    static now() { return nowMs; }
+  };
+}
 
 function fakeElement() {
   const el = {
-    style: {}, dataset: {}, value: "", textContent: "", innerHTML: "",
+    style: {}, dataset: {}, value: "", textContent: "", innerHTML: "", children: [],
     classList: {
       _s: new Set(),
       add(c) { this._s.add(c); }, remove(c) { this._s.delete(c); },
@@ -24,8 +36,8 @@ function fakeElement() {
   return el;
 }
 
-function fakeLocalStorage() {
-  const m = new Map();
+function fakeLocalStorage(seed) {
+  const m = new Map(seed ? Object.entries(seed) : []);
   return {
     getItem: (k) => (m.has(k) ? m.get(k) : null),
     setItem: (k, v) => m.set(k, String(v)),
@@ -57,7 +69,7 @@ export function loadApp(opts = {}) {
     console,
     document,
     location: { hostname, pathname: "/phone/", protocol: "https:", href: "https://" + hostname + "/phone/" },
-    localStorage: fakeLocalStorage(),
+    localStorage: fakeLocalStorage(opts.storage),
     navigator: { onLine: true },
     // Gist traffic only. A test that hits this wanted a stub and didn't set one.
     fetch: opts.fetch || (() => Promise.reject(new Error("unexpected network call"))),
@@ -70,13 +82,36 @@ export function loadApp(opts = {}) {
   sandbox.window = sandbox;
   sandbox.global = sandbox;
   sandbox.addEventListener = () => {};
+  if (opts.now != null) sandbox.Date = fixedDateClass(new Date(opts.now).getTime());
   vm.createContext(sandbox);
 
-  for (const f of ["schedule.js", "sync.js", "cockpit.js"]) {
-    vm.runInContext(fs.readFileSync(path.join(APP, f), "utf8"), sandbox, { filename: f });
+  const dir = opts.dir ? path.join(ROOT, opts.dir) : APP;
+  const files = opts.files ?? ["schedule.js", "sync.js", "cockpit.js"];
+  for (const f of files) {
+    vm.runInContext(fs.readFileSync(path.join(dir, f), "utf8"), sandbox, { filename: f });
   }
   return sandbox;
 }
+
+/**
+ * Load the current app (public/), optionally with the clock frozen and some
+ * sessions already marked read.
+ * @param {object} opts  {now, done: string[], doneAt}
+ */
+export function loadCurrentApp(opts = {}) {
+  // Progress has to be in storage before the scripts run: app.js snapshots it
+  // into a closure at load time, exactly as a real page load would.
+  const iso = opts.doneAt ?? new Date(opts.now ?? Date.now()).toISOString();
+  const sessions = {};
+  for (const id of opts.done ?? []) sessions[id] = { done: true, doneAt: iso, updatedAt: iso };
+  return loadApp({
+    dir: "public",
+    files: ["schedule.js", "sync.js", "app.js"],
+    now: opts.now,
+    storage: { "idcockpit.v1.state": JSON.stringify({ sessions }) }
+  });
+}
+
 
 /** Set read-state directly and recompute, without going through a backend. */
 export function markDone(app, ids, doneAt) {
