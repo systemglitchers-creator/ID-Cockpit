@@ -10,8 +10,10 @@ Invoke it with the Skill tool (`id-cockpit`), or Tyler can type `/id-cockpit`.
 Two things that cause silent breakage, repeated here because they are easy to
 trip over before the skill is loaded:
 
-1. **`public/` is the live app** (Vercel). `phone/` is the legacy GitHub Pages
-   build. A logic fix belongs in both or they diverge.
-2. **Bump `CACHE` in `public/sw.js` on every app-code change.** Otherwise the
+1. **Bump `CACHE` in `public/sw.js` on every app-code change.** Otherwise the
    installed phone app keeps serving the old files and the change appears not to
    have shipped.
+2. **Never rename an icon by hand — run `python3 public/make_icons.py`.**
+   Filenames carry a content hash because `vercel.json` serves `/icons/*` as
+   immutable; a stable name means a changed icon can never reach an installed
+   device.

@@ -1,13 +1,12 @@
-/* Loads the real cockpit.js/sync.js/schedule.js under node with just enough
-   DOM to get through their top-level setup. No build step, no dependencies —
-   the browser files stay plain <script> tags. */
+/* Loads the real public/ browser files under node with just enough DOM to get
+   through their top-level setup. No build step, no dependencies — the app stays
+   plain <script> tags. */
 import fs from "node:fs";
 import path from "node:path";
 import vm from "node:vm";
 import { fileURLToPath } from "node:url";
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
-const APP = path.join(ROOT, "phone");
 
 /** Freeze the clock inside the sandbox. Date with arguments still behaves. */
 function fixedDateClass(nowMs) {
@@ -48,7 +47,7 @@ function fakeLocalStorage(seed) {
 
 /**
  * Load the app into a fresh sandbox.
- * @returns the sandbox, with every top-level function of cockpit.js on it
+ * @returns the sandbox, with every top-level function of the app on it
  */
 export function loadApp(opts = {}) {
   const hostname = opts.hostname ?? "tyler.github.io";
@@ -89,8 +88,8 @@ export function loadApp(opts = {}) {
   if (opts.now != null) sandbox.Date = fixedDateClass(new Date(opts.now).getTime());
   vm.createContext(sandbox);
 
-  const dir = opts.dir ? path.join(ROOT, opts.dir) : APP;
-  const files = opts.files ?? ["schedule.js", "sync.js", "cockpit.js"];
+  const dir = path.join(ROOT, opts.dir ?? "public");
+  const files = opts.files ?? ["schedule.js", "sync.js", "copy.js", "motion.js", "app.js"];
   for (const f of files) {
     vm.runInContext(fs.readFileSync(path.join(dir, f), "utf8"), sandbox, { filename: f });
   }

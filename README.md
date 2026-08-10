@@ -13,24 +13,22 @@ generation happen in the Claude Code skills (`id-anki-cards`), not here.
 
 ```
 8. Claude/ID Platform/
-  public/              # the current app — berry/editorial redesign, deployed on Vercel
+  public/              # the app — apothecary, deployed on Vercel
     index.html         # markup + CSS
     app.js             # all app logic (Today / Path / Find / Stats / sector sheet)
     schedule.js        # the reading plan (generated data, one line per session)
     sync.js            # device store + gist sync
     sw.js              # offline shell — bump CACHE when app files change
     manifest.webmanifest, icons/
-  phone/               # the previous dark "skill tree" build, still on GitHub Pages
   vercel.json          # static deploy config (outputDirectory: public)
   mac-progress.json    # progress exported from the retired Mac server
   tests/js/            # node tests
   docs/                # design notes
 ```
 
-Editing the schedule means editing `public/schedule.js` — one line per session, so
-changes stay reviewable. `schedule.js` and `sync.js` are identical in `public/`
-and `phone/`: the redesign changed only the presentation layer, so both builds
-read and write the same `idcockpit.v1.state` and the same gist.
+Editing the schedule means editing `public/schedule.js` — one line per session,
+so changes stay reviewable. Session `id` values are the keys progress is stored
+against: changing one silently orphans that session's read-state.
 
 ## Deploy
 
@@ -38,8 +36,6 @@ Vercel → New Project → import this repo. It is a static site: no framework, 
 build command, and `vercel.json` points the output at `public/`. Every push to
 `main` redeploys. Open the deployment in Safari → Share → **Add to Home Screen**.
 
-The old build stays reachable on GitHub Pages at
-`https://<user>.github.io/<repo>/phone/` until you delete `phone/`.
 
 To preview locally: `python3 -m http.server 8797 --directory public`, then
 <http://127.0.0.1:8797/>.
