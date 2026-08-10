@@ -10,3 +10,6 @@ state.json
 node_modules/
 .env.local
 .vercel/
+
+# Brainstorming companion scratch
+.superpowers/
