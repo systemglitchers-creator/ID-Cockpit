@@ -106,7 +106,7 @@ export function loadCurrentApp(opts = {}) {
   for (const id of opts.done ?? []) sessions[id] = { done: true, doneAt: iso, updatedAt: iso };
   return loadApp({
     dir: "public",
-    files: ["schedule.js", "sync.js", "app.js"],
+    files: ["schedule.js", "sync.js", "copy.js", "app.js"],
     now: opts.now,
     fetch: opts.fetch,
     storage: { "idcockpit.v1.state": JSON.stringify({ sessions }) }

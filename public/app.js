@@ -176,9 +176,8 @@
     // thing worth knowing, and it stays true where "days behind" would read 0
     // once the schedule has absorbed the slip.
     else h = { e: fmtD(m.now).toUpperCase(),
-               t: "Good morning",
-               r: m.makeup > 0 ? "Catching up · " + m.makeup + " to make up"
-                               : m.remaining + " sessions left" };
+               t: window.IDCopy.headline(m),
+               r: window.IDCopy.meta(m) };
     $("hEyebrow").textContent = h.e;
     $("hTitle").textContent = h.t;
     $("hMeta").textContent = h.r;
