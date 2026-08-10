@@ -353,6 +353,41 @@
   }
 
   /* ---- Sector sheet ---- */
+  /**
+   * Collapse a sector's sessions into chapters.
+   *
+   * 71% of chapters are split across sittings, so an ungrouped list shows the
+   * same title up to seven times and the eye can find nothing. Sittings remain
+   * the scheduling unit — they are what fits in a day — but the chapter is the
+   * thing worth reading as a heading.
+   *
+   * Not every session starts with a chapter number — some span several
+   * ("Antifungal Drugs — Chapter 40 Polyenes, 41 Azoles…") and the Consolidation
+   * and Practice Questions sectors have none at all. Those key on their cleaned
+   * title, which groups the parts of one multi-chapter session while keeping
+   * genuinely different review sessions apart. Keying them on id instead split
+   * "Antifungal Drugs" into three identical-looking rows — the very repetition
+   * this function exists to remove.
+   */
+  function groupByChapter(rows) {
+    var out = [], byKey = {};
+    rows.forEach(function (r) {
+      var num = chapNum(r.r);
+      var key = num ? "ch" + num : "t:" + cleanTitle(r.r).toLowerCase();
+      var g = byKey[key];
+      if (!g) {
+        g = byKey[key] = { chapter: num, title: cleanTitle(r.r), parts: [],
+                           ps: null, pe: null, pp: 0 };
+        out.push(g);
+      }
+      g.parts.push(r);
+      if (r.ps != null) g.ps = g.ps == null ? r.ps : Math.min(g.ps, r.ps);
+      if (r.pe != null) g.pe = g.pe == null ? r.pe : Math.max(g.pe, r.pe);
+      g.pp += r.pp || 0;
+    });
+    return out;
+  }
+
   function renderSheet() {
     var el = $("sheet");
     if (sheetSi == null) { el.classList.remove("on"); return; }
@@ -361,21 +396,47 @@
     $("sheetSub").textContent = s.sub;
     $("sheetBar").style.width = (x.frac * 100) + "%";
     $("sheetBar").style.background = ACC;
-    $("sheetRows").innerHTML = s.rows.map(function (r) {
-      var ck = isDone(r.id), d = doneAt(r.id), eff = m.EFF[r.id];
-      var todaySlot = eff === m.todayIdx;
-      var dt = ck ? ("Read " + (d ? fmtD(d) : ""))
-                  : (eff != null ? (todaySlot ? "Today" : fmtD(dayDate(eff))) : "");
-      var dtCls = ck ? "read" : (todaySlot ? "today" : "");
-      var part = partOf(r.r);
-      return '<div class="srow' + (ck ? " done" : "") + '" data-toggle="' + esc(r.id) + '">'
-        + '<div class="box' + (ck ? " on" : "") + '">' + (ck ? "✓" : "") + '</div>'
-        + '<div style="flex:1;min-width:0">'
-        +   '<div class="t">' + esc(cleanTitle(r.r) + (part === "Whole chapter" ? "" : " · " + part)) + '</div>'
-        +   '<div class="m"><span>Ch ' + esc(chapNum(r.r)) + ' · pp ' + r.ps + '–' + r.pe + '</span>'
-        +     '<span class="dt ' + dtCls + '">' + esc(dt) + '</span></div>'
-        +   (r.g ? '<div class="chip">' + esc(r.g) + '</div>' : '')
-        + '</div></div>';
+    $("sheetRows").innerHTML = groupByChapter(s.rows).map(function (g) {
+      var readCount = g.parts.filter(function (r) { return isDone(r.id); }).length;
+      var whole = readCount === g.parts.length;
+      var pages = g.ps != null ? "pp " + g.ps + "\u2013" + g.pe : (g.pp ? g.pp + " pages" : "");
+      var meta = [g.chapter ? "Ch " + g.chapter : "", pages].filter(Boolean).join(" \u00b7 ");
+      // A finished chapter was read on one date; saying it once on the heading
+      // beats repeating it down every part, which is what made this list noisy.
+      var wholeDate = null;
+      if (whole) {
+        var ds = g.parts.map(function (r) { return doneAt(r.id); }).filter(Boolean);
+        if (ds.length) wholeDate = fmtD(new Date(Math.max.apply(null, ds)));
+      }
+
+      // One heading per chapter. Parts only appear when there is more than one —
+      // a single-sitting chapter has nothing to expand.
+      var parts = g.parts.length === 1 ? "" : g.parts.map(function (r, i) {
+        var ck = isDone(r.id), d = doneAt(r.id), eff = m.EFF[r.id];
+        var when = whole ? ""                       // already on the heading
+                 : ck ? (d ? fmtD(d) : "read")
+                      : (eff === m.todayIdx ? "Today" : (eff != null ? fmtD(dayDate(eff)) : ""));
+        return '<div class="part' + (ck ? " done" : "") + '" data-toggle="' + esc(r.id) + '">'
+          + '<span class="pn">' + (i + 1) + '</span>'
+          + '<span class="pp">pp ' + r.ps + '\u2013' + r.pe + '</span>'
+          + '<span class="pw">' + esc(when) + '</span>'
+          + '<span class="mk">' + (ck ? "\u2713" : "") + '</span>'
+          + '</div>';
+      }).join("");
+
+      var soloAttr = g.parts.length === 1 ? ' data-toggle="' + esc(g.parts[0].id) + '"' : '';
+      return '<div class="chgroup' + (whole ? " whole" : "") + '">'
+        + '<div class="chhead"' + soloAttr + '>'
+        +   '<div class="chmain"><div class="cht">' + esc(g.title) + '</div>'
+        +     '<div class="chm">' + esc(meta)
+        +       (wholeDate ? ' \u00b7 read ' + esc(wholeDate)
+                 : g.parts.length > 1 ? ' \u00b7 ' + readCount + " of " + g.parts.length + " read" : "")
+        +     '</div></div>'
+        +   '<span class="mk">' + (whole ? "\u2713" : "") + '</span>'
+        + '</div>'
+        + (g.parts[0].g ? '<div class="chip">' + esc(g.parts[0].g) + '</div>' : '')
+        + (parts ? '<div class="parts">' + parts + '</div>' : '')
+        + '</div>';
     }).join("");
     el.classList.add("on");
   }
@@ -520,5 +581,6 @@
 
   // exposed for the node tests
   window.IDCockpit = { compute: compute, cleanTitle: cleanTitle, partOf: partOf,
+                       groupByChapter: groupByChapter,
                        chapNum: chapNum, dayDate: dayDate, studyIdx: studyIdx, isFlex: isFlex };
 })();

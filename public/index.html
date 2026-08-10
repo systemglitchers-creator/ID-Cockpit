@@ -153,7 +153,10 @@ input::placeholder{color:var(--faint)}
      border:1.5px solid var(--box);background:var(--card);transition:all .15s}
 .box.on{border-color:var(--acc);background:var(--acc)}
 .grow .box{width:22px;height:22px;border-radius:7px;font-size:12px}
-.done .p,.done .t{color:var(--strike);text-decoration:line-through}
+/* Read work is marked, never crossed out — the same rule as the sector sheet.
+   Strikethrough reads as cancelled; this is a record of reading done. */
+.grow.done .p{color:var(--acc)}
+.grow.done .s{color:var(--faint)}
 .gall{width:100%;margin-top:12px;font-size:12px;font-weight:700;padding:10px 12px;border-radius:11px;
       border:none;background:var(--acc);color:var(--on-acc)}
 .gall.undo{background:transparent;border:1px solid var(--undo-bd);color:var(--mut)}
@@ -248,21 +251,37 @@ input::placeholder{color:var(--faint)}
        display:flex;flex-direction:column;box-shadow:0 -10px 34px var(--sheet-sh);
        animation:idrise .26s ease both}
 .grabber{width:38px;height:4px;border-radius:99px;background:var(--grab);margin:0 auto 13px}
-.phead{padding:12px 20px 14px;border-bottom:1px solid var(--line);flex:none}
-.phead .t{font-family:var(--serif);font-size:23px;font-weight:500;line-height:1.14;
-          margin-top:4px;letter-spacing:-.3px;text-wrap:pretty}
-.phead .s{font-size:11.5px;color:var(--mut);margin-top:5px;line-height:1.45}
-.phead .bar{height:6px;background:var(--sheet-track);margin-top:12px}
+.phead{padding:10px 20px 12px;border-bottom:1px solid var(--line);flex:none}
+.phead .t{font-family:var(--serif);font-size:20px;font-weight:500;line-height:1.12;
+          margin-top:2px;letter-spacing:-.018em;text-wrap:pretty}
+.phead .s{font-size:11px;color:var(--mut);margin-top:4px;line-height:1.4;
+          display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.phead .bar{height:4px;background:var(--sheet-track);margin-top:10px}
 .pclose{background:none;border:none;font-size:11px;font-weight:700;letter-spacing:.08em;
         text-transform:uppercase;color:var(--mut);padding:0}
 .pbody{flex:1;overflow-y:auto;padding:4px 20px 30px}
-.srow{display:flex;align-items:flex-start;gap:12px;padding:12px 0;border-bottom:1px solid var(--line);cursor:pointer}
-.srow .box{width:26px;height:26px;border-radius:9px;margin-top:1px;font-size:14px}
-.srow .t{font-size:13.5px;font-weight:600;line-height:1.3;text-wrap:pretty}
-.srow .m{font-size:10.5px;color:var(--mut);margin-top:4px;display:flex;flex-wrap:wrap;gap:4px 10px}
-.srow .dt.today{font-weight:700;color:var(--acc)}
-.srow .dt.read{color:var(--read)}
-.srow .chip{font-size:10px;padding:4px 9px;margin-top:7px}
+/* ---- sector sheet: chapters, not slices ----------------------------------
+   Completed work is never struck through. Crossing something out means
+   cancelled; this is a record of reading done, so finished chapters keep their
+   full title and gain a quiet check on the right. */
+.chgroup{padding:14px 0;border-bottom:1px solid var(--hair)}
+.chhead{display:flex;align-items:flex-start;gap:12px;cursor:pointer}
+.chmain{flex:1;min-width:0}
+.cht{font-family:var(--serif);font-size:16.5px;line-height:1.22;letter-spacing:-.01em;text-wrap:pretty}
+.chm{font-size:10.5px;color:var(--mut);margin-top:3px;font-variant-numeric:tabular-nums}
+.chgroup.whole .cht{color:var(--acc)}
+.chgroup.whole .chm{color:var(--faint)}
+.mk{flex:none;width:20px;text-align:right;font-size:13px;color:var(--acc);line-height:1.3}
+
+.parts{margin:9px 0 0 0;border-left:2px solid var(--hair);padding-left:12px}
+.part{display:flex;align-items:baseline;gap:9px;padding:5px 0;cursor:pointer;
+      font-size:11.5px;color:var(--mut);font-variant-numeric:tabular-nums}
+.part .pn{width:13px;color:var(--faint);font-family:var(--serif);font-size:12px}
+.part .pp{flex:none}
+.part .pw{flex:1;color:var(--faint)}
+.part.done .pw{color:var(--read)}
+.part .mk{width:14px;font-size:11px}
+.chgroup .chip{font-size:10px;padding:4px 9px;margin-top:8px}
 
 /* ---- sync sheet ---- */
 .cfg .pbody{padding:16px 20px 30px}
