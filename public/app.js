@@ -9,9 +9,6 @@
   var FLEX_START = new Date(2026, 6, 18);
   var WD = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
   var MO = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-  var RANKS = ["Initiate", "Junior Resident", "Senior Resident", "ID Fellow",
-               "Senior Fellow", "Chief Fellow", "Attending", "Consultant"];
-  var PAGES_PER_LEVEL = 200;
   // First day a catch-up double may land — two study weeks after the Aug 2026
   // slip, so coming back from time away isn't punished immediately.
   //
@@ -142,18 +139,6 @@
     var makeup = doubling ? remaining - slots : 0;
     var drift = remaining > 0 ? Math.round((dayDate(lastDay) - dayDate(planEnd)) / DAY) : 0;
 
-    // streak — consecutive study days back from today with at least one read
-    var readDays = {};
-    SECS.forEach(function (s) { s.rows.forEach(function (r) {
-      var d = doneAt(r.id); if (d) readDays[dayKey(d)] = true;
-    }); });
-    var streak = 0, cur = new Date(now);
-    if (!readDays[dayKey(cur)]) cur.setDate(cur.getDate() - 1);
-    while (true) {
-      if (isFlex(cur)) { cur.setDate(cur.getDate() - 1); continue; }
-      if (!readDays[dayKey(cur)]) break;
-      streak++; cur.setDate(cur.getDate() - 1);
-    }
 
     var secs = SECS.map(function (s, si) {
       var tot = s.rows.length;
@@ -166,17 +151,13 @@
     });
     var earned = secs.filter(function (x) { return x.complete; }).length;
 
-    var level = Math.floor(pagesDone / PAGES_PER_LEVEL) + 1;
-    var intoLevel = pagesDone % PAGES_PER_LEVEL;
 
     return {
       now: now, todayIdx: todayIdx, EFF: EFF, secs: secs, earned: earned,
       pagesTotal: pagesTotal, pagesDone: pagesDone, sessTotal: sessTotal, sessDone: sessDone,
       pctAll: pagesTotal ? Math.round(pagesDone / pagesTotal * 100) : 0,
-      remaining: remaining, drift: drift, streak: streak, readDays: readDays,
-      makeup: makeup, perDay: perDay,
-      level: level, intoLevel: intoLevel,
-      rankName: RANKS[Math.min(RANKS.length - 1, Math.floor((level - 1) / 2))],
+      remaining: remaining, drift: drift,
+      makeup: makeup, perDay: perDay, dayOff: dayOff, readToday: readToday,
       firstOpen: firstOpen, firstOpenSec: firstOpenSec, upcoming: upcoming
     };
   }
@@ -195,7 +176,7 @@
     // thing worth knowing, and it stays true where "days behind" would read 0
     // once the schedule has absorbed the slip.
     else h = { e: fmtD(m.now).toUpperCase(),
-               t: m.streak > 1 ? m.streak + "-day streak" : "Good morning",
+               t: "Good morning",
                r: m.makeup > 0 ? "Catching up · " + m.makeup + " to make up"
                                : m.remaining + " sessions left" };
     $("hEyebrow").textContent = h.e;
@@ -207,26 +188,6 @@
   function renderToday() {
     var m = M;
 
-    var pips = "";
-    for (var i = 6; i >= 0; i--) {
-      var d = new Date(m.now); d.setDate(d.getDate() - i);
-      var hit = !!m.readDays[dayKey(d)];
-      pips += '<div class="d"><span class="dl">' + WD[d.getDay()][0] + '</span>'
-            + '<div class="pip' + (hit ? " hit" : "") + (i === 0 ? " today" : "") + '"></div></div>';
-    }
-    $("streakRow").innerHTML = pips;
-
-    var intoPct = Math.round(m.intoLevel / PAGES_PER_LEVEL * 100);
-    $("levelCard").innerHTML =
-      '<div class="level">'
-      + '<div class="ring" style="' + conic(ACC, intoPct, "var(--track)") + '">'
-      +   '<div class="inner"><span class="lvl">' + m.level + '</span></div></div>'
-      + '<div class="mid">'
-      +   '<div class="baseline"><span class="rank">' + esc(m.rankName) + '</span>'
-      +     '<span class="xplab">' + m.pagesDone + ' / ' + m.pagesTotal + ' pp</span></div>'
-      +   '<div class="bar"><i style="width:' + (m.pagesTotal ? m.pagesDone / m.pagesTotal * 100 : 0) + '%"></i></div>'
-      +   '<div class="note">' + (PAGES_PER_LEVEL - m.intoLevel) + ' pages to level ' + (m.level + 1) + '</div>'
-      + '</div></div>';
 
     var q = m.firstOpen;
     if (q) {
@@ -348,7 +309,6 @@
       + '<div class="lines">'
       +   '<div class="baseline"><span class="l">Sessions read</span><span class="v">' + m.sessDone + ' / ' + m.sessTotal + '</span></div>'
       +   '<div class="baseline"><span class="l">Pages mastered</span><span class="v">' + m.pagesDone + '</span></div>'
-      +   '<div class="baseline"><span class="l">Current streak</span><span class="v' + (m.streak > 0 ? " streak" : "") + '">' + m.streak + (m.streak === 1 ? " day" : " days") + '</span></div>'
       +   '<div class="baseline"><span class="l">Versus plan</span><span class="v' + driftCls + '">' + driftTxt + '</span></div>'
       + '</div></div>';
 

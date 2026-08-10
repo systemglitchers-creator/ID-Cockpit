@@ -56,30 +56,12 @@ input::placeholder{color:var(--faint)}
           color:var(--mut);margin:22px 4px 9px}
 .card{background:var(--card);border:1px solid var(--line);border-radius:16px}
 
-/* ---- today: streak ---- */
-.streak{display:flex;gap:6px;margin-bottom:14px}
-.streak .d{flex:1;display:flex;flex-direction:column;align-items:center;gap:6px}
-.streak .dl{font-size:9.5px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--faint)}
-.streak .pip{width:9px;height:9px;border-radius:50%;background:var(--pip);transition:all .2s}
-.streak .pip.hit{width:13px;height:13px;background:var(--acc)}
-.streak .pip.today{box-shadow:0 0 0 3px color-mix(in srgb,var(--acc) 18%,transparent)}
 
-/* ---- today: level ---- */
-.level{display:flex;align-items:center;gap:13px;background:var(--card);border:1px solid var(--line);
-       border-radius:18px;padding:14px 16px;margin-bottom:12px}
 .ring{border-radius:50%;flex:none;display:grid;place-items:center}
 .ring>.inner{border-radius:50%;background:var(--card);display:grid;place-items:center}
-.level .ring{width:56px;height:56px}
-.level .ring>.inner{width:44px;height:44px}
-.level .lvl{font-family:var(--serif);font-size:20px;font-weight:600;line-height:1;color:var(--acc)}
-.level .mid{flex:1;min-width:0}
 .baseline{display:flex;align-items:baseline;justify-content:space-between;gap:8px}
-.rank{font-size:14.5px;font-weight:700;letter-spacing:-.1px}
-.xplab{font-size:10.5px;font-weight:700;color:var(--mut)}
 .bar{border-radius:99px;background:var(--track);overflow:hidden}
 .bar>i{display:block;height:100%;background:var(--acc);border-radius:99px;transition:width .4s,background .3s}
-.level .bar{height:7px;margin-top:8px}
-.note{font-size:10.5px;color:var(--mut);margin-top:6px}
 
 /* ---- today: quest ---- */
 .quest{background:var(--card);border:1.5px solid var(--quest-bd);border-radius:20px;
@@ -158,7 +140,6 @@ input::placeholder{color:var(--faint)}
 .summary .lines{flex:1;min-width:0;display:flex;flex-direction:column;gap:9px}
 .summary .l{font-size:11px;font-weight:600;color:var(--mut)}
 .summary .v{font-size:13px;font-weight:700}
-.summary .v.streak{color:var(--acc)}
 .summary .v.behind{color:#b0552f}
 .summary .v.ahead{color:#7d8a5a}
 .badges{display:flex;flex-wrap:wrap;gap:8px}
@@ -237,8 +218,6 @@ input::placeholder{color:var(--faint)}
 
   <div id="body">
     <div class="view" id="v-today">
-      <div class="streak" id="streakRow"></div>
-      <div id="levelCard"></div>
       <div id="questCard"></div>
       <div class="seclabel">Up next</div>
       <div class="upnext" id="upNext"></div>
