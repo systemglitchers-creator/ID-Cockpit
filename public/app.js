@@ -46,7 +46,12 @@
       .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
   }
   // Per-sector hue for a sector that is merely started (handoff: Assets).
-  function sectorHue(i) { return "oklch(0.615 0.128 " + (28 + (i * 19) % 58) + ")"; }
+  // Per-sector hue for a sector that is merely started. Rebased to the green
+  // half of the wheel for apothecary — the original 28-86 range was red through
+  // yellow, tuned for the berry palette, and would clash here. Not currently
+  // visible (no sector is started-but-not-active) which is exactly why it would
+  // have shipped unnoticed.
+  function sectorHue(i) { return "oklch(0.575 0.085 " + (132 + (i * 19) % 56) + ")"; }
 
   var SECS = (typeof SECTIONS !== "undefined" && SECTIONS) || [];
   // Read from the stylesheet rather than duplicating it — a second copy of the
