@@ -118,3 +118,43 @@ test("writes are not accepted on this endpoint", async () => {
   await require_("../../api/schedule.js")({ method: "POST" }, r);
   assert.equal(r.code, 405);
 });
+
+/* ---- client fetch-and-swap --------------------------------------------------
+   The bundled schedule renders instantly and is the offline copy. A pushed
+   schedule is an upgrade applied after first paint, never a dependency. */
+import { loadCurrentApp } from "./harness.mjs";
+
+const NOW = new Date(2026, 7, 8, 21, 0, 0);
+const served = { version: "2026-09-01", sections: [
+  { title: "Only sector", accent: "#333", year: 1, rows: [
+    { id: "ch1-p1", r: "Chapter 1 — Test", pp: 4, ps: 1, pe: 4, wk: 1, gi: 0 }] }] };
+
+const serving = (status, body) => () =>
+  Promise.resolve({ ok: status < 300, status, json: () => Promise.resolve(body) });
+
+test("a pushed schedule replaces the bundled one after boot", async () => {
+  const app = loadCurrentApp({ now: NOW, fetch: serving(200, served) });
+  assert.equal(app.IDCockpit.compute().sessTotal, 584, "boots on the bundled schedule");
+  await new Promise((r) => setTimeout(r, 40));
+  assert.equal(app.IDCockpit.compute().sessTotal, 1, "swapped to the pushed schedule");
+});
+
+test("an unpushed store leaves the bundled schedule in place", async () => {
+  const app = loadCurrentApp({ now: NOW, fetch: serving(204, null) });
+  await new Promise((r) => setTimeout(r, 40));
+  assert.equal(app.IDCockpit.compute().sessTotal, 584);
+});
+
+test("being offline leaves the bundled schedule in place", async () => {
+  const app = loadCurrentApp({ now: NOW, fetch: () => Promise.reject(new Error("offline")) });
+  await new Promise((r) => setTimeout(r, 40));
+  assert.equal(app.IDCockpit.compute().sessTotal, 584);
+});
+
+test("a malformed served schedule is ignored rather than applied", async () => {
+  for (const body of [{ version: "v" }, { version: "v", sections: [] }, null]) {
+    const app = loadCurrentApp({ now: NOW, fetch: serving(200, body) });
+    await new Promise((r) => setTimeout(r, 40));
+    assert.equal(app.IDCockpit.compute().sessTotal, 584, JSON.stringify(body));
+  }
+});

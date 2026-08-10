@@ -508,6 +508,26 @@
 
   loadFromStore();
   render();
+
+  // The bundled schedule.js renders instantly and is the offline copy. If a
+  // newer plan has been pushed to the store, swap it in and re-render — so a
+  // schedule change reaches the phone without a deploy, while a dead network,
+  // an empty store, or a malformed payload all just leave the bundle standing.
+  function refreshSchedule() {
+    if (typeof fetch !== "function") return;
+    fetch("/api/schedule", { cache: "no-store" })
+      .then(function (r) { return r.status === 200 ? r.json() : null; })
+      .then(function (p) {
+        if (!p || !Array.isArray(p.sections) || !p.sections.length) return;
+        if (JSON.stringify(p.sections) === JSON.stringify(SECS)) return;
+        SECTIONS = p.sections;
+        SECS = p.sections;
+        render();
+      })
+      .catch(function () {});   // offline: the bundled copy stands
+  }
+  refreshSchedule();
+
   window.IDSync.start(refresh);
   if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(function () {});
 

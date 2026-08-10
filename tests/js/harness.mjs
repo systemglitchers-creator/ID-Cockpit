@@ -108,6 +108,7 @@ export function loadCurrentApp(opts = {}) {
     dir: "public",
     files: ["schedule.js", "sync.js", "app.js"],
     now: opts.now,
+    fetch: opts.fetch,
     storage: { "idcockpit.v1.state": JSON.stringify({ sessions }) }
   });
 }

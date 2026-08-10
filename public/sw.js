@@ -1,5 +1,5 @@
 /* ID Cockpit service worker — offline shell + font caching. */
-var CACHE = "idcockpit-web-v3";
+var CACHE = "idcockpit-web-v4";
 var SHELL = [
   "./", "./index.html", "./schedule.js", "./app.js", "./sync.js",
   "./manifest.webmanifest",
