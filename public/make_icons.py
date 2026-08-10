@@ -7,6 +7,9 @@ idea the app's sector rings use. Deliberately a dark tile with light marks: it
 holds against both light and dark iOS wallpapers, where a pale sage tile would
 disappear against the former.
 """
+import hashlib
+import json
+import re
 from PIL import Image, ImageDraw, ImageFont
 from pathlib import Path
 
@@ -49,14 +52,38 @@ def draw(size, transparent_bg=False):
     return img
 
 
-for name, px, transparent in [
-    ("icon-192.png", 192, False),
-    ("icon-512.png", 512, False),
-    ("icon-maskable-512.png", 512, True),
-    ("apple-touch-icon-180.png", 180, False),
+# Filenames carry a content hash, and every reference is rewritten to match.
+#
+# This is not tidiness. vercel.json serves /icons/* as `immutable, max-age=1y`,
+# which tells every cache never to revalidate. With stable filenames that means a
+# changed icon can never reach a device that has already installed the app —
+# which is exactly what happened: the new icon deployed, and the phone kept
+# showing the retired dark app's violet orb.
+REFS = ["index.html", "sw.js", "manifest.webmanifest"]
+
+
+def emit(img, stem):
+    """Save with a content hash, delete older versions, return the filename."""
+    tmp = OUT / (stem + ".tmp.png")
+    img.save(tmp)
+    h = hashlib.sha256(tmp.read_bytes()).hexdigest()[:8]
+    final = OUT / f"{stem}.{h}.png"
+    tmp.rename(final)
+    for old in OUT.glob(f"{stem}.*.png"):
+        if old != final:
+            old.unlink()
+    return final.name
+
+
+written = {}
+for stem, px, transparent in [
+    ("icon-192", 192, False),
+    ("icon-512", 512, False),
+    ("icon-maskable-512", 512, True),
+    ("apple-touch-icon-180", 180, False),
 ]:
-    draw(px, transparent).save(OUT / name)
-    print("wrote", name)
+    written[stem] = emit(draw(px, transparent), stem)
+    print("wrote", written[stem])
 
 # ---- launch images -------------------------------------------------------
 # iOS matches these by exact device resolution, so the set is inherently partial
@@ -74,5 +101,15 @@ for w, h in SPLASH:
     img = Image.new("RGBA", (w, h), BG)
     mark = draw(int(w * 0.22))
     img.paste(mark, ((w - mark.width) // 2, (h - mark.height) // 2 - int(h * 0.04)), mark)
-    img.save(OUT / f"splash-{w}x{h}.png")
+    written[f"splash-{w}x{h}"] = emit(img, f"splash-{w}x{h}")
 print("wrote", len(SPLASH), "launch images")
+
+# Rewrite every reference to the new hashed names.
+root = Path(__file__).resolve().parent
+for ref in REFS:
+    path = root / ref
+    text = path.read_text(encoding="utf-8")
+    for stem, name in written.items():
+        text = re.sub(re.escape(stem) + r"(\.[0-9a-f]{8})?\.png", name, text)
+    path.write_text(text, encoding="utf-8")
+print("rewrote references in", ", ".join(REFS))
