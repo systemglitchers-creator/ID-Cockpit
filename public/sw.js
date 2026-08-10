@@ -1,10 +1,11 @@
 /* ID Cockpit service worker — offline shell + font caching. */
-var CACHE = "idcockpit-web-v9";
+var CACHE = "idcockpit-web-v10";
 var SHELL = [
   "./", "./index.html", "./schedule.js", "./app.js", "./sync.js",
   "./manifest.webmanifest",
   "./icons/icon-192.png", "./icons/icon-512.png",
-  "./icons/icon-maskable-512.png", "./icons/apple-touch-icon-180.png"
+  "./icons/icon-maskable-512.png", "./icons/apple-touch-icon-180.png",
+  "./icons/splash-1179x2556.png", "./icons/splash-1290x2796.png", "./icons/splash-1170x2532.png", "./icons/splash-1284x2778.png", "./icons/splash-1125x2436.png", "./icons/splash-1242x2688.png", "./icons/splash-828x1792.png"
 ];
 
 self.addEventListener("install", function (e) {

@@ -7,6 +7,13 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="ID Cockpit">
+<link rel="apple-touch-startup-image" media="(device-width:430px) and (device-height:932px) and (-webkit-device-pixel-ratio:3)" href="icons/splash-1290x2796.png">
+<link rel="apple-touch-startup-image" media="(device-width:393px) and (device-height:852px) and (-webkit-device-pixel-ratio:3)" href="icons/splash-1179x2556.png">
+<link rel="apple-touch-startup-image" media="(device-width:428px) and (device-height:926px) and (-webkit-device-pixel-ratio:3)" href="icons/splash-1284x2778.png">
+<link rel="apple-touch-startup-image" media="(device-width:390px) and (device-height:844px) and (-webkit-device-pixel-ratio:3)" href="icons/splash-1170x2532.png">
+<link rel="apple-touch-startup-image" media="(device-width:414px) and (device-height:896px) and (-webkit-device-pixel-ratio:3)" href="icons/splash-1242x2688.png">
+<link rel="apple-touch-startup-image" media="(device-width:375px) and (device-height:812px) and (-webkit-device-pixel-ratio:3)" href="icons/splash-1125x2436.png">
+<link rel="apple-touch-startup-image" media="(device-width:414px) and (device-height:896px) and (-webkit-device-pixel-ratio:2)" href="icons/splash-828x1792.png">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon-180.png">
 <title>ID Cockpit</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -40,6 +47,13 @@
   --sans:'Hanken Grotesk',system-ui,-apple-system,sans-serif;
   --serif:'Newsreader',Georgia,serif;
 }
+
+/* ---- iOS fit -------------------------------------------------------------
+   html carries the background because body's gradient paints a frame later, and
+   until it does the page shows the browser's default white. */
+html{background:var(--bg);-webkit-text-size-adjust:100%}
+*{-webkit-tap-highlight-color:transparent}
+button,a{-webkit-touch-callout:none}
 *{box-sizing:border-box}
 html,body{margin:0;height:100%}
 body{background:linear-gradient(178deg,#f7faf6 0%,#f2f6f0 46%,#eaf1e8 100%);
@@ -63,7 +77,7 @@ input::placeholder{color:var(--faint)}
 .gear{background:none;border:none;padding:0 0 0 8px;font-size:13px;color:var(--mut);line-height:1}
 
 /* ---- scroll body ---- */
-#body{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:16px 16px 104px}
+#body{padding-left:env(safe-area-inset-left,0px);padding-right:env(safe-area-inset-right,0px);flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:16px 16px 104px}
 .view{display:none}
 .view.on{display:block}
 .seclabel{font-size:10.5px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;
