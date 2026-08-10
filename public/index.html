@@ -30,13 +30,20 @@
   /* translucent + shadow tints. rgba() cannot take a hex var, so these are
      their own tokens — and they are exactly what a 6-char-hex audit misses. */
   --tabs-bg:rgba(233,240,231,.94); --sheet-sh:rgba(24,50,32,.24);
+  /* Depth. Shadows carry the palette's own hue — a neutral grey shadow over a
+     green ground reads as dirt rather than distance. */
+  --sh-1:0 1px 2px rgba(20,45,30,.05);
+  --sh-2:0 1px 2px rgba(20,45,30,.05),0 10px 24px -12px rgba(20,45,30,.16);
+  --sh-3:0 1px 2px rgba(20,45,30,.05),0 10px 24px -12px rgba(20,45,30,.18),0 28px 56px -28px rgba(20,45,30,.22);
+  --edge:.5px solid rgba(47,107,74,.11);
   --scrim:rgba(20,40,28,.38); --card-sh:rgba(30,70,45,.10);
   --sans:'Hanken Grotesk',system-ui,-apple-system,sans-serif;
   --serif:'Newsreader',Georgia,serif;
 }
 *{box-sizing:border-box}
 html,body{margin:0;height:100%}
-body{background:var(--bg);font-family:var(--sans);color:var(--txt);-webkit-font-smoothing:antialiased;overscroll-behavior-y:none}
+body{background:linear-gradient(178deg,#f7faf6 0%,#f2f6f0 46%,#eaf1e8 100%);
+     background-attachment:fixed;font-family:var(--sans);color:var(--txt);-webkit-font-smoothing:antialiased;overscroll-behavior-y:none}
 button{font-family:inherit;cursor:pointer}
 input::placeholder{color:var(--faint)}
 @keyframes idhalo{0%{transform:scale(.94);opacity:.55}100%{transform:scale(1.32);opacity:0}}
@@ -71,25 +78,27 @@ input::placeholder{color:var(--faint)}
 .bar>i{display:block;height:100%;background:var(--acc);border-radius:99px;transition:width .4s,background .3s}
 
 /* ---- today: quest ---- */
-.quest{background:var(--card);border:1.5px solid var(--quest-bd);border-radius:20px;
-       padding:16px 18px 18px;box-shadow:0 6px 18px var(--card-sh);animation:idrise .3s ease both}
+.quest{background:var(--card);border:var(--edge);border-radius:22px;
+       padding:18px 18px 18px;box-shadow:var(--sh-3);animation:idrise .3s ease both}
 .quest .qk{font-size:10px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;color:var(--acc)}
 .quest .qp{font-size:10.5px;font-weight:700;color:var(--mut)}
 .quest .qc{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--mut);margin-top:9px}
 .quest .qt{font-family:var(--serif);font-size:23px;font-weight:500;line-height:1.16;
-           margin-top:3px;letter-spacing:-.3px;text-wrap:pretty}
+           margin-top:3px;text-wrap:pretty}
 .chip{display:inline-block;font-size:10.5px;font-weight:700;background:var(--chip-bg);
       color:var(--chip-txt);padding:5px 11px;border-radius:99px;margin-top:11px}
 .qacts{display:flex;gap:9px;margin-top:16px}
 .qacts button{border:none;font-weight:700;font-size:14px;padding:14px 16px;border-radius:14px}
-.qacts .go{flex:1;background:var(--acc);color:var(--on-acc)}
+.qacts .go{flex:1;background:linear-gradient(180deg,#358055,#276044);color:var(--on-acc);
+           box-shadow:0 1px 0 rgba(255,255,255,.2) inset,0 6px 14px -6px rgba(30,80,55,.5)}
 .qacts .go:hover{background:var(--acc-d)}
 .qacts .alt{background:var(--soft);color:var(--acc-d)}
 .qacts .alt:hover{background:var(--alt-hover)}
 
 /* ---- today: up next ---- */
 .upnext{display:flex;flex-direction:column;gap:8px}
-.unrow{display:flex;align-items:center;gap:12px;background:var(--card);border:1px solid var(--line);
+.unrow{display:flex;align-items:center;gap:12px;background:var(--card);border:var(--edge);
+       box-shadow:var(--sh-1);
        border-radius:14px;padding:12px 14px;cursor:pointer}
 .unrow .n{font-family:var(--serif);font-size:15px;color:var(--numeral);width:26px;flex:none}
 .unrow .t{font-size:13.5px;font-weight:600;line-height:1.25;text-wrap:pretty}
@@ -160,6 +169,18 @@ input::placeholder{color:var(--faint)}
 .sbrow .c{font-size:10.5px;font-weight:700;color:var(--mut);white-space:nowrap}
 .sbrow .bar{height:6px;background:var(--hair);margin-top:7px}
 .bar>i.full{background:var(--gold)}
+
+/* ---- typographic craft --------------------------------------------------
+   Tabular figures anywhere a value can change. This is not neatness: with
+   proportional digits a number that animates visibly jitters as glyph widths
+   shift, and plan 3 animates several of them. */
+.hmeta,.quest .qp,.quest .qc,.summary .v,.unrow .n,.unrow .m,
+.grow .s,.sbrow .c{font-variant-numeric:tabular-nums}
+
+/* Display serif tightens as it grows; small caps open up. */
+.hdr .title{letter-spacing:-.018em}
+.quest .qt{letter-spacing:-.02em}
+.eyebrow,.quest .qk{letter-spacing:.19em}
 
 /* ---- tab bar ---- */
 .tabs{flex:none;background:var(--tabs-bg);backdrop-filter:blur(14px);
