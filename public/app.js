@@ -49,7 +49,11 @@
   function sectorHue(i) { return "oklch(0.615 0.128 " + (28 + (i * 19) % 58) + ")"; }
 
   var SECS = (typeof SECTIONS !== "undefined" && SECTIONS) || [];
-  var ACC = "#9c4f6b";
+  // Read from the stylesheet rather than duplicating it — a second copy of the
+  // accent is how a palette swap leaves the old colour behind in one place.
+  var ACC = (typeof getComputedStyle === "function"
+    ? getComputedStyle(document.documentElement).getPropertyValue("--acc").trim()
+    : "") || "#9c4f6b";
 
   /* ---- state ---- */
   var sessions = {};      // id -> {done, doneAt, updatedAt}
@@ -231,7 +235,7 @@
       var complete = x.complete;
       var active = si === m.firstOpenSec && !complete;
       var started = x.dn > 0 && !complete;
-      var ringCol = complete ? "var(--gold)" : (active ? ACC : (started ? sectorHue(si) : "#d6c2ce"));
+      var ringCol = complete ? "var(--gold)" : (active ? ACC : (started ? sectorHue(si) : "var(--box)"));
       var connCol = complete ? "var(--gold)" : (x.dn > 0 ? ACC : "var(--pip)");
       var cls = complete ? "complete" : (active ? "active" : (started ? "started" : "locked"));
       return '<div class="pnode ' + cls + '" data-sector="' + si + '">'
