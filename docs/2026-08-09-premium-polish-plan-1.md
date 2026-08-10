@@ -43,8 +43,12 @@ Run:
 ```bash
 cd "8. Claude/ID Platform" && grep -n "RANKS\|PAGES_PER_LEVEL\|rankName\|intoLevel\|\blevel\b\|streak\|readDays" public/app.js | wc -l
 ```
-Expected: `18`. If it is not 18, the file has moved on from this plan — re-read
+Expected: `23`. If it is not 23, the file has moved on from this plan — re-read
 before continuing.
+
+(That command was run against the real file while writing this plan. An earlier
+draft said 18, from a slightly different pattern — if a number in a plan has not
+been executed, it is a guess, and a guess here stops an engineer on step one.)
 
 - [ ] **Step 2: Delete the constants**
 
