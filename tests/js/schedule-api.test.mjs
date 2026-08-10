@@ -76,3 +76,45 @@ test("the real schedule in the repo is valid", async () => {
   new Function("g", src + "\ng.SECTIONS = SECTIONS;")(g);
   assert.deepEqual(validateSchedule({ version: "x", sections: g.SECTIONS }).errors, []);
 });
+
+/* ---- GET /api/schedule ------------------------------------------------------
+   204 means "nothing pushed" and is not an error: the app then keeps the copy
+   bundled in public/schedule.js, so an empty store is never an outage. */
+function res() {
+  const r = { code: 0, body: null, headers: {} };
+  r.status = (c) => { r.code = c; return r; };
+  r.json = (b) => { r.body = b; return r; };
+  r.end = () => r;
+  r.setHeader = (k, v) => { r.headers[k] = v; };
+  return r;
+}
+
+test("serves the pushed schedule", async () => {
+  kv.__resetFake();
+  await kv.setSchedule(good);
+  const r = res();
+  await require_("../../api/schedule.js")({ method: "GET" }, r);
+  assert.equal(r.code, 200);
+  assert.equal(r.body.version, "2026-08-08");
+});
+
+test("204 when nothing has been pushed, so the app keeps its bundled copy", async () => {
+  kv.__resetFake();
+  const r = res();
+  await require_("../../api/schedule.js")({ method: "GET" }, r);
+  assert.equal(r.code, 204);
+});
+
+test("a corrupt stored schedule is refused rather than served", async () => {
+  kv.__resetFake();
+  await kv.setSchedule({ version: "v", sections: [] });
+  const r = res();
+  await require_("../../api/schedule.js")({ method: "GET" }, r);
+  assert.equal(r.code, 500);
+});
+
+test("writes are not accepted on this endpoint", async () => {
+  const r = res();
+  await require_("../../api/schedule.js")({ method: "POST" }, r);
+  assert.equal(r.code, 405);
+});
