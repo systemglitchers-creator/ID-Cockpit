@@ -224,6 +224,17 @@
         + '<div class="qt">Every page read — onward to the exam.</div></div>';
     }
 
+    // Three numbers, no more. The middle one is the only one that changes
+    // character: it is the debt, and it earns colour when it is non-zero.
+    $("statStrip").innerHTML =
+      '<div class="cell"><div class="cv">' + m.sessDone + '</div>'
+      +   '<div class="ck">Read</div></div>'
+      + '<div class="cell"><div class="cv' + (m.makeup > 0 ? " behind" : "") + '">'
+      +   (m.makeup > 0 ? m.makeup : "\u2014") + '</div>'
+      +   '<div class="ck">' + (m.makeup > 0 ? "To make up" : "On plan") + '</div></div>'
+      + '<div class="cell"><div class="cv">' + m.pctAll + '%</div>'
+      +   '<div class="ck">Complete</div></div>';
+
     $("upNext").innerHTML = m.upcoming.map(function (u) {
       return '<div class="unrow" data-sector="' + u.si + '">'
         + '<span class="n">' + u.r.num + '</span>'
