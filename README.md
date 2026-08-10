@@ -44,6 +44,31 @@ The old build stays reachable on GitHub Pages at
 To preview locally: `python3 -m http.server 8797 --directory public`, then
 <http://127.0.0.1:8797/>.
 
+## Pushing a schedule change without a deploy
+
+The plan bundled in `public/schedule.js` renders first and is the offline copy.
+A pushed copy in Redis overrides it at runtime, so reordering, inserting or
+editing sessions reaches the phone on next open with no git push and no deploy:
+
+```bash
+npm run push:schedule
+```
+
+It validates first and **refuses** to push a schedule with duplicate or missing
+session ids — those are the keys progress is stored against, so a duplicate
+merges two sessions' read-state and a rename orphans it. Fix the source rather
+than working around the validator.
+
+`GET /api/schedule` returns 204 when nothing has been pushed, and the app simply
+keeps its bundled copy. An empty store, a dead network, or a malformed payload
+are all non-events.
+
+App *behaviour* changes (anything in `app.js`) still need a normal push and
+deploy — the store carries content, not code.
+
+**One-time setup:** Vercel dashboard → id-cockpit → Storage → connect the
+existing Upstash/KV store, then `npx vercel link && npx vercel env pull .env.local`.
+
 ## Progress and sync
 
 Progress is stored on the device and shared between devices through a **private**
