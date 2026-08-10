@@ -71,6 +71,10 @@ export function loadApp(opts = {}) {
     location: { hostname, pathname: "/phone/", protocol: "https:", href: "https://" + hostname + "/phone/" },
     localStorage: fakeLocalStorage(opts.storage),
     navigator: { onLine: true },
+    // motion.js needs both. Without them the app throws on load — the same
+    // way it did when copy.js was added to the page but not to this list.
+    matchMedia: () => ({ matches: false }),
+    requestAnimationFrame: (fn) => setTimeout(() => fn(Date.now()), 0),
     // Gist traffic only. A test that hits this wanted a stub and didn't set one.
     fetch: opts.fetch || (() => Promise.reject(new Error("unexpected network call"))),
     setTimeout, clearTimeout, setInterval, clearInterval,
@@ -106,7 +110,7 @@ export function loadCurrentApp(opts = {}) {
   for (const id of opts.done ?? []) sessions[id] = { done: true, doneAt: iso, updatedAt: iso };
   return loadApp({
     dir: "public",
-    files: ["schedule.js", "sync.js", "copy.js", "app.js"],
+    files: ["schedule.js", "sync.js", "copy.js", "motion.js", "app.js"],
     now: opts.now,
     fetch: opts.fetch,
     storage: { "idcockpit.v1.state": JSON.stringify({ sessions }) }

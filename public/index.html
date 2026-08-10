@@ -195,6 +195,29 @@ input::placeholder{color:var(--faint)}
 .quest .qt{letter-spacing:-.02em}
 .eyebrow,.quest .qk{letter-spacing:.19em}
 
+/* ---- motion --------------------------------------------------------------
+   Entry animations only. These run on mount, so they survive render() rebuilding
+   the panel — which is exactly what CSS transitions on changing values cannot do.
+   The counting numbers are handled in motion.js instead. */
+@keyframes idfade{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+@keyframes idpop{0%{transform:scale(1)}38%{transform:scale(1.05)}100%{transform:scale(1)}}
+.view.on > *{animation:idfade .32s cubic-bezier(.2,.8,.3,1) both}
+.view.on > *:nth-child(1){animation-delay:.02s}
+.view.on > *:nth-child(2){animation-delay:.06s}
+.view.on > *:nth-child(3){animation-delay:.10s}
+.view.on > *:nth-child(4){animation-delay:.14s}
+.unrow{animation:idfade .3s cubic-bezier(.2,.8,.3,1) both}
+.unrow:nth-child(2){animation-delay:.04s}
+.unrow:nth-child(3){animation-delay:.08s}
+.strip.pop{animation:idpop .42s cubic-bezier(.2,.8,.3,1)}
+.qacts button{transition:transform .12s cubic-bezier(.2,.8,.3,1),filter .2s}
+.qacts button:active{transform:scale(.97)}
+
+@media (prefers-reduced-motion:reduce){
+  .view.on > *,.unrow,.quest,.strip.pop{animation:none !important}
+  .qacts button{transition:none}
+}
+
 /* ---- tab bar ---- */
 .tabs{flex:none;background:var(--tabs-bg);backdrop-filter:blur(14px);
       border-top:1px solid var(--line);display:flex;
@@ -344,5 +367,6 @@ input::placeholder{color:var(--faint)}
 <script src="schedule.js"></script>
 <script src="sync.js"></script>
 <script src="copy.js"></script>
+<script src="motion.js"></script>
 <script src="app.js"></script>
 </body></html>

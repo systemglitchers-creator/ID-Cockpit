@@ -77,6 +77,7 @@
     var now = new Date().toISOString();
     ids.forEach(function (id) { sessions[id] = { done: !!done, doneAt: done ? now : null, updatedAt: now }; });
     render();
+    if (done) window.IDMotion.pulse($("statStrip"), "pop");
     try {
       ids.forEach(function (id) { window.IDStore.setEntry(id, done); });
       window.IDSync.schedulePush();
@@ -227,13 +228,18 @@
     // Three numbers, no more. The middle one is the only one that changes
     // character: it is the debt, and it earns colour when it is non-zero.
     $("statStrip").innerHTML =
-      '<div class="cell"><div class="cv">' + m.sessDone + '</div>'
-      +   '<div class="ck">Read</div></div>'
-      + '<div class="cell"><div class="cv' + (m.makeup > 0 ? " behind" : "") + '">'
-      +   (m.makeup > 0 ? m.makeup : "\u2014") + '</div>'
+      '<div class="cell"><div class="cv" id="cvRead"></div><div class="ck">Read</div></div>'
+      + '<div class="cell"><div class="cv' + (m.makeup > 0 ? " behind" : "") + '" id="cvOwed"></div>'
       +   '<div class="ck">' + (m.makeup > 0 ? "To make up" : "On plan") + '</div></div>'
-      + '<div class="cell"><div class="cv">' + m.pctAll + '%</div>'
-      +   '<div class="ck">Complete</div></div>';
+      + '<div class="cell"><div class="cv" id="cvPct"></div><div class="ck">Complete</div></div>';
+
+    // Values are counted in, not written. motion remembers the previous number
+    // outside the DOM, so a freshly rebuilt node still animates from it.
+    window.IDMotion.countTo($("cvRead"), "read", m.sessDone);
+    window.IDMotion.countTo($("cvOwed"), "owed", m.makeup,
+      function (v) { return m.makeup > 0 ? Math.round(v) : "\u2014"; });
+    window.IDMotion.countTo($("cvPct"), "pct", m.pctAll,
+      function (v) { return Math.round(v) + "%"; });
 
     $("upNext").innerHTML = m.upcoming.map(function (u) {
       return '<div class="unrow" data-sector="' + u.si + '">'
