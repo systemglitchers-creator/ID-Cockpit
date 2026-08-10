@@ -1,0 +1,12 @@
+{
+  "name": "id-cockpit",
+  "private": true,
+  "version": "1.0.0",
+  "scripts": {
+    "test": "node --test \"tests/js/*.test.mjs\"",
+    "push:schedule": "node scripts/push-schedule.mjs"
+  },
+  "dependencies": {
+    "@upstash/redis": "^1.34.0"
+  }
+}

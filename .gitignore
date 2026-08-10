@@ -7,3 +7,6 @@
 # The retired Mac server's progress file. Superseded by mac-progress.json,
 # which is tracked. Safe to delete once the phone has imported it.
 state.json
+node_modules/
+.env.local
+.vercel/
