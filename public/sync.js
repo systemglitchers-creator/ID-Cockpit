@@ -43,6 +43,59 @@
     replace: function (sessions) { Store.save({ sessions: sessions || {} }); }
   };
 
+  /* ---- server-backed progress ------------------------------------------------
+     The durable copy. localStorage is only a cache now: it survives being
+     cleared, moved to a new address, or reinstalled, because the truth is on
+     the server.
+
+     One operation does everything. POST sends whatever this device holds; the
+     server unions it with the stored copy and returns the result, which becomes
+     the new local state. That means a single round trip both uploads and
+     downloads, always converges, and can never delete — a device with nothing
+     sends nothing and receives everything. */
+  var Server = {
+    _t: null, _refresh: null, _inflight: false,
+
+    sync: function () {
+      if (typeof fetch !== "function" || Server._inflight) return Promise.resolve(false);
+      Server._inflight = true;
+      return fetch("/api/progress", {
+        method: "POST",
+        cache: "no-store",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sessions: Store.getState().sessions })
+      })
+        .then(function (r) { if (!r.ok) throw new Error("progress " + r.status); return r.json(); })
+        .then(function (d) {
+          if (!d || typeof d.sessions !== "object") return false;
+          // Server response is authoritative: it already contains everything we
+          // sent, unioned with everything it held.
+          Store.replace(d.sessions);
+          if (Server._refresh) Server._refresh();
+          return true;
+        })
+        .catch(function () { return false; })   // offline: local stands, retry later
+        .then(function (ok) { Server._inflight = false; return ok; });
+    },
+
+    schedule: function () {
+      clearTimeout(Server._t);
+      Server._t = setTimeout(function () { Server.sync(); }, 1200);
+    },
+
+    start: function (refresh) {
+      Server._refresh = refresh;
+      Server.sync();
+      if (global.addEventListener) {
+        global.addEventListener("online", function () { Server.sync(); });
+        // Coming back to the app is the moment a stale device most needs to catch up.
+        global.addEventListener("visibilitychange", function () {
+          if (!global.document || global.document.visibilityState === "visible") Server.sync();
+        });
+      }
+    }
+  };
+
   var Sync = {
     _t: null, _refresh: null,
     cfg: function () { try { return JSON.parse(localStorage.getItem(GIST_KEY)) || {}; } catch (e) { return {}; } },
@@ -89,5 +142,6 @@
 
   global.IDStore = Store;
   global.IDSync = Sync;
+  global.IDServer = Server;
   global.mergeSessions = mergeSessions;
 })(window);

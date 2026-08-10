@@ -74,6 +74,7 @@
     try {
       ids.forEach(function (id) { window.IDStore.setEntry(id, done); });
       window.IDSync.schedulePush();
+      window.IDServer.schedule();   // the durable copy
     } catch (e) { toast("Not saved — will retry on reload"); }
   }
   function loadFromStore() {
@@ -495,7 +496,7 @@
           var data = JSON.parse(rd.result);
           if (!data || typeof data.sessions !== "object") throw new Error("bad");
           window.IDStore.mergeRemote(data.sessions);
-          refresh(); window.IDSync.schedulePush();
+          refresh(); window.IDSync.schedulePush(); window.IDServer.schedule();
           status.textContent = "Imported ✓";
         } catch (err) { status.textContent = "Import failed — not a valid state file."; }
       };
@@ -528,6 +529,7 @@
   }
   refreshSchedule();
 
+  window.IDServer.start(refresh);   // progress lives on the server; local is a cache
   window.IDSync.start(refresh);
   if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(function () {});
 

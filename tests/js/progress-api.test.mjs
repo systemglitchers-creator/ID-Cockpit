@@ -127,3 +127,65 @@ test("unsupported methods are refused", async () => {
   await handler()({ method: "DELETE" }, r);
   assert.equal(r.code, 405);
 });
+
+/* ---- client side ------------------------------------------------------------
+   The phone must be able to arrive empty and be filled from the server. That is
+   the whole fix: local storage is a cache, the server is the truth. */
+import { loadCurrentApp } from "./harness.mjs";
+
+const NOW = new Date(2026, 7, 8, 21, 0, 0);
+const settle = () => new Promise((r) => setTimeout(r, 40));
+
+// The app calls /api/schedule as well as /api/progress on boot. Route by URL,
+// or the schedule GET (which has no body) lands in the progress stub.
+function routed(onProgress) {
+  return (url, init) => {
+    if (String(url).indexOf("/api/progress") === 0) return onProgress(url, init);
+    return Promise.resolve({ ok: true, status: 204, json: () => Promise.resolve(null) });
+  };
+}
+
+test("a device that has lost its progress is refilled from the server", async () => {
+  const server = { "ch20-p1": at("2026-08-01T10:00:00Z"), "ch20-p2": at("2026-08-01T10:00:00Z") };
+  let posted = null;
+  const app = loadCurrentApp({
+    now: NOW, done: [],                       // empty phone, exactly the bug
+    fetch: routed((url, init) => {
+      posted = JSON.parse(init.body);
+      return Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({ sessions: server }) });
+    })
+  });
+  assert.equal(app.IDCockpit.compute().sessDone, 0, "starts empty");
+  await settle();
+  assert.deepEqual(posted.sessions, {}, "sends its empty state, claiming nothing");
+  assert.equal(Object.keys(app.IDStore.getState().sessions).length, 2, "and is refilled");
+});
+
+test("local reads survive an offline server", async () => {
+  const app = loadCurrentApp({
+    now: NOW, done: ["ch20-p1", "ch20-p2", "ch20-p3"],
+    fetch: routed(() => Promise.reject(new Error("offline")))
+  });
+  await settle();
+  assert.equal(Object.keys(app.IDStore.getState().sessions).length, 3, "local state untouched");
+});
+
+test("a garbage server response is ignored rather than adopted", async () => {
+  for (const body of [null, {}, { sessions: "nope" }]) {
+    const app = loadCurrentApp({
+      now: NOW, done: ["ch20-p1"],
+      fetch: routed(() => Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(body) }))
+    });
+    await settle();
+    assert.equal(Object.keys(app.IDStore.getState().sessions).length, 1, JSON.stringify(body));
+  }
+});
+
+test("a server error leaves local progress alone", async () => {
+  const app = loadCurrentApp({
+    now: NOW, done: ["ch20-p1"],
+    fetch: routed(() => Promise.resolve({ ok: false, status: 502, json: () => Promise.resolve({}) }))
+  });
+  await settle();
+  assert.equal(Object.keys(app.IDStore.getState().sessions).length, 1);
+});
