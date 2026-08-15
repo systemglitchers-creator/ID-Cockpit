@@ -81,7 +81,7 @@ function behind(n) {   // n sessions read, all well in the past
 }
 
 test("a slip no longer pushes the finish date out", () => {
-  const app = behind(38);                       // 6 study days short
+  const app = behind(30);                       // 6 study days short (planEnd 591 since the 2026-08-14 rebase)
   const m = app.IDCockpit.compute();
   const last = Math.max(...Object.values(m.EFF));
   assert.equal(last, planEndIdx(app), "last session must land on the plan's original end");
@@ -89,12 +89,12 @@ test("a slip no longer pushes the finish date out", () => {
 });
 
 test("the debt surfaces as sessions owed, not days lost", () => {
-  const m = behind(38).IDCockpit.compute();
+  const m = behind(30).IDCockpit.compute();
   assert.equal(m.makeup, 6);
 });
 
 test("catch-up doubles up, never triples, and only where needed", () => {
-  const m = behind(38).IDCockpit.compute();
+  const m = behind(30).IDCockpit.compute();
   const counts = Object.values(m.perDay);
   assert.equal(Math.max(...counts), 2, "no day should carry three sessions");
   assert.equal(counts.filter((c) => c === 2).length, 6, "one double per session owed");
@@ -102,7 +102,7 @@ test("catch-up doubles up, never triples, and only where needed", () => {
 
 test("the first two study weeks stay single", () => {
   // Coming back from time away shouldn't come due the next morning.
-  const app = behind(38);
+  const app = behind(30);
   const m = app.IDCockpit.compute();
   const doubles = Object.keys(m.perDay).filter((d) => m.perDay[d] > 1).map(Number).sort((a, b) => a - b);
   const first = app.IDCockpit.dayDate(doubles[0]);
@@ -110,20 +110,20 @@ test("the first two study weeks stay single", () => {
 });
 
 test("on track, the schedule is exactly one a day", () => {
-  const app = behind(44);                       // caught up
+  const app = behind(36);                       // caught up
   const m = app.IDCockpit.compute();
   assert.equal(m.makeup, 0);
   assert.equal(Math.max(...Object.values(m.perDay)), 1, "no doubling when not behind");
 });
 
 test("reading ahead dissolves the catch-up on its own", () => {
-  assert.equal(behind(38).IDCockpit.compute().makeup, 6);
-  assert.equal(behind(41).IDCockpit.compute().makeup, 3);
-  assert.equal(behind(44).IDCockpit.compute().makeup, 0);
+  assert.equal(behind(30).IDCockpit.compute().makeup, 6);
+  assert.equal(behind(33).IDCockpit.compute().makeup, 3);
+  assert.equal(behind(36).IDCockpit.compute().makeup, 0);
 });
 
 test("sessions stay in curriculum order regardless of doubling", () => {
-  const app = behind(38);
+  const app = behind(30);
   const m = app.IDCockpit.compute();
   const open = app.SECTIONS.flatMap((s) => s.rows).filter((r) => m.EFF[r.id] != null);
   for (let i = 1; i < open.length; i++) {
@@ -142,9 +142,9 @@ test("the first double does not recede as days pass", () => {
     const d = Object.keys(m.perDay).filter((k) => m.perDay[k] > 1).map(Number).sort((a, b) => a - b);
     return app.IDCockpit.dayDate(d[0]).toDateString();
   };
-  assert.equal(on(SAT_AUG_8, 38), "Sun Aug 23 2026");
-  assert.equal(on(new Date(2026, 7, 12, 9, 0, 0), 38), "Sun Aug 23 2026", "still Aug 23 four days later");
-  assert.equal(on(new Date(2026, 7, 20, 9, 0, 0), 38), "Sun Aug 23 2026", "still Aug 23 the week of");
+  assert.equal(on(SAT_AUG_8, 30), "Sun Aug 23 2026");
+  assert.equal(on(new Date(2026, 7, 12, 9, 0, 0), 30), "Sun Aug 23 2026", "still Aug 23 four days later");
+  assert.equal(on(new Date(2026, 7, 20, 9, 0, 0), 30), "Sun Aug 23 2026", "still Aug 23 the week of");
 });
 
 test("once the grace date passes, catch-up starts immediately", () => {
