@@ -119,6 +119,28 @@ input::placeholder{color:var(--faint)}
 .unrow .m{font-size:10.5px;color:var(--mut);margin-top:3px}
 
 /* ---- path ---- */
+.pseg{display:flex;gap:4px;background:var(--pip);border-radius:99px;padding:4px;width:max-content;margin:0 0 18px}
+.pseg button{border:0;background:transparent;font:inherit;font-size:12.5px;font-weight:700;color:var(--mut);padding:7px 16px;border-radius:99px;cursor:pointer}
+.pseg button.on{background:var(--card);color:var(--acc);box-shadow:0 1px 4px rgba(24,50,32,.10)}
+/* Day-by-day: the whole plan as a calendar. Read days sit where they were
+   actually read; open days where the deal will put them. */
+.daylist{padding:2px 0 8px}
+.mhead{font-size:11px;font-weight:800;letter-spacing:.12em;color:var(--faint);text-transform:uppercase;margin:22px 2px 10px}
+.daylist .mhead:first-child{margin-top:0}
+.dgrp{display:flex;gap:12px;background:var(--card);border:var(--edge);border-radius:16px;padding:12px 14px;margin-bottom:8px}
+.dgrp.past{opacity:.6}
+.dgrp.today{border:1.5px solid var(--acc)}
+.dd{width:36px;flex:none;text-align:center;padding-top:1px}
+.dd .dw{display:block;font-size:9.5px;font-weight:800;letter-spacing:.08em;color:var(--faint)}
+.dd .dn{display:block;font-family:var(--serif);font-size:19px;color:var(--numeral);line-height:1.2}
+.dgrp.today .dd .dw,.dgrp.today .dd .dn{color:var(--acc)}
+.dd .x2{display:block;font-size:9px;font-weight:800;color:var(--behind);margin-top:1px}
+.dss{flex:1;min-width:0;display:flex;flex-direction:column;gap:10px}
+.ds{display:flex;align-items:center;gap:9px;cursor:pointer}
+.ds .dot{width:8px;height:8px;border-radius:99px;flex:none}
+.ds .t{font-size:13px;font-weight:600;line-height:1.25;text-wrap:pretty}
+.ds .m{font-size:10.5px;color:var(--mut);margin-top:2px}
+.ds .ck{margin-left:auto;flex:none;color:var(--read);font-size:12px;font-weight:700}
 .path{position:relative;display:flex;flex-direction:column;padding:4px 0 8px}
 .pnode{display:flex;align-items:center;gap:15px;cursor:pointer;position:relative;padding-bottom:22px}
 .pnode:last-child{padding-bottom:0}
@@ -322,7 +344,12 @@ input::placeholder{color:var(--faint)}
     </div>
 
     <div class="view" id="v-path">
+      <div class="pseg" id="pathSeg">
+        <button class="on" data-pview="tree">Sectors</button>
+        <button data-pview="days">Day by day</button>
+      </div>
       <div class="path" id="pathList"></div>
+      <div class="daylist" id="dayList" style="display:none"></div>
     </div>
 
     <div class="view" id="v-find">
