@@ -63,7 +63,7 @@
   /* ---- state ---- */
   var sessions = {};      // id -> {done, doneAt, updatedAt}
   var tab = "today";
-  var pview = "tree";     // path tab: "tree" (sectors) or "days" (day by day)
+  var showEarlier = false;   // home stream: past days fold away by default
   var sheetSi = null;     // open sector sheet index, or null
   var query = "";
   var M = null;           // last computed model
@@ -77,7 +77,11 @@
   function setDone(ids, done) {
     var now = new Date().toISOString();
     ids.forEach(function (id) { sessions[id] = { done: !!done, doneAt: done ? now : null, updatedAt: now }; });
+    // A mark from deep in the home stream must not fling the view back to the
+    // top — rebuild, then put the scroll back where the thumb was.
+    var st = $("body").scrollTop;
     render();
+    $("body").scrollTop = st;
     if (done) window.IDMotion.pulse($("statStrip"), "pop");
     try {
       ids.forEach(function (id) { window.IDStore.setEntry(id, done); });
@@ -180,13 +184,7 @@
   /* ---- header ---- */
   function renderHeader() {
     var m = M, h;
-    if (tab === "path") {
-      if (pview === "days") {
-        var pe = dayDate(m.planEnd);
-        h = { e: "The two-year path", t: "Day by day",
-              r: m.remaining + " to go · ends " + MO[pe.getMonth()] + " " + pe.getDate() + ", " + pe.getFullYear() };
-      } else h = { e: "The two-year path", t: "Sectors", r: m.earned + " of " + m.secs.length + " cleared" };
-    }
+    if (tab === "path")       h = { e: "The two-year path", t: "Sectors", r: m.earned + " of " + m.secs.length + " cleared" };
     else if (tab === "find")  h = { e: "The whole plan", t: "Find a chapter", r: m.sessTotal + " sessions" };
     else if (tab === "stats") h = { e: "Where you stand", t: "Progress", r: m.pagesDone + " pages read" };
     // Home screen leads with the catch-up debt when there is one: it is the
@@ -248,13 +246,54 @@
     window.IDMotion.countTo($("cvPct"), "pct", m.pctAll,
       function (v) { return Math.round(v) + "%"; });
 
-    $("upNext").innerHTML = m.upcoming.map(function (u) {
-      return '<div class="unrow" data-sector="' + u.si + '">'
-        + '<span class="n">' + u.r.num + '</span>'
-        + '<div style="flex:1;min-width:0"><div class="t">' + esc(cleanTitle(u.r.r)) + '</div>'
-        + '<div class="m">Ch ' + esc(chapNum(u.r.r)) + ' · ' + esc(partOf(u.r.r)) + ' · ' + u.r.pp + ' pages</div>'
-        + '</div></div>';
-    }).join("");
+    renderStream();
+  }
+
+  /* ---- the home stream ----
+     The whole plan, inline under the quest. Past days fold away behind a
+     pill; every open row carries its own checkbox and page range, so marking
+     a reading off never needs a detour through the sector sheet. */
+  function streamMeta(r) {
+    var ch = chapNum(r.r), bits = [];
+    if (ch) bits.push("Ch " + ch);
+    var p = partOf(r.r); if (p !== "Whole chapter") bits.push(p);
+    if (r.ps != null && r.pe != null) bits.push("pp " + r.ps + "–" + r.pe);
+    else if (!ch) bits.push("Review session");
+    return bits.join(" · ");
+  }
+  function renderStream() {
+    var m = M, todayKey = dayKey(m.now), out = "";
+    if (m.sessDone > 0) {
+      out += '<button class="earlier" data-earlier>'
+        + (showEarlier ? "Hide the " + m.sessDone + " read sessions"
+                       : m.sessDone + " read · show earlier") + '</button>';
+    }
+    dayPlan(m).forEach(function (mo) {
+      var days = mo.days.filter(function (d) {
+        return showEarlier || d.rows.some(function (it) { return !it.done; });
+      });
+      if (!days.length) return;
+      out += '<div class="mhead">' + esc(mo.k) + '</div>' + days.map(function (d) {
+        var open = d.rows.some(function (it) { return !it.done; });
+        var cls = "dgrp" + (d.k === todayKey ? " today" : (open ? "" : " past"));
+        return '<div class="' + cls + '">'
+          + '<div class="dd"><span class="dw">' + WD[d.date.getDay()].toUpperCase() + '</span>'
+          +   '<span class="dn">' + d.date.getDate() + '</span>'
+          +   (d.rows.length > 1 && open ? '<span class="x2">×' + d.rows.length + '</span>' : '')
+          + '</div><div class="dss">'
+          + d.rows.map(function (it) {
+              var r = it.r, ck = it.done;
+              return '<div class="ds" data-toggle="' + esc(r.id) + '">'
+                + '<div class="box' + (ck ? " on" : "") + '">' + (ck ? "✓" : "") + '</div>'
+                + '<div style="flex:1;min-width:0"><div class="t">' + esc(cleanTitle(r.r)) + '</div>'
+                + '<div class="m">' + esc(streamMeta(r)) + '</div></div>'
+                + '<span class="dot" style="background:' + esc(SECS[it.si].accent) + '"></span>'
+                + '</div>';
+            }).join("")
+          + '</div></div>';
+      }).join("");
+    });
+    $("homeStream").innerHTML = out;
   }
 
   /* ---- Path ---- */
@@ -281,43 +320,7 @@
     return months;
   }
 
-  function renderDays() {
-    var m = M, todayKey = dayKey(m.now), anchored = false;
-    $("dayList").innerHTML = dayPlan(m).map(function (mo) {
-      return '<div class="mhead">' + esc(mo.k) + '</div>'
-        + mo.days.map(function (d) {
-            var open = d.rows.some(function (it) { return !it.done; });
-            var anchor = "";
-            if (!anchored && open) { anchor = ' id="dayToday"'; anchored = true; }
-            var cls = "dgrp" + (d.k === todayKey ? " today" : (open ? "" : " past"));
-            return '<div class="' + cls + '"' + anchor + '>'
-              + '<div class="dd"><span class="dw">' + WD[d.date.getDay()].toUpperCase() + '</span>'
-              +   '<span class="dn">' + d.date.getDate() + '</span>'
-              +   (d.rows.length > 1 && open ? '<span class="x2">×' + d.rows.length + '</span>' : '')
-              + '</div><div class="dss">'
-              + d.rows.map(function (it) {
-                  var r = it.r, ch = chapNum(r.r);
-                  return '<div class="ds" data-sector="' + it.si + '">'
-                    + '<span class="dot" style="background:' + esc(SECS[it.si].accent) + '"></span>'
-                    + '<div style="flex:1;min-width:0"><div class="t">' + esc(cleanTitle(r.r)) + '</div>'
-                    + '<div class="m">' + (ch ? "Ch " + esc(ch) + " · " : "") + esc(partOf(r.r))
-                    + (r.pp ? " · " + r.pp + " pages" : "") + '</div></div>'
-                    + (it.done ? '<span class="ck">✓</span>' : '')
-                    + '</div>';
-                }).join("")
-              + '</div></div>';
-          }).join("");
-    }).join("");
-  }
-
   function renderPath() {
-    var days = pview === "days";
-    $("pathList").style.display = days ? "none" : "";
-    $("dayList").style.display = days ? "" : "none";
-    Array.prototype.forEach.call($("pathSeg").children, function (b) {
-      b.classList.toggle("on", b.dataset.pview === (days ? "days" : "tree"));
-    });
-    if (days) { renderDays(); return; }
     var m = M, last = m.secs.length - 1;
     $("pathList").innerHTML = m.secs.map(function (x, si) {
       var complete = x.complete;
@@ -534,19 +537,8 @@
   });
 
   function onActivate(e) {
-    var pv = e.target.closest("[data-pview]");
-    if (pv) {
-      if (pview !== pv.dataset.pview) {
-        pview = pv.dataset.pview;
-        render();
-        // Land on the first open day, not January of year one.
-        if (pview === "days") {
-          var a = $("dayToday");
-          if (a && a.scrollIntoView) a.scrollIntoView({ block: "center" });
-        }
-      }
-      return;
-    }
+    var ea = e.target.closest("[data-earlier]");
+    if (ea) { showEarlier = !showEarlier; render(); return; }
     var mark = e.target.closest("[data-mark]");
     if (mark) { setDone([mark.dataset.mark], true); return; }
     var all = e.target.closest("[data-markall]");

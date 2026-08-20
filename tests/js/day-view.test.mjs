@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { loadCurrentApp } from "./harness.mjs";
 
-/* The Path tab's day-by-day view: the whole plan, chronological, one entry
+/* dayPlan feeds the home stream: the whole plan, chronological, one entry
    per calendar day. Read sessions sit on the day they were actually read;
    open ones on the day the deal gives them. */
 
@@ -37,6 +37,22 @@ test("read sessions sit on the day they were read, not the plan's day", () => {
   const day = days.find((d) => Array.from(d.rows).some((x) => x.r.id === "ch20-p1"));
   assert.equal(day.date.toDateString(), new Date(doneAt).toDateString());
   assert.ok(Array.from(day.rows).every((x) => x.done), "a read day never mixes in open sessions here");
+});
+
+test("the home stream folds past days away and rows carry their page range", () => {
+  const app = loadCurrentApp({ now: FRI_AUG_7, done: ["ch20-p1"], doneAt: "2026-07-20T12:00:00Z" });
+  const html = app._elements.get("homeStream").innerHTML;
+  assert.match(html, /data-toggle="ch199-p4"/, "open rows are markable in place");
+  assert.match(html, /pp 2392–2398/, "the row tells you what to open the book to");
+  assert.doesNotMatch(html, /data-toggle="ch20-p1"/, "read sessions stay folded by default");
+  assert.match(html, /1 read · show earlier/, "the fold pill counts what it hides");
+});
+
+test("review sessions in the stream say what they are instead of pp null", () => {
+  const app = loadCurrentApp({ now: FRI_AUG_7 });
+  const html = app._elements.get("homeStream").innerHTML;
+  assert.match(html, /Review session/);
+  assert.doesNotMatch(html, /pp null/);
 });
 
 test("a catch-up double shows as two sessions on one day, never three", () => {
