@@ -283,7 +283,7 @@
   /* ---- momentum, in weeks not days ----
      A call week costs one imperfect week, not a 40-day streak — the forgiving
      frame is the one that survives fellowship. Plan weeks run Mon–Sun with
-     Saturday off, so the target is 6. Dots are the last 14 calendar days. */
+     Saturday off, so the target is 6. Dots are the last 7 calendar days. */
   var PERFECT_FROM = new Date(2026, 7, 17);   // first full week after the rebase;
                                               // earlier doneAt data is bulk re-entry noise
   function weekStart(when) {
@@ -312,7 +312,7 @@
       weekRead += byDay[dayKey(d)] || 0;
     }
     var dots = [];
-    for (i = 13; i >= 0; i--) {
+    for (i = 6; i >= 0; i--) {
       d = new Date(today); d.setDate(today.getDate() - i);
       var n = byDay[dayKey(d)] || 0;
       dots.push({ k: dayKey(d),

@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { loadCurrentApp, loadApp } from "./harness.mjs";
 
 /* Momentum in weeks, not streaks: the ring is this plan-week (Mon–Sun,
-   Saturday off, target 6), dots are the last 14 calendar days, and perfect
+   Saturday off, target 6), dots are the last 7 calendar days, and perfect
    weeks count only from the first full week after the 2026-08-14 rebase. */
 
 const THU_AUG_20 = new Date(2026, 7, 20, 21, 0, 0);
@@ -51,7 +51,7 @@ test("dots classify read, double, rest, missed, and today", () => {
     doneAt: "2026-08-18T21:00:00-03:00",
   });
   const dots = wv(app).dots;
-  assert.equal(dots.length, 14);
+  assert.equal(dots.length, 7);
   assert.equal(dots[dots.length - 1].st, "today", "today is pending, not missed");
   const byKey = Object.fromEntries(dots.map((d) => [d.k, d.st]));
   assert.equal(byKey["2026-7-18"], "double", "two reads on Tue Aug 18");
