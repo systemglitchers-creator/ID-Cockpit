@@ -13,3 +13,5 @@ node_modules/
 
 # Brainstorming companion scratch
 .superpowers/
+.vercel
+.env*

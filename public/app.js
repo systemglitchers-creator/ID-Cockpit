@@ -180,6 +180,9 @@
   /* ---- small helpers for markup ---- */
   function $(id) { return document.getElementById(id); }
   function conic(col, pct, track) { return "background:conic-gradient(" + col + " " + pct + "%, " + track + " 0)"; }
+  // Minutes, not pages: a tired brain rounds "7 pages" up to "a lot", and
+  // "~25 min" back down to "finishable". 3.5 min/page, rounded to fives.
+  function estMin(pp) { return Math.max(5, Math.round(pp * 3.5 / 5) * 5); }
 
   /* ---- header ---- */
   function renderHeader() {
@@ -216,7 +219,7 @@
       $("questCard").innerHTML =
         '<div class="quest">'
         + '<div class="baseline"><span class="qk">' + esc(qLabel) + '</span>'
-        +   '<span class="qp">pp ' + q.ps + '–' + q.pe + ' · ' + q.pp + ' pages</span></div>'
+        +   '<span class="qp">' + (q.pp ? 'pp ' + q.ps + '–' + q.pe + ' · ' + q.pp + ' pages · ~' + estMin(q.pp) + ' min' : 'Review session') + '</span></div>'
         + '<div class="qc">Chapter ' + esc(chapNum(q.r)) + ' · ' + esc(partOf(q.r)) + '</div>'
         + '<div class="qt">' + esc(cleanTitle(q.r)) + '</div>'
         + (q.g ? '<div class="chip">' + esc(q.g) + '</div>' : '')
@@ -246,7 +249,76 @@
     window.IDMotion.countTo($("cvPct"), "pct", m.pctAll,
       function (v) { return Math.round(v) + "%"; });
 
+    renderWeek();
     renderStream();
+  }
+
+  /* ---- momentum, in weeks not days ----
+     A call week costs one imperfect week, not a 40-day streak — the forgiving
+     frame is the one that survives fellowship. Plan weeks run Mon–Sun with
+     Saturday off, so the target is 6. Dots are the last 14 calendar days. */
+  var PERFECT_FROM = new Date(2026, 7, 17);   // first full week after the rebase;
+                                              // earlier doneAt data is bulk re-entry noise
+  function weekStart(when) {
+    var t = new Date(when); t.setHours(0, 0, 0, 0);
+    t.setDate(t.getDate() - ((t.getDay() + 6) % 7));
+    return t;
+  }
+  function studyDaysIn(ws) {
+    var n = 0;
+    for (var i = 0; i < 7; i++) {
+      var d = new Date(ws); d.setDate(ws.getDate() + i);
+      if (!isFlex(d)) n++;
+    }
+    return n;
+  }
+  function weekView(m) {
+    var byDay = {};
+    SECS.forEach(function (s) { s.rows.forEach(function (r) {
+      var d = doneAt(r.id); if (!isDone(r.id) || !d) return;
+      var k = dayKey(d); byDay[k] = (byDay[k] || 0) + 1;
+    }); });
+    var today = new Date(m.now); today.setHours(0, 0, 0, 0);
+    var ws = weekStart(today), weekRead = 0, i, d;
+    for (i = 0; i < 7; i++) {
+      d = new Date(ws); d.setDate(ws.getDate() + i);
+      weekRead += byDay[dayKey(d)] || 0;
+    }
+    var dots = [];
+    for (i = 13; i >= 0; i--) {
+      d = new Date(today); d.setDate(today.getDate() - i);
+      var n = byDay[dayKey(d)] || 0;
+      dots.push({ k: dayKey(d),
+        st: n > 1 ? "double" : n === 1 ? "read"
+          : isFlex(d) || d < START ? "rest"
+          : d.getTime() === today.getTime() ? "today" : "missed" });
+    }
+    var perfect = 0;
+    for (var w = weekStart(PERFECT_FROM); w < ws; w.setDate(w.getDate() + 7)) {
+      var got = 0;
+      for (i = 0; i < 7; i++) {
+        d = new Date(w); d.setDate(w.getDate() + i);
+        got += byDay[dayKey(d)] || 0;
+      }
+      if (got >= studyDaysIn(w)) perfect++;
+    }
+    return { weekRead: weekRead, weekTarget: studyDaysIn(ws), dots: dots, perfect: perfect };
+  }
+
+  function renderWeek() {
+    var wv = weekView(M);
+    var full = wv.weekRead >= wv.weekTarget;
+    $("weekCard").innerHTML =
+      '<div class="wk">'
+      + '<div class="wring" style="' + conic(full ? "var(--gold)" : ACC,
+          Math.min(100, Math.round(wv.weekRead / wv.weekTarget * 100)), "var(--track)") + '">'
+      +   '<div class="winner">' + wv.weekRead + '</div></div>'
+      + '<div style="flex:1;min-width:0"><div class="t">'
+      +   (full ? "Week complete — " + wv.weekRead + " read" : wv.weekRead + " of " + wv.weekTarget + " this week") + '</div>'
+      +   '<div class="wdots">' + wv.dots.map(function (x) {
+            return '<span class="wdot ' + x.st + '"></span>';
+          }).join("") + '</div></div>'
+      + '</div>';
   }
 
   /* ---- the home stream ----
@@ -404,6 +476,7 @@
       +   '<div class="baseline"><span class="l">Sessions read</span><span class="v">' + m.sessDone + ' / ' + m.sessTotal + '</span></div>'
       +   '<div class="baseline"><span class="l">Pages mastered</span><span class="v">' + m.pagesDone + '</span></div>'
       +   '<div class="baseline"><span class="l">Versus plan</span><span class="v' + driftCls + '">' + driftTxt + '</span></div>'
+      +   '<div class="baseline"><span class="l">Perfect weeks</span><span class="v">' + weekView(m).perfect + '</span></div>'
       + '</div></div>';
 
     $("badgeLabel").textContent = "Sector badges · " + m.earned + " of " + m.secs.length;
@@ -574,6 +647,64 @@
     toastT = setTimeout(function () { el.classList.remove("show"); }, 2600);
   }
 
+  /* ---- the evening nudge toggle ----
+     Web Push needs the installed PWA (iOS 16.4+), and the permission prompt
+     must ride a tap. The subscription lives on the server; the button just
+     reflects whatever this device's push manager says. */
+  function pushReady() {
+    return "serviceWorker" in navigator && "PushManager" in window && "Notification" in window;
+  }
+  function b64ToU8(s) {
+    var b = (s + "=".repeat((4 - s.length % 4) % 4)).replace(/-/g, "+").replace(/_/g, "/");
+    var raw = atob(b), out = new Uint8Array(raw.length);
+    for (var i = 0; i < raw.length; i++) out[i] = raw.charCodeAt(i);
+    return out;
+  }
+  function nudgeUI(on) {
+    $("cfgNudge").textContent = on ? "Turn the nudge off" : "Nudge me each evening";
+    $("cfgNudgeStatus").textContent = on
+      ? "On — around 8:30pm, naming tonight's exact reading. Silent once you've read, and on Saturdays."
+      : "A push each evening naming tonight's exact reading — never fires once you've read.";
+  }
+  function refreshNudge() {
+    if (!pushReady()) {
+      $("cfgNudge").style.display = "none";
+      $("cfgNudgeStatus").textContent = "Nudges need the installed app (Add to Home Screen, iOS 16.4+).";
+      return;
+    }
+    navigator.serviceWorker.ready
+      .then(function (reg) { return reg.pushManager.getSubscription(); })
+      .then(function (s) { nudgeUI(!!s); })
+      .catch(function () { nudgeUI(false); });
+  }
+  function toggleNudge() {
+    var stat = $("cfgNudgeStatus");
+    navigator.serviceWorker.ready.then(function (reg) {
+      return reg.pushManager.getSubscription().then(function (sub) {
+        if (sub) {
+          return sub.unsubscribe()
+            .then(function () { return fetch("/api/push", { method: "DELETE" }); })
+            .then(function () { nudgeUI(false); });
+        }
+        return Notification.requestPermission().then(function (perm) {
+          if (perm !== "granted") { stat.textContent = "Notifications are blocked for this app."; return; }
+          return fetch("/api/push").then(function (r) { return r.json(); }).then(function (j) {
+            if (!j.publicKey) { stat.textContent = "Nudge not configured on the server yet."; return; }
+            return reg.pushManager.subscribe({
+              userVisibleOnly: true,
+              applicationServerKey: b64ToU8(j.publicKey)
+            }).then(function (s) {
+              return fetch("/api/push", {
+                method: "POST", headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ subscription: s.toJSON() })
+              });
+            }).then(function () { nudgeUI(true); });
+          });
+        });
+      });
+    }).catch(function () { stat.textContent = "Couldn't set up the nudge — try again on wifi."; });
+  }
+
   /* ---- sync sheet ---- */
   (function setupSync() {
     var status = $("cfgStatus");
@@ -583,8 +714,10 @@
       $("cfgGist").value = c.gistId || "";
       status.textContent = window.IDSync.configured()
         ? "Sync configured." : "Not configured — progress stays on this device.";
+      refreshNudge();
       $("cfgSheet").classList.add("on");
     };
+    $("cfgNudge").onclick = toggleNudge;
     $("cfgSave").onclick = function () {
       window.IDSync.setCfg({ token: $("cfgToken").value.trim(), gistId: $("cfgGist").value.trim() });
       status.textContent = "Saved. Syncing…";
@@ -652,6 +785,6 @@
 
   // exposed for the node tests
   window.IDCockpit = { compute: compute, cleanTitle: cleanTitle, partOf: partOf,
-                       groupByChapter: groupByChapter, dayPlan: dayPlan,
+                       groupByChapter: groupByChapter, dayPlan: dayPlan, weekView: weekView,
                        chapNum: chapNum, dayDate: dayDate, studyIdx: studyIdx, isFlex: isFlex };
 })();

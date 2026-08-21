@@ -58,6 +58,30 @@ async function setProgress(sessions) {
   await client().set(PROGRESS_KEY, sessions);
 }
 
+const PUSH_KEY = "cockpit:push";
+
+/** The one stored push subscription (single-user app), or null. */
+async function getPushSub() {
+  if (isFake()) return fake.get(PUSH_KEY) || null;
+  if (!process.env.KV_REST_API_URL) return null;
+  const v = await client().get(PUSH_KEY);
+  return v || null;
+}
+async function setPushSub(sub) {
+  if (isFake()) { fake.set(PUSH_KEY, sub); return; }
+  if (!process.env.KV_REST_API_URL) {
+    throw new Error("KV_REST_API_URL is not set — connect the store in Vercel");
+  }
+  await client().set(PUSH_KEY, sub);
+}
+async function delPushSub() {
+  if (isFake()) { fake.delete(PUSH_KEY); return; }
+  if (!process.env.KV_REST_API_URL) return;
+  await client().del(PUSH_KEY);
+}
+
 function __resetFake() { fake.clear(); }
 
-module.exports = { getSchedule, setSchedule, getProgress, setProgress, __resetFake, KEY, PROGRESS_KEY };
+module.exports = { getSchedule, setSchedule, getProgress, setProgress,
+                   getPushSub, setPushSub, delPushSub,
+                   __resetFake, KEY, PROGRESS_KEY, PUSH_KEY };

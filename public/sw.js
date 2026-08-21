@@ -1,5 +1,5 @@
 /* ID Cockpit service worker — offline shell + font caching. */
-var CACHE = "idcockpit-web-v15";
+var CACHE = "idcockpit-web-v16";
 var SHELL = [
   "./", "./index.html", "./schedule.js", "./app.js", "./sync.js",
   "./manifest.webmanifest",
@@ -62,4 +62,23 @@ self.addEventListener("fetch", function (e) {
       });
     }));
   }
+});
+
+/* ---- the evening nudge (Web Push) ----
+   No icon field on purpose: iOS shows the installed app's icon regardless,
+   and a hardcoded hashed icon path would go stale on regeneration. */
+self.addEventListener("push", function (e) {
+  var msg = {};
+  try { msg = e.data.json(); } catch (err) {}
+  e.waitUntil(self.registration.showNotification(msg.title || "ID Cockpit", {
+    body: msg.body || "", tag: "idcockpit-nudge"
+  }));
+});
+self.addEventListener("notificationclick", function (e) {
+  e.notification.close();
+  e.waitUntil(clients.matchAll({ type: "window", includeUncontrolled: true })
+    .then(function (list) {
+      if (list.length) return list[0].focus();
+      return clients.openWindow("./");
+    }));
 });

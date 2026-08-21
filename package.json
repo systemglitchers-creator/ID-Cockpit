@@ -7,6 +7,7 @@
     "push:schedule": "node scripts/push-schedule.mjs"
   },
   "dependencies": {
-    "@upstash/redis": "^1.34.0"
+    "@upstash/redis": "^1.34.0",
+    "web-push": "^3.6.7"
   }
 }

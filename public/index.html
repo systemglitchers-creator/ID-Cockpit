@@ -118,6 +118,19 @@ input::placeholder{color:var(--faint)}
 .unrow .t{font-size:13.5px;font-weight:600;line-height:1.25;text-wrap:pretty}
 .unrow .m{font-size:10.5px;color:var(--mut);margin-top:3px}
 
+/* ---- the week card: momentum in weeks, not streaks ---- */
+.wk{display:flex;align-items:center;gap:14px;background:var(--card);border:var(--edge);border-radius:16px;padding:12px 14px;margin:14px 0 4px}
+.wring{width:44px;height:44px;border-radius:99px;flex:none;display:grid;place-items:center}
+.winner{width:34px;height:34px;border-radius:99px;background:var(--card);display:grid;place-items:center;font-family:var(--serif);font-size:16px}
+.wk .t{font-size:12.5px;font-weight:700}
+.wdots{display:flex;gap:5px;margin-top:7px;align-items:center}
+.wdot{width:8px;height:8px;border-radius:99px;background:var(--pip);flex:none}
+.wdot.read{background:var(--acc)}
+.wdot.double{background:var(--gold)}
+.wdot.missed{background:transparent;border:1.5px solid var(--behind);width:5px;height:5px}
+.wdot.today{background:transparent;border:1.5px solid var(--acc);width:5px;height:5px}
+.wdot.rest{opacity:.45}
+
 /* ---- the home stream: the whole plan as a calendar. Read days sit where
    they were actually read; open days where the deal will put them. ---- */
 .daylist{padding:2px 0 8px}
@@ -339,6 +352,7 @@ input::placeholder{color:var(--faint)}
     <div class="view" id="v-today">
       <div id="questCard"></div>
       <div class="strip" id="statStrip"></div>
+      <div id="weekCard"></div>
       <div class="seclabel">The plan</div>
       <div class="daylist" id="homeStream"></div>
     </div>
@@ -411,6 +425,11 @@ input::placeholder{color:var(--faint)}
         </div>
         <input id="cfgFile" type="file" accept="application/json" style="display:none">
         <div class="status" id="cfgStatus"></div>
+        <label style="margin-top:14px">Evening nudge</label>
+        <div class="btns">
+          <button id="cfgNudge">Nudge me each evening</button>
+        </div>
+        <div class="status" id="cfgNudgeStatus"></div>
         <div class="fine">The token is stored only on this device and is Gist-scoped. Treat it like a password — revoke it on GitHub if a device is lost.</div>
       </div>
     </div>
