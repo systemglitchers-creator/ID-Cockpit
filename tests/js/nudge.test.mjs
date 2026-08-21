@@ -31,6 +31,7 @@ test("a normal study evening nudges with one session", () => {
   assert.equal(t.sessions.length, 1, "grace window keeps pre-Aug-23 days single");
   const msg = compose(SECTIONS, readFirst(30, "2026-07-20T12:00:00Z"), FRI_EVE);
   assert.equal(msg.title, "Tonight's reading");
+  assert.equal(msg.badge, 1, "the badge rides the push");
   assert.match(msg.body, /pp \d+–\d+ · ~\d+ min/, "the body carries pages and minutes");
 });
 

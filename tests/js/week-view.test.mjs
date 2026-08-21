@@ -18,7 +18,7 @@ function loadStamped(stamps, now) {
   }
   return loadApp({
     dir: "public",
-    files: ["schedule.js", "sync.js", "copy.js", "motion.js", "app.js"],
+    files: ["schedule.js", "guidelines.js", "sync.js", "copy.js", "motion.js", "app.js"],
     now,
     storage: { "idcockpit.v1.state": JSON.stringify({ sessions }) },
   });

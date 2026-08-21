@@ -89,7 +89,7 @@ export function loadApp(opts = {}) {
   vm.createContext(sandbox);
 
   const dir = path.join(ROOT, opts.dir ?? "public");
-  const files = opts.files ?? ["schedule.js", "sync.js", "copy.js", "motion.js", "app.js"];
+  const files = opts.files ?? ["schedule.js", "guidelines.js", "sync.js", "copy.js", "motion.js", "app.js"];
   for (const f of files) {
     vm.runInContext(fs.readFileSync(path.join(dir, f), "utf8"), sandbox, { filename: f });
   }
@@ -109,7 +109,7 @@ export function loadCurrentApp(opts = {}) {
   for (const id of opts.done ?? []) sessions[id] = { done: true, doneAt: iso, updatedAt: iso };
   return loadApp({
     dir: "public",
-    files: ["schedule.js", "sync.js", "copy.js", "motion.js", "app.js"],
+    files: ["schedule.js", "guidelines.js", "sync.js", "copy.js", "motion.js", "app.js"],
     now: opts.now,
     fetch: opts.fetch,
     storage: { "idcockpit.v1.state": JSON.stringify({ sessions }) }

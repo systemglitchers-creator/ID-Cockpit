@@ -54,11 +54,34 @@
   function sectorHue(i) { return "oklch(0.575 0.085 " + (132 + (i * 19) % 56) + ")"; }
 
   var SECS = (typeof SECTIONS !== "undefined" && SECTIONS) || [];
+  var GL = (typeof GUIDELINES !== "undefined" && GUIDELINES) || {};
   // Read from the stylesheet rather than duplicating it — a second copy of the
   // accent is how a palette swap leaves the old colour behind in one place.
   var ACC = (typeof getComputedStyle === "function"
     ? getComputedStyle(document.documentElement).getPropertyValue("--acc").trim()
     : "") || "#9c4f6b";
+
+  /* ---- dusk mode: the 9pm palette ---- */
+  function duskPref() {
+    try { return localStorage.getItem("idcockpit.dusk") || "auto"; } catch (e) { return "auto"; }
+  }
+  function duskActive(now, pref) {
+    if (pref === "on") return true;
+    if (pref === "off") return false;
+    var h = now.getHours();
+    return h >= 19 || h < 6;
+  }
+  function applyTheme(now) {
+    var dusk = duskActive(now, duskPref());
+    var root = document.documentElement;
+    if (root.dataset) root.dataset.theme = dusk ? "dusk" : "";
+    // The accent moved with the palette; rings and connectors read it from ACC.
+    if (typeof getComputedStyle === "function") {
+      ACC = getComputedStyle(root).getPropertyValue("--acc").trim() || ACC;
+    }
+    var meta = document.querySelector('meta[name="theme-color"]');
+    if (meta) meta.content = dusk ? "#131a15" : "#e9f0e7";
+  }
 
   /* ---- state ---- */
   var sessions = {};      // id -> {done, doneAt, updatedAt}
@@ -188,6 +211,8 @@
   function renderHeader() {
     var m = M, h;
     if (tab === "path")       h = { e: "The two-year path", t: "Sectors", r: m.earned + " of " + m.secs.length + " cleared" };
+    else if (tab === "guides") h = { e: "One tap to the source", t: "Guidelines",
+                                     r: Object.keys(GL).length + " linked" };
     else if (tab === "find")  h = { e: "The whole plan", t: "Find a chapter", r: m.sessTotal + " sessions" };
     else if (tab === "stats") h = { e: "Where you stand", t: "Progress", r: m.pagesDone + " pages read" };
     // Home screen leads with the catch-up debt when there is one: it is the
@@ -222,7 +247,9 @@
         +   '<span class="qp">' + (q.pp ? 'pp ' + q.ps + '–' + q.pe + ' · ' + q.pp + ' pages · ~' + estMin(q.pp) + ' min' : 'Review session') + '</span></div>'
         + '<div class="qc">Chapter ' + esc(chapNum(q.r)) + ' · ' + esc(partOf(q.r)) + '</div>'
         + '<div class="qt">' + esc(cleanTitle(q.r)) + '</div>'
-        + (q.g ? '<div class="chip">' + esc(q.g) + '</div>' : '')
+        + (q.g ? (GL[q.g]
+            ? '<a class="chip" href="' + esc(GL[q.g].url) + '" target="_blank" rel="noopener">' + esc(q.g) + ' ↗</a>'
+            : '<div class="chip">' + esc(q.g) + '</div>') : '')
         + '<div class="qacts">'
         +   '<button class="go" data-mark="' + esc(q.id) + '">Mark as read</button>'
         +   '<button class="alt" data-sector="' + m.firstOpenSec + '">Sector</button>'
@@ -458,6 +485,29 @@
     }).join("");
   }
 
+  /* ---- Guidelines ----
+     Only tags with a real document behind them appear (the GUIDELINES map);
+     topic labels stay as plain chips elsewhere. Grouped by sector in
+     curriculum order; a gold arrow marks ones whose chapter is already read. */
+  function renderGuides() {
+    var seen = {}, out = "";
+    SECS.forEach(function (s) {
+      var rows = "";
+      s.rows.forEach(function (r) {
+        if (!r.g || seen[r.g] || !GL[r.g]) return;
+        seen[r.g] = true;
+        var covered = isDone(r.id);
+        rows += '<a class="glrow' + (covered ? " covered" : "") + '" href="' + esc(GL[r.g].url)
+          + '" target="_blank" rel="noopener">'
+          + '<div style="flex:1;min-width:0"><div class="t">' + esc(r.g) + '</div>'
+          + '<div class="m">' + esc(GL[r.g].org) + (covered ? " · chapter read" : "") + '</div></div>'
+          + '<span class="arrow">' + (covered ? "✓ ↗" : "↗") + '</span></a>';
+      });
+      if (rows) out += '<div class="mhead">' + esc(s.title) + '</div>' + rows;
+    });
+    $("guideList").innerHTML = out;
+  }
+
   /* ---- Stats ---- */
   function renderStats() {
     var m = M;
@@ -586,8 +636,9 @@
   /* ---- render ---- */
   function render() {
     M = compute();
+    applyTheme(M.now);
     renderHeader();
-    ["today", "path", "find", "stats"].forEach(function (t) {
+    ["today", "path", "guides", "find", "stats"].forEach(function (t) {
       $("v-" + t).classList.toggle("on", t === tab);
     });
     Array.prototype.forEach.call($("tabs").children, function (b) {
@@ -595,9 +646,18 @@
     });
     if (tab === "today") renderToday();
     else if (tab === "path") renderPath();
+    else if (tab === "guides") renderGuides();
     else if (tab === "find") renderFind();
     else if (tab === "stats") renderStats();
     renderSheet();
+    // The icon carries today's debt: due count while unread, cleared on mark.
+    try {
+      if (navigator.setAppBadge) {
+        var due = M.perDay[M.todayIdx] || 0;
+        (due > 0 ? navigator.setAppBadge(due) : navigator.clearAppBadge())
+          .catch(function () {});
+      }
+    } catch (e) {}
   }
 
   /* ---- events ---- */
@@ -610,6 +670,13 @@
   });
 
   function onActivate(e) {
+    var dk = e.target.closest("[data-dusk]");
+    if (dk) {
+      try { localStorage.setItem("idcockpit.dusk", dk.dataset.dusk); } catch (err) {}
+      refreshDuskBtns();
+      render();
+      return;
+    }
     var ea = e.target.closest("[data-earlier]");
     if (ea) { showEarlier = !showEarlier; render(); return; }
     var mark = e.target.closest("[data-mark]");
@@ -659,6 +726,12 @@
     var raw = atob(b), out = new Uint8Array(raw.length);
     for (var i = 0; i < raw.length; i++) out[i] = raw.charCodeAt(i);
     return out;
+  }
+  function refreshDuskBtns() {
+    var pref = duskPref();
+    Array.prototype.forEach.call($("duskBtns").children, function (b) {
+      b.classList.toggle("on", b.dataset.dusk === pref);
+    });
   }
   function nudgeUI(on) {
     $("cfgNudge").textContent = on ? "Turn the nudge off" : "Nudge me each evening";
@@ -715,9 +788,11 @@
       status.textContent = window.IDSync.configured()
         ? "Sync configured." : "Not configured — progress stays on this device.";
       refreshNudge();
+      refreshDuskBtns();
       $("cfgSheet").classList.add("on");
     };
     $("cfgNudge").onclick = toggleNudge;
+    $("duskBtns").onclick = onActivate;   // the cfg sheet sits outside body's delegation
     $("cfgSave").onclick = function () {
       window.IDSync.setCfg({ token: $("cfgToken").value.trim(), gistId: $("cfgGist").value.trim() });
       status.textContent = "Saved. Syncing…";
@@ -786,5 +861,6 @@
   // exposed for the node tests
   window.IDCockpit = { compute: compute, cleanTitle: cleanTitle, partOf: partOf,
                        groupByChapter: groupByChapter, dayPlan: dayPlan, weekView: weekView,
+                       duskActive: duskActive,
                        chapNum: chapNum, dayDate: dayDate, studyIdx: studyIdx, isFlex: isFlex };
 })();

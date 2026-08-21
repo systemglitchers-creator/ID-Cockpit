@@ -1,7 +1,7 @@
 /* ID Cockpit service worker — offline shell + font caching. */
-var CACHE = "idcockpit-web-v16";
+var CACHE = "idcockpit-web-v17";
 var SHELL = [
-  "./", "./index.html", "./schedule.js", "./app.js", "./sync.js",
+  "./", "./index.html", "./schedule.js", "./guidelines.js", "./app.js", "./sync.js",
   "./manifest.webmanifest",
   "./icons/icon-192.a37c2970.png", "./icons/icon-512.0cc4f4ab.png",
   "./icons/icon-maskable-512.7639c87b.png", "./icons/apple-touch-icon-180.72faf33d.png",
@@ -70,6 +70,8 @@ self.addEventListener("fetch", function (e) {
 self.addEventListener("push", function (e) {
   var msg = {};
   try { msg = e.data.json(); } catch (err) {}
+  // The badge rides the push, so the icon nags even if the banner is missed.
+  if (msg.badge && navigator.setAppBadge) navigator.setAppBadge(msg.badge).catch(function () {});
   e.waitUntil(self.registration.showNotification(msg.title || "ID Cockpit", {
     body: msg.body || "", tag: "idcockpit-nudge"
   }));

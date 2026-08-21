@@ -48,6 +48,30 @@
   --serif:'Newsreader',Georgia,serif;
 }
 
+/* ---- dusk: the 9pm palette. Same apothecary, lamplight instead of daylight.
+   Applied by app.js via data-theme (Auto 7pm–6am / Always / Off in settings). */
+:root[data-theme="dusk"]{
+  --acc:#4d9c6f; --acc-d:#3a7a55;
+  --gold:#c9a04a; --gold-txt:#d8b96a; --gold-bg:#2a2618; --gold-bd:#4a4028; --read:#c9a86a;
+  --bg:#131a15; --soft:#18211b; --card:#1d2721; --on-acc:#f2fbf4;
+  --line:#26332a; --hair:#222e26; --track:#26332a; --node-track:#2a382f; --sheet-track:#2a382f;
+  --box:#3a4a3f; --pip:#2c3a31; --quest-bd:#3a5a45; --grab:#3a4a3f;
+  --txt:#e7efe6; --mut:#9db3a2; --faint:#8ba090; --numeral:#8ca08e; --strike:#6f7f6d;
+  --chip-bg:#24332a; --chip-txt:#8fd0ab;
+  --alt-hover:#243129; --undo-bd:#3a4a3f; --pill-bd:#2c3a31;
+  --behind:#d98a55; --ahead:#7fbf9a;
+  --tabs-bg:rgba(19,26,21,.94); --sheet-sh:rgba(0,0,0,.55);
+  --sh-1:0 1px 2px rgba(0,0,0,.3);
+  --sh-2:0 1px 2px rgba(0,0,0,.3),0 10px 24px -12px rgba(0,0,0,.5);
+  --sh-3:0 1px 2px rgba(0,0,0,.3),0 10px 24px -12px rgba(0,0,0,.5),0 28px 56px -28px rgba(0,0,0,.6);
+  --edge:.5px solid rgba(127,191,154,.14);
+  --scrim:rgba(0,0,0,.55); --card-sh:rgba(0,0,0,.4);
+}
+:root[data-theme="dusk"] body{
+  background:linear-gradient(178deg,#161e18 0%,#131a15 46%,#10160f 100%);
+  background-attachment:fixed;
+}
+
 /* ---- iOS fit -------------------------------------------------------------
    html carries the background because body's gradient paints a frame later, and
    until it does the page shows the browser's default white. */
@@ -117,6 +141,15 @@ input::placeholder{color:var(--faint)}
 .unrow .n{font-family:var(--serif);font-size:15px;color:var(--numeral);width:26px;flex:none}
 .unrow .t{font-size:13.5px;font-weight:600;line-height:1.25;text-wrap:pretty}
 .unrow .m{font-size:10.5px;color:var(--mut);margin-top:3px}
+
+/* ---- guidelines tab: one tap to the source document ---- */
+.glrow{display:flex;align-items:center;gap:11px;background:var(--card);border:var(--edge);
+  border-radius:14px;padding:12px 14px;margin-bottom:8px;text-decoration:none;color:var(--txt)}
+.glrow .t{font-size:13px;font-weight:600;line-height:1.3;text-wrap:pretty}
+.glrow .m{font-size:10.5px;color:var(--mut);margin-top:2px}
+.glrow .arrow{margin-left:auto;flex:none;color:var(--faint);font-size:13px}
+.glrow.covered .arrow{color:var(--read)}
+a.chip{text-decoration:none}
 
 /* ---- the week card: momentum in weeks, not streaks ---- */
 .wk{display:flex;align-items:center;gap:14px;background:var(--card);border:var(--edge);border-radius:16px;padding:12px 14px;margin:14px 0 4px}
@@ -328,6 +361,7 @@ input::placeholder{color:var(--faint)}
 .cfg .btns button{flex:1 1 46%;font-size:12.5px;font-weight:700;padding:11px 12px;border-radius:12px;
                   border:1px solid var(--line);background:var(--card);color:var(--acc-d)}
 .cfg .btns button.primary{border:none;background:var(--acc);color:var(--on-acc)}
+.cfg .btns button.on{border-color:var(--acc);color:var(--acc);font-weight:800}
 .cfg .status{font-size:11.5px;color:var(--mut);margin-top:14px;line-height:1.5}
 .cfg .fine{font-size:10.5px;color:var(--faint);margin-top:12px;line-height:1.6}
 
@@ -361,6 +395,10 @@ input::placeholder{color:var(--faint)}
       <div class="path" id="pathList"></div>
     </div>
 
+    <div class="view" id="v-guides">
+      <div id="guideList"></div>
+    </div>
+
     <div class="view" id="v-find">
       <input id="findInput" type="text" autocomplete="off" autocorrect="off" spellcheck="false"
              placeholder="Search a topic or chapter — salmonella, 44">
@@ -379,6 +417,7 @@ input::placeholder{color:var(--faint)}
   <div class="tabs" id="tabs">
     <button data-tab="today"><span>Today</span></button>
     <button data-tab="path"><span>Path</span></button>
+    <button data-tab="guides"><span>Guides</span></button>
     <button data-tab="find"><span>Find</span></button>
     <button data-tab="stats"><span>Stats</span></button>
   </div>
@@ -430,6 +469,13 @@ input::placeholder{color:var(--faint)}
           <button id="cfgNudge">Nudge me each evening</button>
         </div>
         <div class="status" id="cfgNudgeStatus"></div>
+        <label style="margin-top:14px">Dusk mode</label>
+        <div class="btns" id="duskBtns">
+          <button data-dusk="auto">Auto</button>
+          <button data-dusk="on">Always</button>
+          <button data-dusk="off">Off</button>
+        </div>
+        <div class="fine">Auto switches to the lamplight palette from 7pm to 6am.</div>
         <div class="fine">The token is stored only on this device and is Gist-scoped. Treat it like a password — revoke it on GitHub if a device is lost.</div>
       </div>
     </div>
@@ -439,6 +485,7 @@ input::placeholder{color:var(--faint)}
 </div>
 
 <script src="schedule.js"></script>
+<script src="guidelines.js"></script>
 <script src="sync.js"></script>
 <script src="copy.js"></script>
 <script src="motion.js"></script>
