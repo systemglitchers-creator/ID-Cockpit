@@ -15,6 +15,13 @@ const idsOf = (title) => sector(title).rows.map((r) => r.id);
 const allIds = SECTIONS.flatMap((s) => s.rows.map((r) => r.id));
 const chapterOf = (id) => id.replace(/-p\d+$/, "");
 
+const before = (list, early, late, why) => {
+  const i = list.indexOf(early), j = list.indexOf(late);
+  assert.ok(i > -1, `${early} is missing from this sector — ${why}`);
+  assert.ok(j > -1, `${late} is missing from this sector — ${why}`);
+  assert.ok(i < j, why);
+};
+
 test("the curriculum is still complete and unduplicated", () => {
   assert.equal(allIds.length, 584);
   assert.equal(new Set(allIds).size, 584);
@@ -33,12 +40,10 @@ test("prosthetic valve and cardiac device infection left the endovascular sector
 
 test("they land in the hardware sector, after orthopedic implant infection", () => {
   const hw = idsOf("Bone, Joint & Infected Hardware");
-  const at = (id) => hw.indexOf(id);
-  assert.ok(at("ch107-p2") > -1, "PJI anchors the block");
-  assert.ok(at("ch26-p1") < at("ch107-p2"), "rifampin comes before the prostheses");
-  assert.ok(at("ch107-p2") < at("ch83-p1"), "prosthetic joint before prosthetic valve");
-  assert.ok(at("ch83-p3") < at("ch84-p1"), "valve before cardiac device");
-  assert.equal(at("ch84-p3"), hw.length - 1, "IE prevention closes the sector");
+  before(hw, "ch26-p1", "ch107-p2", "rifampin comes before the prostheses");
+  before(hw, "ch107-p2", "ch83-p1", "prosthetic joint before prosthetic valve");
+  before(hw, "ch83-p3", "ch84-p1", "valve before cardiac device");
+  assert.equal(hw.indexOf("ch84-p3"), hw.length - 1, "IE prevention closes the sector");
 });
 
 test("the atypicals are braided into the pneumonia arc, not left in year 2", () => {
@@ -46,8 +51,7 @@ test("the atypicals are braided into the pneumonia arc, not left in year 2", () 
   for (const id of ["ch189-p1", "ch193-p1", "ch187-p1", "ch173-p1"]) {
     assert.ok(pna.includes(id), `${id} belongs in the pneumonia differential`);
   }
-  assert.ok(pna.indexOf("ch28-p1") < pna.indexOf("ch189-p1"),
-    "macrolides are read before Mycoplasma pays them off");
+  before(pna, "ch28-p1", "ch189-p1", "macrolides are read before Mycoplasma pays them off");
 });
 
 test("the tick-bite differential is one arc", () => {
