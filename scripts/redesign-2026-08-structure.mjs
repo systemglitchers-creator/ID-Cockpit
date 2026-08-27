@@ -1,3 +1,37 @@
+/* The reading order — every session, in the sequence Tyler reads them.
+   Consumed by scripts/resequence.mjs, which regenerates public/schedule.js.
+   public/schedule.js is GENERATED; this file is where order is decided.
+
+   ids never change. Only order, sector membership and labels move — a changed
+   id silently orphans that session's read-state in Redis.
+
+   Two design passes are layered here.
+
+   The 2026-08-14 redesign
+   (docs/superpowers/specs/2026-08-14-mandell-schedule-redesign-design.md):
+   - No chapter runs more than 3 consecutive unread sessions; braid partners
+     always share a theme (vary the chapter, keep the theme).
+   - Flagship syndrome first, drugs braided behind first contact.
+   - Complications live with their parents; integrative chapters land right
+     after their prerequisites complete (the post-fungal capstone).
+   - Year 2 is themed arcs (exposure/presentation), not taxonomy bins.
+
+   The 2026-08-26 syndromic spice braid
+   (docs/superpowers/plans/2026-08-26-syndromic-spice-braid.md):
+   - Niche chapters are pulled forward out of year 2 into the syndrome arc
+     that owns their differential, so an exotic lands as the weird member of
+     the DDx already open — never as a random interruption. Marked ← braided.
+   - Short self-contained chapters ("snappers") are placed to break up
+     three-part slogs; a snapper is a day you finish a whole topic.
+   - Prosthetic valve (ch83) and cardiac device (ch84) infection left the
+     endovascular arc for Bone, Joint & Infected Hardware, behind rifampin
+     and prosthetic joint infection — one biofilm block.
+   - Long sectors split (Pneumonia/Upper Airway, Skin/Bone, Tick/Syphilis):
+     shorter sectors mean more frequent completion beats in the app. */
+
+/* Session-title edits that ride along with the redesign (ids unchanged).
+   FUO/mimics and Lyme were absent from the exam-prep tail — a verified gap
+   for a Royal College candidate. */
 export const TITLE_OVERRIDES = {
   "x-re-read-endocarditis-sepsis-pneumonia-uti-skin-s-p1":
     "Re-read — endocarditis, sepsis, FUO & fever-and-rash, pneumonia, UTI, skin & soft tissue; durations & de-escalation",
@@ -20,26 +54,43 @@ export const STRUCTURE = [
 { title:"Endovascular Infection & Staphylococci", year:1, accent:"#a8432f",
   sub:"Endocarditis, catheter infection, and the staphylococci — complete.",
   ids:[...P("ch29",1,3),...P("ch30",1,2),...P("ch82",1,6),...P("ch306",1,3),
-       ...P("ch199",1,3),"ch199-p4","ch200-p1","ch199-p5","ch199-p6","ch200-p2"] },
+       ...P("ch199",1,3),                           // read
+       "ch199-p4","ch200-p1","ch199-p5","ch199-p6","ch200-p2"] },  // read — sector complete
 
 { title:"Pneumonia & the Atypicals", year:1, accent:"#9a5a2f",
   sub:"Community pneumonia and its organisms, drugs braided behind first contact.",
-  ids:[...P("ch69",1,3), ...P("ch28",1,2), ...P("ch204",1,3), ...P("ch189",1,2),
-       ...P("ch34",1,2), ...P("ch238",1,2), ...P("ch193",1,2), "ch28-p3","ch34-p3",
-       ...P("ch187",1,2), one("ch173")[0], ...P("ch307",1,2), one("ch71")[0], ...P("ch70",1,2)] },
+  ids:[...P("ch69",1,3),                            // CAP — the flagship
+       ...P("ch28",1,2), ...P("ch204",1,3),         // macrolides, then the pneumococcus
+       ...P("ch189",1,2),                           // ← braided: Mycoplasma, the macrolide payoff
+       ...P("ch34",1,2), ...P("ch238",1,2),         // quinolones, then Legionella
+       ...P("ch193",1,2),                           // ← braided: Q fever — atypical + culture-negative IE
+       "ch28-p3","ch34-p3",                         // finish the drugs
+       ...P("ch187",1,2),                           // ← braided: psittacosis + C. pneumoniae
+       one("ch173")[0],                             // ← braided snapper: hantavirus pulmonary syndrome
+       ...P("ch307",1,2), one("ch71")[0], ...P("ch70",1,2)] },  // HAP/VAP, abscess, empyema
 
-{ title:"Upper Airway & Respiratory Viruses", year:1, accent:"#c07a2a",
+{ title:"Upper Airway & Respiratory Viruses", year:1, accent:"#b07a35",
   sub:"Throat to sinus and ear, the cough syndromes, then the winter viruses.",
-  ids:[one("ch61")[0], one("ch65")[0], ...P("ch64",1,2), one("ch62")[0], ...P("ch63",1,2),
-       ...P("ch67",1,2), ...P("ch236",1,2), one("ch60")[0],
-       ...P("ch165",1,2), one("ch163")[0], one("ch166")[0], one("ch149")[0],
-       ...P("ch172",1,3), ...P("ch48",1,2)] },
+  ids:[one("ch61")[0],                              // pharyngitis
+       one("ch65")[0],                              // ← braided snapper: epiglottitis — a can't-miss airway
+       ...P("ch64",1,2),
+       one("ch62")[0],                              // ← braided snapper: laryngitis (3pp)
+       ...P("ch63",1,2),
+       ...P("ch67",1,2), ...P("ch236",1,2),         // ← braided: the cough syndromes + pertussis
+       one("ch60")[0],                              // ← braided snapper: the common cold
+       ...P("ch165",1,2), one("ch163")[0], one("ch166")[0],
+       one("ch149")[0],                             // ← braided snapper: adenovirus
+       ...P("ch172",1,3), ...P("ch48",1,2)] },      // influenza before the season, drugs behind it
 
 { title:"Central Nervous System Infection", year:1, accent:"#3f5a8a",
   sub:"Meningitis to encephalitis, collections and shunts — with the great mimics.",
-  ids:[one("ch88")[0], ...P("ch89",1,3), one("ch211")[0], ...P("ch89",4,5),
-       ...P("ch91",1,3), ...P("ch176",1,2), ...P("ch92",1,2), ...P("ch93",1,2),
-       ...P("ch94",1,2), ...P("ch216",1,3), ...P("ch279",1,2), ...P("ch185",1,2)] },
+  ids:[one("ch88")[0],
+       ...P("ch89",1,3), one("ch211")[0], ...P("ch89",4,5),  // Listeria braided into meningitis
+       ...P("ch91",1,3),
+       ...P("ch176",1,2),                           // ← braided: enteroviruses — the aseptic meningitis payoff
+       ...P("ch92",1,2), ...P("ch93",1,2), ...P("ch94",1,2), ...P("ch216",1,3),
+       ...P("ch279",1,2),                           // ← braided: Naegleria, Acanthamoeba, Balamuthia
+       ...P("ch185",1,2)] },                        // ← braided: prions close the sector on a mimic
 
 { title:"Genitourinary & STI Syndromes", year:1, accent:"#6a5aa0",
   sub:"UTI and CA-UTI, then the sexually transmitted syndromes and Chlamydia.",
@@ -49,20 +100,31 @@ export const STRUCTURE = [
 
 { title:"Skin & Soft Tissue", year:1, accent:"#8a5a3f",
   sub:"Cellulitis and myonecrosis, the bite differential braided in, then the lymphocutaneous nodule.",
-  ids:[...P("ch95",1,3), one("ch320")[0], one("ch233")[0],
-       ...P("ch96",1,2), one("ch53")[0], one("ch239")[0], one("ch237")[0],
-       ...P("ch202",1,3), ...P("ch97",1,2), ...P("ch240",1,3),
-       ...P("ch232",1,2), ...P("ch265",1,2)] },
+  ids:[...P("ch95",1,3),
+       one("ch320")[0], one("ch233")[0],            // ← braided snappers: bites, then Pasteurella
+       ...P("ch96",1,2), one("ch53")[0],            // myonecrosis with hyperbaric beside it
+       one("ch239")[0], one("ch237")[0],            // ← braided snappers: Capnocytophaga, rat-bite fever
+       ...P("ch202",1,3),
+       ...P("ch97",1,2),                            // ← braided: lymphadenitis — anchors what follows
+       ...P("ch240",1,3), ...P("ch232",1,2),        // ← braided: cat-scratch, tularemia
+       ...P("ch265",1,2)] },                        // ← braided: sporotrichosis — the lymphocutaneous nodule
 
 { title:"Bone, Joint & Infected Hardware", year:1, accent:"#a8432f",
   sub:"Native joint and bone, rifampin, then every prosthesis — orthopedic, valve and device.",
-  ids:[...P("ch105",1,3), ...P("ch106",1,2), ...P("ch26",1,3), ...P("ch107",1,2),
-       ...P("ch83",1,3), ...P("ch84",1,3)] },
+  ids:[...P("ch105",1,3),                           // read
+       ...P("ch106",1,2), ...P("ch26",1,3),         // osteomyelitis, then rifampin
+       ...P("ch107",1,2),                           // read — prosthetic joint
+       ...P("ch83",1,3),                            // ← moved here: prosthetic valve endocarditis
+       ...P("ch84",1,3)] },                         // ← moved here: cardiac device + IE prevention
 
 { title:"Gastrointestinal & Intra-Abdominal", year:1, accent:"#5a6a3a",
   sub:"Gut syndromes and their toxins, C. difficile, the abdomen itself, then the anaerobes.",
-  ids:[...P("ch98",1,2), one("ch99")[0], ...P("ch100",1,2), one("ch285")[0],
-       ...P("ch213",1,2), one("ch101")[0],
+  ids:[...P("ch98",1,2),
+       one("ch99")[0],                              // ← braided snapper: esophagitis
+       ...P("ch100",1,2),
+       one("ch285")[0],                             // ← braided snapper: Giardia — the non-febrile diarrhea
+       ...P("ch213",1,2),                           // ← braided: B. cereus, Erysipelothrix, Whipple
+       one("ch101")[0],
        ...P("ch249",1,3), ...P("ch76",1,3), ...P("ch77",1,2), ...P("ch78",1,3),
        ...P("ch248",1,2), one("ch253")[0], one("ch252")[0], one("ch254")[0]] },
 
@@ -77,12 +139,14 @@ export const STRUCTURE = [
 
 { title:"Tick-Borne Illness", year:1, accent:"#7a6a2a",
   sub:"The tick-bite differential in one arc — Lyme, Anaplasma, Babesia, spotted fever.",
-  ids:[...P("ch247",1,2), one("ch191")[0], ...P("ch197",1,2), ...P("ch287",1,2),
-       ...P("ch192",1,2), one("ch246")[0]] },
+  ids:[...P("ch247",1,2),                           // Lyme
+       one("ch191")[0], ...P("ch197",1,2),          // ← braided: Anaplasma, the Ixodes co-infection
+       ...P("ch287",1,2),                           // ← braided: Babesia, the other co-infection
+       ...P("ch192",1,2), one("ch246")[0]] },       // ← braided: RMSF, relapsing fever
 
-{ title:"Syphilis & the Treponematoses", year:1, accent:"#8a6a3a",
+{ title:"Syphilis & the Treponematoses", year:1, accent:"#6a5aa0",
   sub:"Syphilis stage by stage, then the endemic treponematoses.",
-  ids:[...P("ch243",1,2), one("ch244")[0], ...P("ch243",3,4)] },
+  ids:[...P("ch243",1,2), one("ch244")[0], ...P("ch243",3,4)] },  // endemic trep breaks the ch243 run
 
 { title:"Wounds, Burns & Toxin-Mediated Disease", year:1, accent:"#7a5a2f",
   sub:"Tetanus and botulism, burns, and post-traumatic infection.",
@@ -182,7 +246,7 @@ export const STRUCTURE = [
   ids:[...P("ch273",1,2),...P("ch272",1,2),...P("ch274",1,3)] },
 
 { title:"Viral Foundations & Completion", year:2, accent:"#3f5a8a",
-  sub:"Virology foundations, the remaining herpesviruses, pox, and polyomaviruses.",
+  sub:"Virology foundations, the remaining herpesviruses, pox, entero, and the polyomaviruses.",
   ids:[...P("ch138",1,2),one("ch141")[0],...P("ch146",1,3),...P("ch151",1,2),
        one("ch154")[0],...P("ch139",1,2),...P("ch178",1,3),one("ch51")[0]] },
 
