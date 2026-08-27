@@ -107,9 +107,11 @@ if (errors.length) {
 const lines = [];
 lines.push(`/* ID Cockpit — the reading plan. Generated data; edit deliberately.`);
 lines.push(`   One line per session so a schedule change is a readable diff.`);
-lines.push(`   Regenerated 2026-08-14 by scripts/resequence.mjs from`);
-lines.push(`   scripts/redesign-2026-08-structure.mjs — braided order, reunified`);
-lines.push(`   sectors, and the plan rebased to "on plan" as of Sun 2026-08-16. */`);
+lines.push(`   Regenerated 2026-08-26 by scripts/resequence.mjs from`);
+lines.push(`   scripts/redesign-2026-08-structure.mjs — syndromic spice braid:`);
+lines.push(`   niche chapters pulled into the differential that owns them, and`);
+lines.push(`   prosthetic valve / cardiac device infection moved to the hardware`);
+lines.push(`   sector. The 2026-08-16 rebase anchor is unchanged. */`);
 lines.push(`var SECTIONS = [`);
 let lastWk = 0;
 for (const sec of STRUCTURE) {
