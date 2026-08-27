@@ -31,10 +31,10 @@ const REBASE_K0 = 50;
 /* Server truth as of 2026-08-14 (scratch progress.json). Used only to place
    the unread queue for run-validation and gi; progress itself lives in Redis. */
 const READ = new Set(("ch20-p1 ch20-p2 ch20-p3 ch21-p1 ch21-p2 ch21-p3 " +
-  "ch22-p1 ch22-p2 ch22-p3 ch24-p1 ch24-p2 ch24-p3 ch75-p1 ch75-p2 ch75-p3 " +
+  "ch22-p1 ch23-p1 ch24-p1 ch24-p2 ch24-p3 ch75-p1 ch75-p2 ch75-p3 " +
   "ch29-p1 ch29-p2 ch29-p3 ch30-p1 ch30-p2 ch82-p1 ch82-p2 ch82-p3 ch82-p4 " +
   "ch82-p5 ch82-p6 ch306-p1 ch306-p2 ch306-p3 ch228-p1 ch228-p2 ch102-p1 " +
-  "ch102-p2 ch213-p1 ch107-p1 ch107-p2 ch105-p1 ch105-p2 ch105-p3 " +
+  "ch102-p2 ch213-p1 ch214-p1 ch107-p1 ch107-p2 ch105-p1 ch105-p2 ch105-p3 " +
   "ch199-p1 ch199-p2 ch199-p3").split(" "));
 
 /* ---- study-day calendar, mirrored from app.js ---- */

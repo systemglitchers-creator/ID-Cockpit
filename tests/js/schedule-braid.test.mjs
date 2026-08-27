@@ -23,13 +23,13 @@ const before = (list, early, late, why) => {
 };
 
 test("the curriculum is still complete and unduplicated", () => {
-  assert.equal(allIds.length, 584);
-  assert.equal(new Set(allIds).size, 584);
+  assert.equal(allIds.length, 590);
+  assert.equal(new Set(allIds).size, 590);
 });
 
 test("the plan still ends where it always did", () => {
   const maxGi = Math.max(...SECTIONS.flatMap((s) => s.rows.map((r) => r.gi)));
-  assert.equal(maxGi, 591, "planEnd anchors catch-up and drift — it must not move");
+  assert.equal(maxGi, 597, "planEnd anchors catch-up and drift — it moves only when the session count does");
 });
 
 test("prosthetic valve and cardiac device infection left the endovascular sector", () => {
@@ -43,7 +43,8 @@ test("they land in the hardware sector, after orthopedic implant infection", () 
   before(hw, "ch26-p1", "ch107-p2", "rifampin comes before the prostheses");
   before(hw, "ch107-p2", "ch83-p1", "prosthetic joint before prosthetic valve");
   before(hw, "ch83-p3", "ch84-p1", "valve before cardiac device");
-  assert.equal(hw.indexOf("ch84-p3"), hw.length - 1, "IE prevention closes the sector");
+  before(hw, "ch84-p2", "ch85-p1", "device infection before its prevention");
+  assert.equal(hw.indexOf("ch85-p2"), hw.length - 1, "IE prevention closes the sector");
 });
 
 test("the atypicals are braided into the pneumonia arc, not left in year 2", () => {

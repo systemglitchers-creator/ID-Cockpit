@@ -45,7 +45,7 @@ export const STRUCTURE = [
 /* ===== YEAR 1 ===== */
 { title:"Drug Foundations — Completed", year:1, accent:"#3d7a5a",
   sub:"The β-lactam and aminoglycoside spine you have already read.",
-  ids:[...P("ch20",1,3),...P("ch21",1,3),...P("ch22",1,3),...P("ch24",1,3)] },
+  ids:[...P("ch20",1,3),...P("ch21",1,3),one("ch22")[0], one("ch23")[0],...P("ch24",1,3)] },
 
 { title:"Foundations & Sepsis", year:1, accent:"#b0413e",
   sub:"The septic patient, and the FUO consult you will field from week one.",
@@ -61,11 +61,11 @@ export const STRUCTURE = [
   sub:"Community pneumonia and its organisms, drugs braided behind first contact.",
   ids:[...P("ch69",1,3),                            // CAP — the flagship
        ...P("ch28",1,2), ...P("ch204",1,3),         // macrolides, then the pneumococcus
-       ...P("ch189",1,2),                           // ← braided: Mycoplasma, the macrolide payoff
+       one("ch189")[0], one("ch190")[0],                           // ← braided: Mycoplasma, the macrolide payoff
        ...P("ch34",1,2), ...P("ch238",1,2),         // quinolones, then Legionella
        ...P("ch193",1,2),                           // ← braided: Q fever — atypical + culture-negative IE
        "ch28-p3","ch34-p3",                         // finish the drugs
-       ...P("ch187",1,2),                           // ← braided: psittacosis + C. pneumoniae
+       one("ch187")[0], one("ch188")[0],                           // ← braided: psittacosis + C. pneumoniae
        one("ch173")[0],                             // ← braided snapper: hantavirus pulmonary syndrome
        ...P("ch307",1,2), one("ch71")[0], ...P("ch70",1,2)] },  // HAP/VAP, abscess, empyema
 
@@ -76,7 +76,7 @@ export const STRUCTURE = [
        ...P("ch64",1,2),
        one("ch62")[0],                              // ← braided snapper: laryngitis (3pp)
        ...P("ch63",1,2),
-       ...P("ch67",1,2), ...P("ch236",1,2),         // ← braided: the cough syndromes + pertussis
+       one("ch67")[0], ...P("ch68",1,2), ...P("ch236",1,2),         // ← braided: the cough syndromes + pertussis
        one("ch60")[0],                              // ← braided snapper: the common cold
        ...P("ch165",1,2), one("ch163")[0], one("ch166")[0],
        one("ch149")[0],                             // ← braided snapper: adenovirus
@@ -87,7 +87,7 @@ export const STRUCTURE = [
   ids:[one("ch88")[0],
        ...P("ch89",1,3), one("ch211")[0], ...P("ch89",4,5),  // Listeria braided into meningitis
        ...P("ch91",1,3),
-       ...P("ch176",1,2),                           // ← braided: enteroviruses — the aseptic meningitis payoff
+       one("ch176")[0], one("ch177")[0],                           // ← braided: enteroviruses — the aseptic meningitis payoff
        ...P("ch92",1,2), ...P("ch93",1,2), ...P("ch94",1,2), ...P("ch216",1,3),
        ...P("ch279",1,2),                           // ← braided: Naegleria, Acanthamoeba, Balamuthia
        ...P("ch185",1,2)] },                        // ← braided: prions close the sector on a mimic
@@ -95,7 +95,7 @@ export const STRUCTURE = [
 { title:"Genitourinary & STI Syndromes", year:1, accent:"#6a5aa0",
   sub:"UTI and CA-UTI, then the sexually transmitted syndromes and Chlamydia.",
   ids:[...P("ch74",1,3),"ch33-p1",...P("ch308",1,2),"ch33-p2",one("ch36")[0],
-       one("ch109")[0],...P("ch110",1,2),...P("ch111",1,3),
+       one("ch109")[0],...P("ch110",1,2),one("ch111")[0], one("ch112")[0],
        ...P("ch108",1,2),one("ch286")[0],...P("ch186",1,3)] },
 
 { title:"Skin & Soft Tissue", year:1, accent:"#8a5a3f",
@@ -107,15 +107,15 @@ export const STRUCTURE = [
        ...P("ch202",1,3),
        ...P("ch97",1,2),                            // ← braided: lymphadenitis — anchors what follows
        ...P("ch240",1,3), ...P("ch232",1,2),        // ← braided: cat-scratch, tularemia
-       ...P("ch265",1,2)] },                        // ← braided: sporotrichosis — the lymphocutaneous nodule
+       one("ch265")[0], one("ch266")[0], one("ch267")[0]] },                        // ← braided: sporotrichosis — the lymphocutaneous nodule
 
 { title:"Bone, Joint & Infected Hardware", year:1, accent:"#a8432f",
   sub:"Native joint and bone, rifampin, then every prosthesis — orthopedic, valve and device.",
   ids:[...P("ch105",1,3),                           // read
-       ...P("ch106",1,2), ...P("ch26",1,3),         // osteomyelitis, then rifampin
+       ...P("ch106",1,2), ...P("ch26",1,2), ...P("ch27",1,2),         // osteomyelitis, then rifampin
        ...P("ch107",1,2),                           // read — prosthetic joint
        ...P("ch83",1,3),                            // ← moved here: prosthetic valve endocarditis
-       ...P("ch84",1,3)] },                         // ← moved here: cardiac device + IE prevention
+       ...P("ch84",1,2), ...P("ch85",1,2)] },                         // ← moved here: cardiac device + IE prevention
 
 { title:"Gastrointestinal & Intra-Abdominal", year:1, accent:"#5a6a3a",
   sub:"Gut syndromes and their toxins, C. difficile, the abdomen itself, then the anaerobes.",
@@ -123,9 +123,9 @@ export const STRUCTURE = [
        one("ch99")[0],                              // ← braided snapper: esophagitis
        ...P("ch100",1,2),
        one("ch285")[0],                             // ← braided snapper: Giardia — the non-febrile diarrhea
-       ...P("ch213",1,2),                           // ← braided: B. cereus, Erysipelothrix, Whipple
+       one("ch213")[0], one("ch214")[0], one("ch215")[0],                           // ← braided: B. cereus, Erysipelothrix, Whipple
        one("ch101")[0],
-       ...P("ch249",1,3), ...P("ch76",1,3), ...P("ch77",1,2), ...P("ch78",1,3),
+       ...P("ch249",1,3), ...P("ch76",1,3), ...P("ch77",1,2), one("ch78")[0], one("ch79")[0], one("ch80")[0], one("ch81")[0],
        ...P("ch248",1,2), one("ch253")[0], one("ch252")[0], one("ch254")[0]] },
 
 { title:"Enterococci & Streptococci", year:1, accent:"#3d7a5a",
@@ -134,7 +134,7 @@ export const STRUCTURE = [
 
 { title:"Gram-Negatives & Resistance", year:1, accent:"#2f6f7a",
   sub:"Enterobacterales to Acinetobacter, drugs braided behind the organisms.",
-  ids:[...P("ch223",1,3),...P("ch25",1,2),...P("ch224",1,2),...P("ch31",1,2),
+  ids:[...P("ch223",1,3),...P("ch25",1,2),...P("ch224",1,2),one("ch31")[0], one("ch32")[0],
        one("ch227")[0],"ch25-p3",...P("ch228",1,2),...P("ch230",1,2),...P("ch217",1,3)] },
 
 { title:"Tick-Borne Illness", year:1, accent:"#7a6a2a",
@@ -150,7 +150,7 @@ export const STRUCTURE = [
 
 { title:"Wounds, Burns & Toxin-Mediated Disease", year:1, accent:"#7a5a2f",
   sub:"Tetanus and botulism, burns, and post-traumatic infection.",
-  ids:[...P("ch250",1,2), ...P("ch318",1,3)] },
+  ids:[one("ch250")[0], one("ch251")[0], one("ch318")[0], ...P("ch319",1,2)] },
 
 { title:"Mycobacteria, Nocardia & Actinomyces", year:1, accent:"#5a4a6a",
   sub:"TB with its drugs braided in, NTM, and the filamentous bacteria.",
@@ -200,7 +200,7 @@ export const STRUCTURE = [
 
 { title:"HIV & COVID — Completing", year:2, accent:"#b0413e",
   sub:"HIV prevention to cure research; SARS-CoV-2 from virology to treatment.",
-  ids:[...P("ch122",1,3),...P("ch126",1,2),...P("ch128",1,3),...P("ch124",1,3),
+  ids:[...P("ch122",1,3),one("ch126")[0], one("ch127")[0],...P("ch128",1,3),...P("ch124",1,3),
        ...P("ch129",1,2),...P("ch121",1,2),...P("ch132",1,2),...P("ch134",1,3),
        ...P("ch135",1,3),...P("ch136",1,3),...P("ch133",1,2),...P("ch162",1,2)] },
 
@@ -216,30 +216,34 @@ export const STRUCTURE = [
 { title:"Head, Neck & Eye", year:2, accent:"#9a5a2f",
   sub:"The oral cavity to the mediastinum, cystic fibrosis, and the eye.",
   ids:[...P("ch66",1,3),...P("ch87",1,2),...P("ch73",1,3),one("ch225")[0],
-       ...P("ch113",1,2),...P("ch115",1,2),...P("ch116",1,2),...P("ch117",1,2),one("ch118")[0]] },
+       one("ch113")[0], ...P("ch114",1,2),...P("ch115",1,2),...P("ch116",1,2),...P("ch117",1,2),one("ch118")[0]] },
 
 { title:"Enteric & Foodborne — Completing", year:2, accent:"#5a6a3a",
   sub:"Every diarrhea consult — bacteria, parasites, and viruses in one arc.",
-  ids:[...P("ch102",1,2),...P("ch103",1,3),...P("ch221",1,2),one("ch229")[0],one("ch235")[0],
-       ...P("ch219",1,2),...P("ch222",1,2),...P("ch288",1,2),...P("ch289",1,3),
+  ids:[...P("ch102",1,2),...P("ch103",1,2), one("ch104")[0],...P("ch221",1,2),one("ch229")[0],one("ch235")[0],
+       one("ch219")[0], one("ch220")[0],...P("ch222",1,2),...P("ch288",1,2),one("ch289")[0], one("ch290")[0], one("ch291")[0],
        ...P("ch181",1,3),...P("ch155",1,3)] },
 
 { title:"Zoonoses, Rickettsioses & Ectoparasites", year:2, accent:"#7a5a2f",
   sub:"Organized by the exposure you would elicit — farm, water, louse, and mite.",
-  ids:[...P("ch325",1,2),one("ch231")[0],one("ch234")[0],...P("ch325",3,4),
-       one("ch245")[0],...P("ch212",1,3),...P("ch168",1,2),
-       ...P("ch301",1,2),...P("ch194",1,2),...P("ch301",3,4)] },
+  ids:[one("ch325")[0],                             // the zoonoses overview leads
+       one("ch231")[0],one("ch234")[0],             // brucellosis, plague
+       one("ch245")[0],...P("ch212",1,3),
+       one("ch168")[0], one("ch169")[0],
+       one("ch301")[0],...P("ch194",1,2),           // mites, then mite-borne scrub typhus
+       ...P("ch302",1,3),                           // ticks & tick paralysis, now its own chapter
+       ...P("ch326",1,2),...P("ch327",1,2)] },      // communicating ID, climate — close the sector
 
 { title:"Arboviruses & Hemorrhagic Fevers", year:2, accent:"#3f5a8a",
   sub:"Mosquito-borne viruses through rabies and the viral hemorrhagic fevers.",
-  ids:[...P("ch160",1,3),...P("ch158",1,2),...P("ch170",1,3),...P("ch174",1,3)] },
+  ids:[...P("ch160",1,3),...P("ch158",1,2),...P("ch170",1,2), one("ch171")[0],one("ch174")[0], ...P("ch175",1,2)] },
 
 { title:"Tropical Medicine & Helminths", year:2, accent:"#5a6a3a",
   sub:"The returning traveller completed — protozoa, worms, and their drugs.",
   ids:[one("ch277")[0],...P("ch226",1,2),...P("ch256",1,2),...P("ch281",1,3),
-       one("ch45")[0],...P("ch282",1,2),...P("ch276",1,2),
-       ...P("ch292",1,3),"ch46-p1",...P("ch294",1,2),...P("ch295",1,2),"ch46-p2",
-       ...P("ch296",1,3),...P("ch299",1,2)] },
+       one("ch45")[0],one("ch282")[0], one("ch283")[0],...P("ch276",1,2),
+       one("ch292")[0], one("ch293")[0],"ch46-p1",...P("ch294",1,2),...P("ch295",1,2),"ch46-p2",
+       one("ch296")[0], one("ch297")[0], one("ch298")[0],one("ch299")[0], one("ch300")[0]] },
 
 { title:"Fungal — Completing", year:2, accent:"#7a6a2a",
   sub:"Paracocci, dermatophytes, and the uncommon fungi.",
@@ -247,13 +251,13 @@ export const STRUCTURE = [
 
 { title:"Viral Foundations & Completion", year:2, accent:"#3f5a8a",
   sub:"Virology foundations, the remaining herpesviruses, pox, entero, and the polyomaviruses.",
-  ids:[...P("ch138",1,2),one("ch141")[0],...P("ch146",1,3),...P("ch151",1,2),
-       one("ch154")[0],...P("ch139",1,2),...P("ch178",1,3),one("ch51")[0]] },
+  ids:[...P("ch138",1,2),one("ch141")[0],one("ch146")[0], one("ch147")[0], one("ch148")[0],...P("ch151",1,2),
+       one("ch154")[0],...P("ch139",1,2), one("ch140")[0],...P("ch178",1,2), one("ch179")[0],one("ch51")[0]] },
 
 { title:"Bacteria — Completing", year:2, accent:"#2f6f7a",
   sub:"The remaining streptococci, coryneforms, and fastidious organisms.",
-  ids:[one("ch198")[0],one("ch201")[0],...P("ch203",1,2),...P("ch207",1,2),
-       ...P("ch209",1,3),one("ch218")[0],...P("ch241",1,3)] },
+  ids:[one("ch198")[0],one("ch201")[0],...P("ch203",1,2),one("ch207")[0], one("ch208")[0],
+       one("ch209")[0], ...P("ch210",1,2),one("ch218")[0],one("ch241")[0], ...P("ch242",1,2)] },
 
 { title:"Stewardship Systems & Future Therapeutics", year:2, accent:"#6a5aa0",
   sub:"Study design, sterilization, and the therapies still arriving.",

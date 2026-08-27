@@ -37,10 +37,12 @@ test("topic labels stay out of the map — only real documents link", () => {
 });
 
 test("a mapped guideline tag renders its chip as a link on the quest card", () => {
-  // With nothing read except ch20 (untagged), read forward until the quest is
-  // ch22-p1, whose tag (penicillin allergy de-labeling) is mapped.
+  // Read forward until the quest is ch23-p1 — Chapter 23, Antibiotic Allergy —
+  // whose tag (penicillin allergy de-labeling) is mapped. The tag sat on ch22
+  // (Carbapenems) while the two chapters shared one bundled session; splitting
+  // the bundle moved it to the chapter it actually describes.
   const app = loadCurrentApp({ now: THU_AUG_20, done: ["ch20-p1", "ch20-p2", "ch20-p3",
-    "ch21-p1", "ch21-p2", "ch21-p3"], doneAt: "2026-07-20T12:00:00Z" });
+    "ch21-p1", "ch21-p2", "ch21-p3", "ch22-p1"], doneAt: "2026-07-20T12:00:00Z" });
   const quest = app._elements.get("questCard").innerHTML;
   assert.match(quest, /<a class="chip" href="https:\/\//, "the chip links out");
   assert.ok(!/href="undefined"/.test(quest), "no broken hrefs");

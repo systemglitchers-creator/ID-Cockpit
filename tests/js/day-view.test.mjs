@@ -15,8 +15,8 @@ function flatDays(p) { return p.flatMap((mo) => Array.from(mo.days)); }
 test("the day view carries every session exactly once", () => {
   const app = loadCurrentApp({ now: FRI_AUG_7 });
   const rows = flatDays(plan(app)).flatMap((d) => Array.from(d.rows));
-  assert.equal(rows.length, 584);
-  assert.equal(new Set(rows.map((x) => x.r.id)).size, 584);
+  assert.equal(rows.length, 590);
+  assert.equal(new Set(rows.map((x) => x.r.id)).size, 590);
 });
 
 test("days are chronological and no open session sits on a Saturday off", () => {
