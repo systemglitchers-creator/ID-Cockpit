@@ -1,10 +1,10 @@
 # ID Cockpit
 
-Tyler's two-year Mandell reading schedule — 584 sessions across 31 sectors — as
+Tyler's two-year Mandell reading schedule — 584 sessions across 38 sectors — as
 an installable phone app. Tick off what you've read; the remaining sessions
-re-deal themselves onto the days ahead. Four tabs: **Today** (the day's quest,
-streak, level), **Path** (the sector trail), **Find** (search any chapter), and
-**Stats** (standing, badges, per-sector bars).
+re-deal themselves onto the days ahead. Five tabs: **Today** (the day's quest,
+streak, level), **Path** (the sector trail), **Guides** (the guideline shelf),
+**Find** (search any chapter), and **Stats** (standing, badges, per-sector bars).
 
 It is static files. No server, no build step, no dependencies. Card and question
 generation happen in the Claude Code skills (`id-anki-cards`), not here.
