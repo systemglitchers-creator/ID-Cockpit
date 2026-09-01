@@ -369,6 +369,71 @@ a.chip{text-decoration:none}
        background:var(--txt);color:var(--on-acc);font-size:12px;font-weight:600;
        padding:9px 15px;border-radius:99px;opacity:0;pointer-events:none;transition:all .2s;z-index:90}
 #toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+/* ---- Bank: the question bank. Companion accent (indigo) marks the mode; the
+   shell is unchanged. Inside a chapter, --acc is re-pointed at runtime to that
+   chapter's SECTOR hue, so a chapter is the same colour here as on the Path. */
+#v-bank{--acc:var(--ind);--acc-d:var(--ind-d)}
+:root{--ind:#3a5a7a;--ind-d:#2c4660}
+:root[data-theme="dusk"]{--ind:#7fa3c4;--ind-d:#5d81a2}
+.tabs button[data-tab="bank"].on span{background:var(--ind)}
+.bkrow{display:flex;align-items:center;gap:12px;background:var(--card);border:var(--edge);
+  box-shadow:var(--sh-1);border-radius:14px;padding:11px 13px;width:100%;text-align:left;
+  font:inherit;color:var(--txt);margin-bottom:8px}
+.bkrow.locked{opacity:.55;box-shadow:none}
+.bkring{width:42px;height:42px;border-radius:50%;flex:none;display:grid;place-items:center}
+.bkring>i{width:33px;height:33px;border-radius:50%;background:var(--card);display:grid;
+  place-items:center;font-family:var(--serif);font-size:15px;font-weight:600;font-style:normal}
+.bkrow .t{font-size:13.5px;font-weight:600;line-height:1.25;text-wrap:pretty}
+.bkrow .m{font-size:10.5px;color:var(--mut);margin-top:3px}
+.bkrow .rt{margin-left:auto;flex:none;text-align:right;font-size:11px;font-weight:700}
+.bksec{display:flex;align-items:center;gap:8px;margin:20px 2px 9px}
+.bksec i{width:9px;height:9px;border-radius:99px;flex:none}
+.bksec b{font-size:10.5px;font-weight:800;letter-spacing:.14em;text-transform:uppercase}
+.bkq{background:var(--card);border:var(--edge);border-radius:22px;padding:18px;
+  box-shadow:var(--sh-3);border-top:3px solid var(--acc);animation:idrise .3s ease both}
+.bkq .qk{font-size:10px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;color:var(--acc)}
+.bkq .qp{font-size:10.5px;font-weight:700;color:var(--mut);margin-top:4px}
+.bkstem{font-family:var(--serif);font-size:18px;line-height:1.4;margin:11px 0 0;text-wrap:pretty}
+.bkparts{margin:12px 0 0;padding-left:18px}
+.bkparts li{font-size:13px;font-weight:600;line-height:1.4;margin-bottom:8px;text-wrap:pretty}
+.bkmarks{font-size:10px;font-weight:700;color:var(--faint)}
+.bkopts{list-style:none;padding:0;margin:13px 0 0}
+.bkopt{display:flex;gap:11px;align-items:center;background:var(--card);border:1px solid var(--line);
+  border-radius:13px;padding:11px 12px;box-shadow:var(--sh-1);margin-bottom:7px;transition:all .15s}
+.bkltr{flex:none;width:24px;height:24px;border-radius:8px;display:grid;place-items:center;
+  font-size:11.5px;font-weight:800;color:var(--mut);border:1.5px solid var(--box);background:var(--card)}
+.bkopt .t{font-size:13px;font-weight:600;line-height:1.3}
+.bkopt.sel{border-color:var(--acc)}
+.bkopt.sel .bkltr{border-color:var(--acc);background:var(--acc);color:var(--on-acc)}
+.bkopt.ok{border-color:var(--ahead);background:var(--chip-bg)}
+.bkopt.ok .bkltr{border-color:var(--ahead);background:var(--ahead);color:var(--on-acc)}
+.bkopt.no{border-color:var(--behind);background:var(--gold-bg)}
+.bkopt.no .bkltr{border-color:var(--behind);background:var(--behind);color:var(--on-acc)}
+.bkrev{margin-top:11px;background:var(--card);border:var(--edge);border-radius:18px;padding:17px 18px;
+  box-shadow:var(--sh-2);animation:idrise .25s ease both}
+.bkans{font-family:var(--serif);font-size:16.5px;font-weight:500;line-height:1.45;margin:11px 0 0;
+  white-space:pre-wrap;text-wrap:pretty}
+.bkexp{font-size:13px;line-height:1.55;margin:10px 0 0}
+.bkwhy{margin-top:12px;border-top:1px solid var(--hair);padding-top:10px;font-size:12.5px;
+  line-height:1.5;color:var(--mut)}
+.bkgold{margin-top:12px;background:var(--gold-bg);border:1px solid var(--gold-bd);border-radius:12px;
+  padding:10px 12px;font-size:12px;line-height:1.45;color:var(--gold-txt)}
+.bkcohort{margin-top:9px;font-size:12px;line-height:1.45;color:var(--mut)}
+.bkcite{margin-top:12px;font-size:10.5px;font-weight:600;color:var(--faint)}
+.bkflag{margin-top:10px;font-size:11px;font-weight:700;color:var(--behind)}
+.bkacts{display:flex;gap:9px;margin-top:15px}
+.bkacts button{flex:1;border:none;font-weight:700;font-size:14px;padding:14px 12px;border-radius:14px}
+.bkacts .go{background:var(--acc);color:var(--on-acc)}
+.bkacts .alt{background:var(--soft);color:var(--acc-d);border:1px solid var(--pill-bd)}
+.bkdef{margin-top:18px;padding-top:13px;border-top:1px solid var(--hair);font-size:12px;
+  font-weight:600;color:var(--mut);line-height:1.5}
+.bkdef button{background:none;border:none;padding:0;font:inherit;font-weight:800;color:var(--acc);
+  text-decoration:underline}
+.bktally{display:flex;gap:26px;margin:16px 2px 18px}
+.bktally div{display:flex;flex-direction:column;gap:2px}
+.bktally .n{font-family:var(--serif);font-size:32px;font-weight:600;line-height:1;color:var(--numeral)}
+.bktally .l{font-size:10px;font-weight:800;letter-spacing:.13em;text-transform:uppercase;color:var(--mut)}
 </style>
 </head>
 <body>
@@ -405,6 +470,8 @@ a.chip{text-decoration:none}
       <div id="findResults"></div>
     </div>
 
+    <div class="view" id="v-bank"></div>
+
     <div class="view" id="v-stats">
       <div id="statSummary"></div>
       <div class="seclabel" id="badgeLabel"></div>
@@ -420,6 +487,7 @@ a.chip{text-decoration:none}
     <button data-tab="guides"><span>Guides</span></button>
     <button data-tab="find"><span>Find</span></button>
     <button data-tab="stats"><span>Stats</span></button>
+    <button data-tab="bank"><span>Bank</span></button>
   </div>
 
   <div class="sheet" id="sheet">

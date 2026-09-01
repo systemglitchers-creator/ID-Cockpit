@@ -4,6 +4,9 @@
 // testable without credentials. Mirrors HARVEST_FAKE_KV in ~/Projects/harvest.
 const KEY = "cockpit:schedule";
 const PROGRESS_KEY = "cockpit:progress";
+// Bank tab answer-state. Separate key so question progress can never collide
+// with reading progress -- they have different shapes and different lifetimes.
+const ANSWERS_KEY = "cockpit:answers";
 const fake = new Map();
 
 function isFake() {
@@ -82,6 +85,23 @@ async function delPushSub() {
 
 function __resetFake() { fake.clear(); }
 
+/** Bank answer-state: { cqid: {result, ts, chosen?} }. Empty object when unset. */
+async function getAnswers() {
+  if (isFake()) return fake.get(ANSWERS_KEY) || {};
+  if (!process.env.KV_REST_API_URL) return {};
+  const v = await client().get(ANSWERS_KEY);
+  return v || {};
+}
+
+async function setAnswers(answers) {
+  if (isFake()) { fake.set(ANSWERS_KEY, answers); return; }
+  if (!process.env.KV_REST_API_URL) {
+    throw new Error("KV_REST_API_URL is not set — connect the store and run: npx vercel env pull .env.local");
+  }
+  await client().set(ANSWERS_KEY, answers);
+}
+
 module.exports = { getSchedule, setSchedule, getProgress, setProgress,
+                   getAnswers, setAnswers, ANSWERS_KEY,
                    getPushSub, setPushSub, delPushSub,
                    __resetFake, KEY, PROGRESS_KEY, PUSH_KEY };

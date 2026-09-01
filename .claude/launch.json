@@ -1,11 +1,7 @@
 {
   "version": "0.0.1",
   "configurations": [
-    {
-      "name": "cockpit-static",
-      "runtimeExecutable": "python3",
-      "runtimeArgs": ["-m", "http.server", "8797", "--directory", "public"],
-      "port": 8797
-    }
+    { "name": "cockpit", "runtimeExecutable": "python3",
+      "runtimeArgs": ["-m", "http.server", "8799", "--directory", "public"], "port": 8799 }
   ]
 }

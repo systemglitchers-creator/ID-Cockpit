@@ -215,6 +215,7 @@
                                      r: Object.keys(GL).length + " linked" };
     else if (tab === "find")  h = { e: "The whole plan", t: "Find a chapter", r: m.sessTotal + " sessions" };
     else if (tab === "stats") h = { e: "Where you stand", t: "Progress", r: m.pagesDone + " pages read" };
+    else if (tab === "bank") h = bankHeader();
     // Home screen leads with the catch-up debt when there is one: it is the
     // thing worth knowing, and it stays true where "days behind" would read 0
     // once the schedule has absorbed the slip.
@@ -509,6 +510,253 @@
   }
 
   /* ---- Stats ---- */
+
+  // ---- Bank: the question bank -------------------------------------------
+  // Chapters unlock as you read them. Inside a chapter the accent becomes that
+  // chapter's SECTOR hue, so a chapter looks the same here as on the Path.
+  var bkIndex = null, bkChapter = null, bkQueue = [], bkAt = 0,
+      bkPicked = null, bkShown = false, bkDeferred = false, bkAnswers = {};
+
+  function bankHeader() {
+    if (!bkChapter) return { e: "Question bank", t: "Bank",
+      r: bkIndex ? bankReady().length + " chapters ready" : "" };
+    if (bkAt >= bkQueue.length) return { e: "Chapter complete", t: bkChapter.title, r: "" };
+    return { e: bkChapter.chapter, t: bkChapter.title, r: (bkAt + 1) + " of " + bkQueue.length };
+  }
+
+  function sectorAccent(name) {
+    for (var i = 0; i < SECS.length; i++) if (SECS[i].title === name) return SECS[i].accent;
+    return null;
+  }
+  function setBankAccent(col) {
+    var el = $("v-bank");
+    if (col) { el.style.setProperty("--acc", col); el.style.setProperty("--acc-d", col); }
+    else { el.style.removeProperty("--acc"); el.style.removeProperty("--acc-d"); }
+  }
+
+  /** A chapter is drillable once every one of its schedule sessions is read. */
+  function chapterRead(ch) {
+    var num = String(ch.chapter || "").replace(/^Chapter\s+/, "");
+    var ids = [], any = false;
+    SECS.forEach(function (sec) {
+      sec.rows.forEach(function (r) {
+        var m = /^Chapter\s+(\d+)/.exec(r.r || "");
+        if (m && m[1] === num) { ids.push(r.id); any = true; }
+      });
+    });
+    if (!any) return false;
+    return ids.every(function (id) { return isDone(id); });
+  }
+
+  function bankReady() {
+    return (bkIndex || []).filter(function (c) { return chapterRead(c) || !c.weeks.length; });
+  }
+
+  function bankFetch(url) {
+    return fetch(url).then(function (r) { return r.ok ? r.json() : null; }).catch(function () { return null; });
+  }
+
+  function renderBank() {
+    // Only the chapter LIST resets to the Bank's own indigo. Inside a chapter the
+    // sector hue set by bankStart() must survive every re-render.
+    if (!bkChapter) setBankAccent(null);
+    if (!bkIndex) {
+      $("v-bank").innerHTML = '<div class="bkdef">Loading question bank…</div>';
+      bankFetch("qbank/index.json").then(function (d) {
+        if (!d) { $("v-bank").innerHTML = '<div class="bkdef">Question bank not available.</div>'; return; }
+        bkIndex = d.chapters;
+        bankFetch("/api/answers").then(function (a) {
+          if (a && a.answers) bkAnswers = a.answers;
+          if (tab === "bank") renderBank();
+        });
+      });
+      return;
+    }
+    if (bkChapter) return bkAt >= bkQueue.length ? bankSummary() : bankQuestion();
+
+    var ready = bankReady(), groups = {}, order = [];
+    ready.forEach(function (c) {
+      if (!groups[c.sector]) { groups[c.sector] = []; order.push(c.sector); }
+      groups[c.sector].push(c);
+    });
+    var html = ready.length ? "" :
+      '<div class="bkdef">No chapters unlocked yet. Finish a chapter’s sessions and it appears here.</div>';
+    order.forEach(function (sec) {
+      var col = sectorAccent(sec) || "var(--ind)";
+      html += '<div class="bksec"><i style="background:' + esc(col) + '"></i>' +
+              '<b style="color:' + esc(col) + '">' + esc(sec) + "</b></div>";
+      groups[sec].forEach(function (c) {
+        var done = c.cqids.filter(function (q) { return bkAnswers[q]; }).length;
+        var pct = c.n_total ? Math.round(done / c.n_total * 100) : 0;
+        var full = pct === 100;
+        var ring = full ? "var(--gold)" : col;
+        html += '<button class="bkrow" data-bank="' + esc(c.id) + '">' +
+          '<div class="bkring" style="background:conic-gradient(' + ring + " " + pct +
+          '%, var(--node-track) 0)"><i style="color:' + (full ? "var(--gold-txt)" : esc(col)) + '">' +
+          esc(String(c.chapter).replace(/^Chapter\s+/, "")) + "</i></div>" +
+          '<div style="flex:1;min-width:0"><div class="t">' + esc(c.title) + "</div>" +
+          '<div class="m">' + c.n_mcq + " MCQ · " + c.n_written + " written</div></div>" +
+          '<div class="rt" style="color:' + (full ? "var(--gold-txt)" : esc(col)) + '">' +
+          (full ? "✓" : done + "/" + c.n_total) + "</div></button>";
+      });
+    });
+    $("v-bank").innerHTML = html;
+  }
+
+  function bankOpen(id) {
+    bankFetch("qbank/" + encodeURIComponent(id) + ".json").then(function (d) {
+      if (!d) return;
+      bkChapter = d; bkDeferred = false;
+      bankStart();
+    });
+  }
+
+  function bankStart() {
+    var qs = bkChapter.questions.filter(function (q) { return bkDeferred || !q.needs.length; });
+    bkQueue = qs;
+    bkAt = 0;
+    while (bkAt < bkQueue.length && bkAnswers[bkQueue[bkAt].cqid]) bkAt++;
+    bkPicked = null; bkShown = false;
+    setBankAccent(sectorAccent(bkChapter.sector));
+    render();
+  }
+
+  function bankQuestion() {
+    var q = bkQueue[bkAt], h = "";
+    h += '<div class="bkq"><div class="qk">' +
+         (q.kind === "mcq" ? "Multiple choice" : "Written · Royal College") + "</div>" +
+         '<div class="qp">' + esc(q.source || "") + "</div>";
+    if (q.kind === "mcq") {
+      h += '<div class="bkstem">' + esc(q.stem) + "</div>";
+      if (q.lead_in) h += '<div class="bkparts" style="padding:0;font-weight:700;margin-top:12px">' +
+                          esc(q.lead_in) + "</div>";
+      h += '<ul class="bkopts">' + q.options.map(function (o) {
+        return '<li class="bkopt" data-opt="' + esc(o.letter) + '"><span class="bkltr">' +
+               esc(o.letter) + '</span><span class="t">' + esc(o.text) + "</span></li>";
+      }).join("") + "</ul>";
+    } else {
+      h += '<div class="bkstem">' + esc(q.question) + "</div>";
+      h += '<ol class="bkparts" type="a">' + (q.parts || []).map(function (p) {
+        return "<li>" + esc(p.text) + (p.marks != null ?
+          ' <span class="bkmarks">(' + esc(p.marks) + ")</span>" : "") + "</li>";
+      }).join("") + "</ol>";
+    }
+    h += '<div class="bkacts" id="bkacts"></div></div><div id="bkrev"></div>';
+    var nDef = bkChapter.questions.filter(function (x) { return x.needs.length; }).length;
+    if (!bkDeferred && nDef) {
+      h += '<div class="bkdef">' + nDef + ' question' + (nDef > 1 ? "s need" : " needs") +
+           ' a chapter you haven’t read yet. <button id="bkshowdef">Show anyway</button></div>';
+    }
+    $("v-bank").innerHTML = h;
+    if (q.kind === "written") {
+      $("bkacts").innerHTML = '<button class="go" id="bkreveal">Reveal model answer</button>';
+    }
+  }
+
+  function bankReveal() {
+    var q = bkQueue[bkAt];
+    if (bkShown) return;
+    bkShown = true;
+    var h = '<div class="bkrev">';
+    if (q.kind === "mcq") {
+      var right = bkPicked === q.correct, corr = null;
+      q.options.forEach(function (o) { if (o.letter === q.correct) corr = o; });
+      Array.prototype.forEach.call($("v-bank").querySelectorAll(".bkopt"), function (el) {
+        if (el.dataset.opt === q.correct) el.classList.add("ok");
+        else if (el.dataset.opt === bkPicked) el.classList.add("no");
+      });
+      h += '<div class="chip"' + (right ? "" : ' style="background:var(--gold-bg);color:var(--behind)"') +
+           ">" + (right ? "Correct" : "Incorrect — you chose " + esc(bkPicked)) + "</div>";
+      h += '<div class="bkans">' + esc(q.correct) + ". " + esc(corr ? corr.text : "") + "</div>";
+      h += '<div class="bkexp">' + esc(q.explanation) + "</div>";
+    } else {
+      h += '<div class="chip">Model answer</div>';
+      h += '<div class="bkans">' + esc(q.model_answer || "") + "</div>";
+      if (q.beyond_mandell) h += '<div class="bkgold"><b>Beyond Mandell.</b> ' + esc(q.beyond_mandell) + "</div>";
+      if (q.cohort_answer) h += '<div class="bkcohort"><b>Prior cohort answer</b> (' +
+        esc(q.cohort_answer.source) + ") — " + esc(q.cohort_answer.text) + "</div>";
+      if (q.uncertain) h += '<div class="bkflag">⚠ Flagged uncertain — verify this one.</div>';
+    }
+    if (q.cites) h += '<div class="bkcite">' + esc(q.cites) + "</div>";
+    h += '<div class="bkacts" id="bkgrade"></div></div>';
+    $("bkrev").innerHTML = h;
+    $("bkacts").innerHTML = "";
+    $("bkgrade").innerHTML = q.kind === "mcq"
+      ? '<button class="go" data-grade="' + (bkPicked === q.correct ? "correct" : "incorrect") + '">Next question</button>'
+      : '<button class="go" data-grade="got">Got it</button>' +
+        '<button class="alt" data-grade="partial">Partial</button>' +
+        '<button class="alt" data-grade="missed">Missed</button>';
+    $("bkrev").scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  function bankGrade(result) {
+    var q = bkQueue[bkAt];
+    bkAnswers[q.cqid] = { result: result, ts: Date.now() };
+    var body = {}; body[q.cqid] = bkAnswers[q.cqid];
+    fetch("/api/answers", { method: "POST", headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ answers: body }) }).catch(function () {});
+    bkAt++; bkPicked = null; bkShown = false;
+    render();
+  }
+
+  function bankSummary() {
+    var got = 0, part = 0, miss = 0;
+    bkQueue.forEach(function (q) {
+      var a = bkAnswers[q.cqid]; if (!a) return;
+      if (a.result === "correct" || a.result === "got") got++;
+      else if (a.result === "partial") part++;
+      else miss++;
+    });
+    // The deferred toggle must live here too. Once a chapter's ready questions are
+    // answered, reopening it lands straight on this summary -- so if the toggle only
+    // existed on the question screen the deferred set would be unreachable forever.
+    var nDef = bkChapter.questions.filter(function (x) { return x.needs.length; }).length;
+    var defNote = (!bkDeferred && nDef)
+      ? '<div class="bkdef">' + nDef + ' question' + (nDef > 1 ? "s need" : " needs") +
+        ' a chapter you haven\u2019t read yet. <button id="bkshowdef">Show anyway</button></div>'
+      : "";
+    $("v-bank").innerHTML =
+      '<div class="bktally"><div><span class="n" style="color:var(--acc)">' + got +
+      '</span><span class="l">Got it</span></div>' +
+      '<div><span class="n">' + part + '</span><span class="l">Partial</span></div>' +
+      '<div><span class="n" style="color:var(--behind)">' + miss +
+      '</span><span class="l">Missed</span></div></div>' +
+      '<div class="bkacts"><button class="go" id="bkmiss">Review misses</button>' +
+      '<button class="alt" id="bkback">Back to bank</button></div>' + defNote;
+  }
+
+  // One delegated listener for the whole tab.
+  document.addEventListener("click", function (e) {
+    var t = e.target;
+    var row = t.closest && t.closest("[data-bank]");
+    if (row) { bankOpen(row.dataset.bank); return; }
+    if (t.closest && t.closest("#bkreveal")) { bankReveal(); return; }
+    var opt = t.closest && t.closest(".bkopt");
+    if (opt && !bkShown && bkChapter) {
+      bkPicked = opt.dataset.opt;
+      Array.prototype.forEach.call($("v-bank").querySelectorAll(".bkopt"), function (el) {
+        el.classList.toggle("sel", el.dataset.opt === bkPicked);
+      });
+      $("bkacts").innerHTML = '<button class="go" id="bksubmit">Submit answer</button>';
+      return;
+    }
+    if (t.closest && t.closest("#bksubmit")) { bankReveal(); return; }
+    var g = t.closest && t.closest("[data-grade]");
+    if (g) { bankGrade(g.dataset.grade); return; }
+    if (t.closest && t.closest("#bkshowdef")) { bkDeferred = true; bankStart(); return; }
+    if (t.closest && t.closest("#bkback")) { bkChapter = null; setBankAccent(null); render(); return; }
+    if (t.closest && t.closest("#bkmiss")) {
+      var m = bkQueue.filter(function (q) {
+        var a = bkAnswers[q.cqid];
+        return a && (a.result === "missed" || a.result === "incorrect" || a.result === "partial");
+      });
+      if (!m.length) { bkChapter = null; setBankAccent(null); render(); return; }
+      m.forEach(function (q) { delete bkAnswers[q.cqid]; });
+      bkQueue = m; bkAt = 0; bkPicked = null; bkShown = false; render();
+      return;
+    }
+  });
+
   function renderStats() {
     var m = M;
     // With catch-up absorbing a slip, drift is 0 and the debt shows as sessions
@@ -638,7 +886,7 @@
     M = compute();
     applyTheme(M.now);
     renderHeader();
-    ["today", "path", "guides", "find", "stats"].forEach(function (t) {
+    ["today", "path", "guides", "find", "stats", "bank"].forEach(function (t) {
       $("v-" + t).classList.toggle("on", t === tab);
     });
     Array.prototype.forEach.call($("tabs").children, function (b) {
@@ -649,6 +897,7 @@
     else if (tab === "guides") renderGuides();
     else if (tab === "find") renderFind();
     else if (tab === "stats") renderStats();
+    else if (tab === "bank") renderBank();
     renderSheet();
     // The icon carries today's debt: due count while unread, cleared on mark.
     try {
