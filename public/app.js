@@ -623,6 +623,9 @@
 
   function bankQuestion() {
     var q = bkQueue[bkAt], h = "";
+    // Mid-chapter escape hatch. Without this the only way out of a chapter was to
+    // answer every question to reach the summary.
+    h += '<button class="bkexit" id="bkback">\u2190 All chapters</button>';
     h += '<div class="bkq"><div class="qk">' +
          (q.kind === "mcq" ? "Multiple choice" : "Written · Royal College") + "</div>" +
          '<div class="qp">' + esc(q.source || "") + "</div>";
@@ -699,6 +702,14 @@
     render();
   }
 
+  /** Leave the current chapter and show the chapter list again. */
+  function bankExit() {
+    bkChapter = null; bkQueue = []; bkAt = 0;
+    bkPicked = null; bkShown = false; bkDeferred = false;
+    setBankAccent(null);
+    render();
+  }
+
   function bankSummary() {
     var got = 0, part = 0, miss = 0;
     bkQueue.forEach(function (q) {
@@ -744,7 +755,9 @@
     var g = t.closest && t.closest("[data-grade]");
     if (g) { bankGrade(g.dataset.grade); return; }
     if (t.closest && t.closest("#bkshowdef")) { bkDeferred = true; bankStart(); return; }
-    if (t.closest && t.closest("#bkback")) { bkChapter = null; setBankAccent(null); render(); return; }
+    if (t.closest && t.closest("#bkback")) { bankExit(); return; }
+    var bankTab = t.closest && t.closest('[data-tab="bank"]');
+    if (bankTab && tab === "bank" && bkChapter) { bankExit(); return; }
     if (t.closest && t.closest("#bkmiss")) {
       var m = bkQueue.filter(function (q) {
         var a = bkAnswers[q.cqid];
