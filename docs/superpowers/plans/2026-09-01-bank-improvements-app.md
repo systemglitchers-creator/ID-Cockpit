@@ -1265,6 +1265,13 @@ Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
 
 ### Task 7: The owed rule in the app, and the home "To drill" card
 
+> **Amended.** The mirror is copied from `lib/bank.js` as it stands after Task 3's review (five
+> functions, `sessionsByChapter` included). The drill-row tap lives in `drillTapped(id)` (exported
+> for tests) rather than inline in the listener, and the card tests use `lib/bank.js`'s
+> `chapterSessionIds` to find chapter 101's sessions instead of a title regex, plus a third case
+> asserting the card disappears once every ready question is graded.
+
+
 **Files:**
 - Modify: `public/app.js` — add the mirror of `lib/bank.js`, `renderDrill`, wire into `renderToday` and the click listener
 - Modify: `public/index.html` — `#drillCard` and CSS
