@@ -6,7 +6,6 @@ import { loadCurrentApp } from "./harness.mjs";
    window.IDCockpit. Rendering is checked as HTML strings on the fake DOM. */
 
 const NOW = new Date(2026, 8, 1, 21, 0, 0);
-const KEY = "idcockpit.v1.answers";
 
 const CHAPTER = {
   chapter: "Chapter 101", id: "ch101", title: "Acute Dysentery Syndromes",
@@ -99,4 +98,32 @@ test("review misses re-queues without deleting grades; regrading writes a newer 
   app.IDCockpit.bankGrade("got");
   assert.equal(app.IDAnswers.get().W1.result, "got");
   assert.equal(app.IDAnswers.get().W1.ts, NOW.getTime());
+});
+
+test("a focus cqid that is not in the queue falls through to the first ungraded question", async () => {
+  const app = loadCurrentApp({ now: NOW, fetch: fetchFor({ W1: { result: "got", ts: 1 } }) });
+  await tick(); await tick();
+  app.IDCockpit.bankOpen("ch101", "NOPE");
+  await tick(); await tick();
+  const b = app.IDCockpit.bank();
+  assert.equal(b.queue[b.at].cqid, "W2");
+});
+
+test("one tap on the Bank tab retries an index load that failed", async () => {
+  let calls = 0;
+  const base = fetchFor();
+  const flaky = async (url, init) => {
+    if (url === "qbank/index.json" && ++calls === 1) return { ok: false, status: 500, json: async () => null };
+    return base(url, init);
+  };
+  const app = loadCurrentApp({ now: NOW, fetch: flaky });
+  await tick(); await tick();
+  assert.equal(app.IDCockpit.bank().index, null, "the boot load failed");
+
+  app.IDCockpit.setTab("bank");
+  app.IDCockpit.bankTabTapped();
+  await tick(); await tick();
+  const idx = app.IDCockpit.bank().index;
+  assert.ok(Array.isArray(idx), "one tap re-fetched the index");
+  assert.equal(idx.length, 1);
 });
