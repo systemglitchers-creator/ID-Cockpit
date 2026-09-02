@@ -89,10 +89,12 @@ test("the shell precache covers every script index.html loads", () => {
   }
 });
 
-test("activate deletes the previous cache", async () => {
-  const l = loadSw(["idcockpit-web-v23", "idcockpit-web-v24"]);
+test("activate deletes every cache but the current one", async () => {
+  // Read the live name from the worker so a CACHE bump never has to touch this test.
+  const cur = /var CACHE = "(idcockpit-web-v\d+)"/.exec(fs.readFileSync(path.join(ROOT, "public/sw.js"), "utf8"))[1];
+  const l = loadSw(["idcockpit-web-v1", cur]);
   let captured;
   l.activate({ waitUntil(p) { captured = p; } });
   await captured;
-  assert.deepEqual(l.deleted, ["idcockpit-web-v23"]);
+  assert.deepEqual(l.deleted, ["idcockpit-web-v1"]);
 });
