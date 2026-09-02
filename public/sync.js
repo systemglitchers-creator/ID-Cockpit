@@ -68,9 +68,10 @@
         .then(function (r) { if (!r.ok) throw new Error("progress " + r.status); return r.json(); })
         .then(function (d) {
           if (!d || typeof d.sessions !== "object") return false;
-          // Server response is authoritative: it already contains everything we
-          // sent, unioned with everything it held.
-          Store.replace(d.sessions);
+          // Union, not replace: a setEntry() that landed while this request was
+          // in flight is not in `d.sessions` yet, so mergeRemote (newest ts
+          // wins) keeps it instead of letting the reply erase it.
+          Store.mergeRemote(d.sessions);
           if (Server._refresh) Server._refresh();
           return true;
         })
@@ -105,7 +106,7 @@
      deleted, so an empty phone can never erase anything. */
   var ANSWERS_KEY = "idcockpit.v1.answers";
   var Answers = {
-    _t: null, _refresh: null, _inflight: false,
+    _t: null, _refresh: null, _inflight: false, _pending: false,
 
     get: function () {
       try {
@@ -128,7 +129,10 @@
     },
 
     sync: function () {
-      if (typeof fetch !== "function" || Answers._inflight) return Promise.resolve(false);
+      if (typeof fetch !== "function" || Answers._inflight) {
+        if (Answers._inflight) Answers._pending = true;  // ask was dropped; remember to retry
+        return Promise.resolve(false);
+      }
       Answers._inflight = true;
       return fetch("/api/answers", {
         method: "POST",
@@ -138,13 +142,24 @@
       })
         .then(function (r) { if (!r.ok) throw new Error("answers " + r.status); return r.json(); })
         .then(function (d) {
-          if (!d || typeof d.answers !== "object" || d.answers === null) return false;
-          Answers.replace(d.answers);          // server reply is the union; adopt it
+          if (!d || typeof d.answers !== "object" || d.answers === null || Array.isArray(d.answers)) return false;
+          // Union, not replace: a set() that landed while this request was in
+          // flight is not in `d.answers` yet, so a local record newer than what
+          // the server saw must survive the reply rather than being erased.
+          var local = Answers.get(), out = d.answers;
+          Object.keys(local).forEach(function (k) {     // anything written mid-flight
+            if (!out[k] || Number(local[k].ts || 0) > Number(out[k].ts || 0)) out[k] = local[k];
+          });
+          Answers.replace(out);
           if (Answers._refresh) Answers._refresh();
           return true;
         })
         .catch(function () { return false; })   // offline: local stands, retry later
-        .then(function (ok) { Answers._inflight = false; return ok; });
+        .then(function (ok) {
+          Answers._inflight = false;
+          if (Answers._pending) { Answers._pending = false; Answers.schedule(); }
+          return ok;
+        });
     },
 
     schedule: function () {
@@ -154,13 +169,14 @@
 
     start: function (refresh) {
       Answers._refresh = refresh;
-      Answers.sync();
+      var p = Answers.sync();
       if (global.addEventListener) {
         global.addEventListener("online", function () { Answers.sync(); });
         global.addEventListener("visibilitychange", function () {
           if (!global.document || global.document.visibilityState === "visible") Answers.sync();
         });
       }
+      return p;
     }
   };
 
