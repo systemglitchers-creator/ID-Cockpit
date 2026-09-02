@@ -1276,6 +1276,12 @@ Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
 > so a chapter read inside a multi-chapter sitting unlocks in the list exactly when it appears on
 > the home card. A test loads a Chapter 41 fixture index with the antifungal sittings read and
 > asserts the row appears.
+>
+> **Second follow-up.** `chapterRead` reads from a `chapterMap()` memoised on the `SECS` reference
+> (rebuilding the map per chapter made the Bank list ten times slower); `drillTapped` calls
+> `render()` before `bankOpen(id)` so the Bank paints at once and the chapter replaces it when its
+> file lands; `.drill` joins the reduced-motion selector; tests pin the three-row cap with a
+> "+1 more" line and the immediate paint on a hanging chapter fetch.
 
 
 **Files:**
