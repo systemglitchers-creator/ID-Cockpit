@@ -1270,6 +1270,12 @@ Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
 > for tests) rather than inline in the listener, and the card tests use `lib/bank.js`'s
 > `chapterSessionIds` to find chapter 101's sessions instead of a title regex, plus a third case
 > asserting the card disappears once every ready question is graded.
+>
+> **Follow-up from the Task 7 review.** The Bank's own `chapterRead()` (used by `bankReady()` for
+> the chapter list and, in Task 9, for "unlocked") now delegates to `chapterSessionIds(SECS, n)`,
+> so a chapter read inside a multi-chapter sitting unlocks in the list exactly when it appears on
+> the home card. A test loads a Chapter 41 fixture index with the antifungal sittings read and
+> asserts the row appears.
 
 
 **Files:**
