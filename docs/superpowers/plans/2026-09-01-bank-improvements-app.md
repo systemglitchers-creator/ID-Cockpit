@@ -1056,6 +1056,14 @@ Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
 > { bkShown = false; bankReveal(); } else if (bkPicked) bankPick(bkPicked);` — and a sixth test pins
 > that a repaint keeps the pick and the reveal. Tests in this task call `app.IDCockpit.setTab("bank")`
 > before reading `v-bank`, since the harness boots on the Today tab.
+>
+> **Amended again after the Task 6 code review** (run against all 4,034 real questions): `partText`
+> strips a trailing bracketed number only when it equals the part's `marks`, then trims a dangling
+> dash, so years like "(2019)" survive; the generated `a)` letter is omitted when the part text
+> already starts with its own label; `askedLine` drops a trailing " ?" from source tags and appends
+> "+N" when more than three recur; `isTopic` is `< 35` characters and `<= 6` words; `bankReveal(replay)`
+> skips the scroll when replaying; the dead `.bkmarks` rule is gone and the `.bkparts` rules are
+> merged.
 
 
 **Files:**
