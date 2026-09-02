@@ -71,7 +71,7 @@ test("the cache name was bumped for this change", () => {
 
 test("the shell precache covers every script index.html loads", () => {
   const html = fs.readFileSync(path.join(ROOT, "public/index.html"), "utf8");
-  const scripts = [...html.matchAll(/<script\s+src="([^"]+)"/g)]
+  const scripts = [...html.matchAll(/<script\b[^>]*\ssrc=["']([^"']+)["']/g)]
     .map((m) => m[1])
     .filter((src) => !/^([a-z]+:)?\/\//i.test(src)); // same-origin only
 
