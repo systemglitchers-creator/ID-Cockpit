@@ -718,7 +718,7 @@
         html += '<button class="bkrow" data-bank="' + esc(c.id) + '">' +
           '<div class="bkring" style="background:conic-gradient(' + ring + " " + pct +
           '%, var(--node-track) 0)"><i style="color:' + (full ? "var(--gold-txt)" : esc(col)) + '">' +
-          esc(String(c.chapter).replace(/^Chapter\s+/, "")) + "</i></div>" +
+          (c.weeks.length ? esc(String(c.chapter).replace(/^Chapter\s+/, "")) : "\u2022") + "</i></div>" +
           '<div style="flex:1;min-width:0"><div class="t">' + esc(c.title) + "</div>" +
           '<div class="m">' + c.n_mcq + " MCQ · " + c.n_written + " written</div></div>" +
           '<div class="rt" style="color:' + (full ? "var(--gold-txt)" : esc(col)) + '">' +

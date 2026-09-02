@@ -497,3 +497,15 @@ test("the Stats block says so when the index cannot be loaded, and does not retr
   assert.match(app._elements.get("bankStats").innerHTML, /Question bank not available/);
   assert.equal(calls, 1, "a failed index is not re-fetched by the Stats paint");
 });
+
+test("a catch-all row's ring shows a dot, not the CATCHALL id", async () => {
+  const idx = { chapters: [{ chapter: "CATCHALL-LAB", id: "catchall-lab", title: "Lab & Micro Methods", sector: "Catch-all",
+    weeks: [], n_total: 1, n_mcq: 0, n_written: 1, n_deferred: 0, cqids: ["L1"], deferred: [], marks: { L1: 1 } }] };
+  const app = loadCurrentApp({ now: NOW, fetch: fetchFor({}, idx) });
+  await tick(); await tick();
+  app.IDCockpit.setTab("bank");
+  const html = app._elements.get("v-bank").innerHTML;
+  assert.match(html, /data-bank="catchall-lab"/);
+  assert.match(html, /<i style="color:[^"]*">•<\/i>/);
+  assert.doesNotMatch(html, />CATCHALL-LAB</);
+});
