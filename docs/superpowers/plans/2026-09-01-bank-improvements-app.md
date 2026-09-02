@@ -1580,6 +1580,14 @@ Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
 
 ### Task 9: Stats block, marks on the chapter summary, flagged list
 
+> **Added after the Task 4 review.** There are now three copies of the marks rule (`lib/bank.js`,
+> the app mirror, and `build_bundle.py`, which is outside git). Task 9 adds a real-data test,
+> `tests/js/bank-index.test.mjs`, that loads `public/qbank/index.json` and every chapter file and
+> asserts `marks[cqid] === marksFor(question)` and `deferred` equals the set of questions with a
+> non-empty `needs`, for all 4,034 placements. Consumers of `c.marks` must also tolerate the key
+> being absent (fall back to 1), the way `owedChapters` already tolerates a missing `deferred`.
+
+
 **Files:**
 - Modify: `public/app.js` — `bankSummary`, `bankFlagged`, new `renderBankStats`, `renderStats`
 - Modify: `public/index.html` — `#bankStats` markup and CSS
