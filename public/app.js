@@ -851,6 +851,7 @@
     if (q.beyond_mandell) h += '<div class="bkgold"><b>Beyond Mandell.</b> ' + esc(q.beyond_mandell) + "</div>";
     if (q.model_answer && co) h += '<div class="bkcohort"><b>Prior cohort answer · ' + esc(co.source) +
                                    "</b> — " + esc(co.text) + "</div>";
+    if (q.cohort_conflict) h += '<div class="bkconflict"><b>NB.</b> ' + esc(q.cohort_conflict) + "</div>";
     if (q.uncertain) h += '<div class="bkflag">⚠ Flagged uncertain — verify this one.</div>';
     return h;
   }

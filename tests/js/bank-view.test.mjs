@@ -524,6 +524,19 @@ test("the chapter list ring counts ready questions, so a drilled chapter earns i
   assert.match(half._elements.get("v-bank").innerHTML, /class="rt"[^>]*>1\/3</);
 });
 
+test("reveal shows a cohort conflict note under the model answer", async () => {
+  const ch = JSON.parse(JSON.stringify(CHAPTER));
+  ch.questions[1].cohort_conflict = "Cohort answer lists 16 and 31; Mandell pp. 1–2 supports 16 and 18.";
+  const fetch = async (url, init) => url === "qbank/ch101.json"
+    ? { ok: true, status: 200, json: async () => ch } : fetchFor({ W1: { result: "got", ts: 1 } })(url, init);
+  const app = loadCurrentApp({ now: NOW, fetch });
+  await tick(); await tick();
+  await openChapter(app);                         // W2 has a model answer and a cohort answer
+  app.IDCockpit.setTab("bank");
+  app.IDCockpit.bankReveal();
+  assert.match(app._elements.get("bkrev").innerHTML, /class="bkconflict">.*Mandell pp\. 1–2 supports 16 and 18/);
+});
+
 test("a drill tap from inside another chapter paints the list, not the old chapter", async () => {
   const app = loadCurrentApp({ now: NOW, done: chapterSessionIds(SECTIONS, 101), doneAt: "2026-08-30T12:00:00Z",
                                fetch: fetchFor({}, INDEX, true) });

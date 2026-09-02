@@ -66,7 +66,7 @@ test("question files and app code are still handled by the worker", () => {
 test("the cache name was bumped for this change", () => {
   const src = fs.readFileSync(path.join(ROOT, "public/sw.js"), "utf8");
   const m = /var CACHE = "idcockpit-web-v(\d+)"/.exec(src);
-  assert.ok(m && Number(m[1]) >= 23, "CACHE must be at least v23");
+  assert.ok(m && Number(m[1]) >= 24, "CACHE must be at least v24");
 });
 
 test("the shell precache covers every script index.html loads", () => {
@@ -90,9 +90,9 @@ test("the shell precache covers every script index.html loads", () => {
 });
 
 test("activate deletes the previous cache", async () => {
-  const l = loadSw(["idcockpit-web-v22", "idcockpit-web-v23"]);
+  const l = loadSw(["idcockpit-web-v23", "idcockpit-web-v24"]);
   let captured;
   l.activate({ waitUntil(p) { captured = p; } });
   await captured;
-  assert.deepEqual(l.deleted, ["idcockpit-web-v22"]);
+  assert.deepEqual(l.deleted, ["idcockpit-web-v23"]);
 });
