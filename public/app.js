@@ -959,12 +959,19 @@
       '<button class="alt" id="bkback">Back to bank</button></div>' + defNote;
   }
 
-  function showFlagged() { tab = "bank"; bkChapter = null; bkFlagList = true; setBankAccent(null); render(); }
+  function showFlagged() {
+    tab = "bank"; sheetSi = null; bkChapter = null; bkFlagList = true;
+    setBankAccent(null); render();
+  }
 
   /** Every flagged question, across chapters. Rows open the chapter at that question. */
   function bankFlagged() {
     var A = bankAnswers(), byQ = {};
+    // A cqid can be placed in several chapters. Take any chapter first so a flag
+    // is never dropped, then let an UNLOCKED one overwrite it: the row has to
+    // open a chapter he has actually read, not whichever sorts last.
     (bkIndex || []).forEach(function (c) { c.cqids.forEach(function (q) { byQ[q] = c; }); });
+    bankReady().forEach(function (c) { c.cqids.forEach(function (q) { byQ[q] = c; }); });
     var flagged = Object.keys(A).filter(function (q) { return A[q].flag && byQ[q]; });
     var h = '<button class="bkexit" id="bkback">\u2190 All chapters</button>';
     if (!flagged.length) h += '<div class="bkdef">Nothing flagged. Tap \u2691 on a question to keep it here.</div>';
@@ -1053,9 +1060,14 @@
       `c.marks` may be absent on an older index: a question then counts 1. */
   function renderBankStats() {
     var el = $("bankStats");
-    if (!bkIndex) { el.innerHTML = '<div class="card bkstat"><span class="l">Loading question bank\u2026</span></div>'; bankLoadIndex(); return; }
+    if (!bkIndex) {
+      el.innerHTML = '<div class="card bkstat"><span class="l">' +
+        (bkIndexFailed ? "Question bank not available." : "Loading question bank\u2026") + "</span></div>";
+      if (!bkIndexFailed) bankLoadIndex();
+      return;
+    }
     var A = bankAnswers(), total = 0, answered = 0, got = 0, part = 0, miss = 0,
-        drilled = 0, avail = 0, earned = 0, flagged = 0, unlocked = bankReady();
+        drilled = 0, withReady = 0, avail = 0, earned = 0, flagged = 0, unlocked = bankReady();
     unlocked.forEach(function (c) {
       var def = {}; (c.deferred || []).forEach(function (q) { def[q] = 1; });
       var ready = c.cqids.filter(function (q) { return !def[q]; }), done = 0;
@@ -1070,9 +1082,14 @@
         else miss++;
       });
       answered += done;
-      if (ready.length && done === ready.length) drilled++;
+      // A chapter whose every question is deferred has nothing to drill, so it is
+      // owed nothing either: counting it would put the total out of reach forever.
+      if (ready.length) { withReady++; if (done === ready.length) drilled++; }
     });
-    Object.keys(A).forEach(function (q) { if (A[q].flag) flagged++; });
+    // Only flags the flagged list can show -- otherwise the count and the list disagree.
+    var inIdx = {};
+    (bkIndex || []).forEach(function (c) { c.cqids.forEach(function (q) { inIdx[q] = 1; }); });
+    Object.keys(A).forEach(function (q) { if (A[q].flag && inIdx[q]) flagged++; });
     el.innerHTML =
       '<div class="card bkstat">' +
       '<div class="baseline"><span class="l">Answered</span><span class="v">' + answered + " / " + total + "</span></div>" +
@@ -1080,7 +1097,7 @@
       '<div><span class="n">' + part + '</span><span class="l">Partial</span></div>' +
       '<div><span class="n">' + miss + '</span><span class="l">Missed</span></div></div>' +
       '<div class="baseline"><span class="l">Marks</span><span class="v">' + earned + " of " + avail + "</span></div>" +
-      '<div class="baseline"><span class="l">Chapters drilled</span><span class="v">' + drilled + " / " + unlocked.length + "</span></div>" +
+      '<div class="baseline"><span class="l">Chapters drilled</span><span class="v">' + drilled + " / " + withReady + "</span></div>" +
       '<div class="baseline"><span class="l">Flagged</span><span class="v"><button data-flagged>Flagged \u00b7 ' + flagged + "</button></span></div>" +
       "</div>";
   }

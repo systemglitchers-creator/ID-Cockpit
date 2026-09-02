@@ -440,3 +440,60 @@ test("the flagged list shows every flagged question and opens its chapter at tha
   const b = app.IDCockpit.bank();
   assert.equal(b.queue[b.at].cqid, "W3", "a deferred question is reachable from the flag list");
 });
+
+/* A cqid can sit in several chapters -- 904 of them do, in up to six. The flag
+   list must attribute one to a chapter he can actually open. */
+const INDEX_SHARED = { chapters: [
+  INDEX.chapters[0],
+  { chapter: "Chapter 200", id: "ch200", title: "Shared Placement", sector: "Enteric",
+    weeks: [20], n_total: 1, n_mcq: 0, n_written: 1, n_deferred: 0,
+    cqids: ["W2"], deferred: [], marks: { W2: 1 } }
+] };
+
+test("a flagged question in two chapters is attributed to the one he has read", async () => {
+  const ids = chapterSessionIds(SECTIONS, 101);
+  const app = loadCurrentApp({ now: NOW, done: ids, doneAt: "2026-08-30T12:00:00Z",
+    fetch: fetchFor({ W2: { flag: true, ts: 1 } }, INDEX_SHARED) });
+  await tick(); await tick();
+  app.IDCockpit.showFlagged();
+  const html = app._elements.get("v-bank").innerHTML;
+  assert.match(html, /data-open="ch101" data-cqid="W2"/, "ch200 is unread; the row must open the unlocked chapter");
+  assert.doesNotMatch(html, /data-open="ch200"/);
+});
+
+test("the Flagged count ignores a flag on a question that is not in the index", async () => {
+  const ids = chapterSessionIds(SECTIONS, 101);
+  const app = loadCurrentApp({ now: NOW, done: ids, doneAt: "2026-08-30T12:00:00Z",
+    fetch: fetchFor({ W2: { flag: true, ts: 1 }, ZZZ: { flag: true, ts: 1 } }) });
+  await tick(); await tick();
+  app.IDCockpit.setTab("stats");
+  assert.match(app._elements.get("bankStats").innerHTML, /data-flagged[^>]*>Flagged · 1/,
+    "the count must agree with the list, which shows only in-index cqids");
+});
+
+test("Chapters drilled leaves out a chapter with nothing but deferred questions", async () => {
+  const ids = chapterSessionIds(SECTIONS, 101);
+  const allDef = { chapter: "Chapter 300", id: "ch300", title: "All Deferred", sector: "Enteric",
+    weeks: [], n_total: 2, n_mcq: 0, n_written: 2, n_deferred: 2,
+    cqids: ["D1", "D2"], deferred: ["D1", "D2"], marks: { D1: 1, D2: 1 } };
+  const idx = { chapters: [INDEX.chapters[0], allDef] };
+  const app = loadCurrentApp({ now: NOW, done: ids, doneAt: "2026-08-30T12:00:00Z",
+    fetch: fetchFor({ W1: { result: "got", ts: 1 }, W2: { result: "got", ts: 1 }, M1: { result: "correct", ts: 1 } }, idx) });
+  await tick(); await tick();
+  app.IDCockpit.setTab("stats");
+  assert.match(app._elements.get("bankStats").innerHTML, /Chapters drilled<\/span><span class="v">1 \/ 1</,
+    "a chapter with no drillable question can never be drilled, so it is not owed either");
+});
+
+test("the Stats block says so when the index cannot be loaded, and does not retry on every paint", async () => {
+  let calls = 0;
+  const base = fetchFor();
+  const app = loadCurrentApp({ now: NOW, fetch: (url, init) => {
+    if (url === "qbank/index.json") { calls++; return Promise.resolve({ ok: false, status: 500, json: async () => null }); }
+    return base(url, init);
+  } });
+  await tick(); await tick();
+  app.IDCockpit.setTab("stats");
+  assert.match(app._elements.get("bankStats").innerHTML, /Question bank not available/);
+  assert.equal(calls, 1, "a failed index is not re-fetched by the Stats paint");
+});

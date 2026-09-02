@@ -28,5 +28,5 @@ test("index marks and deferred lists match the chapter files for every placement
       placements++;
     }
   }
-  assert.equal(placements, 4034);
+  assert.equal(placements, 4034, "placement count changed — update this number if the bank was rebuilt");
 });
