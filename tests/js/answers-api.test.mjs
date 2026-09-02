@@ -53,3 +53,11 @@ test("malformed body is rejected", async () => {
   await handler(req("POST", { nope: 1 }), r);
   assert.equal(r.code, 400);
 });
+
+test("chosen letter and flag round-trip untouched", async () => {
+  kv.__resetFake && kv.__resetFake();
+  await handler(req("POST", { answers: { M1: { result: "incorrect", chosen: "A", flag: true, ts: 3 } } }), res());
+  const r = res();
+  await handler(req("GET"), r);
+  assert.deepEqual(r.body.answers.M1, { result: "incorrect", chosen: "A", flag: true, ts: 3 });
+});
