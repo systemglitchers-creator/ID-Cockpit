@@ -72,14 +72,20 @@ test("a finished curriculum never nudges", () => {
 const { owedChapters, chapterSessionIds } = require_("../../lib/bank.js");
 const IDX = [{ chapter: "Chapter 20", id: "ch20", title: "Penicillins and β-Lactamase Inhibitors",
                sector: "Drug Foundations — Completed", weeks: [1], cqids: ["Q1", "Q2"], deferred: ["Q2"] }];
-const owedFor = (progress, answers) => ({ owed: owedChapters(SECTIONS, progress, IDX, answers || {}) });
+const owedFor = (progress, answers) => ({
+  owed: owedChapters(SECTIONS, progress, IDX, answers || {}), answers: answers || {},
+});
+// Q9 belongs to no chapter in IDX, so grading it leaves ch20 owed while still
+// counting as "he drilled something today".
+const FRI_TS = new Date("2026-08-21T15:00:00-03:00").getTime();   // Friday afternoon
+const THU_TS = new Date("2026-08-20T15:00:00-03:00").getTime();   // the evening before
 
 test("reading tonight plus an owed chapter appends a drill line and adds to the badge", () => {
   const progress = readFirst(30, "2026-07-20T12:00:00Z");   // includes every ch20 sitting
   assert.ok(chapterSessionIds(SECTIONS, 20).every((id) => progress[id]), "fixture assumption");
   const msg = compose(SECTIONS, progress, FRI_EVE, owedFor(progress));
-  assert.equal(msg.title, "Tonight's reading");
-  assert.match(msg.body, /\nCh 20 Penicillins and β-Lactamase Inhibitors · 1 to drill$/);
+  assert.equal(msg.title, "Tonight's reading · 1 to drill");
+  assert.match(msg.body, /\nCh 20 · Penicillins and β-Lactamase Inhibitors · 1 to drill$/);
   assert.equal(msg.badge, 2);
 });
 
@@ -87,8 +93,8 @@ test("read today but a chapter is owed: a drill-only nudge", () => {
   const progress = readFirst(30, "2026-07-20T12:00:00Z");
   progress[ROWS[30].id] = at("2026-08-21T14:00:00-03:00");
   const msg = compose(SECTIONS, progress, FRI_EVE, owedFor(progress));
-  assert.equal(msg.title, "Ready to drill");
-  assert.match(msg.body, /Ch 20 .* · 1 to drill/);
+  assert.equal(msg.title, "Ready to drill · 1 chapter");
+  assert.match(msg.body, /Ch 20 · .* · 1 to drill/);
   assert.equal(msg.badge, 1);
 });
 
@@ -108,8 +114,37 @@ test("more than two owed chapters collapse to a '+N more' line", () => {
   const progress = readFirst(30, "2026-07-20T12:00:00Z");
   const many = [1, 2, 3, 4].map((n) => ({ chapter: "Chapter " + n, id: "ch" + n, title: "T" + n, sector: "S", remaining: n, total: n, readAt: n }));
   const msg = compose(SECTIONS, progress, FRI_EVE, { owed: many });
+  assert.equal(msg.title, "Tonight's reading · 4 to drill");
+  assert.match(msg.body, /^Ch 1 · T1 · 1 to drill$/m);
   assert.match(msg.body, /\+2 more chapters to drill$/);
   assert.equal(msg.badge, 5);
+});
+
+test("a grade landing today rests the drill lines", () => {
+  const progress = readFirst(30, "2026-07-20T12:00:00Z");
+  const msg = compose(SECTIONS, progress, FRI_EVE, owedFor(progress, { Q9: { result: "got", ts: FRI_TS } }));
+  assert.equal(msg.title, "Tonight's reading", "no drill count in the title either");
+  assert.doesNotMatch(msg.body, /to drill/);
+  assert.equal(msg.badge, 1);
+});
+
+test("read today and graded today means no nudge at all", () => {
+  const progress = readFirst(30, "2026-07-20T12:00:00Z");
+  progress[ROWS[30].id] = at("2026-08-21T14:00:00-03:00");
+  const bank = owedFor(progress, { Q9: { result: "got", ts: FRI_TS } });
+  assert.equal(compose(SECTIONS, progress, FRI_EVE, bank), null);
+});
+
+test("a grade the evening before still leaves tonight's drill line", () => {
+  const progress = readFirst(30, "2026-07-20T12:00:00Z");
+  const msg = compose(SECTIONS, progress, FRI_EVE, owedFor(progress, { Q9: { result: "got", ts: THU_TS } }));
+  assert.equal(msg.title, "Tonight's reading · 1 to drill");
+  assert.match(msg.body, /\nCh 20 · Penicillins and β-Lactamase Inhibitors · 1 to drill$/);
+  assert.equal(msg.badge, 2);
+
+  // An answer stored without a result — a card opened and left — is not a grade.
+  const opened = compose(SECTIONS, progress, FRI_EVE, owedFor(progress, { Q9: { ts: FRI_TS } }));
+  assert.equal(opened.title, "Tonight's reading · 1 to drill");
 });
 
 /* ---- the subscription endpoint ---- */
@@ -226,9 +261,9 @@ test("the cron names the owed chapter in the push it sends", async () => {
     assert.equal(r.code, 200);
     assert.equal(r.body.sent, true);
     assert.equal(sent.length, 1);
-    assert.equal(sent[0].title, "Tonight's reading");
+    assert.equal(sent[0].title, "Tonight's reading · 1 to drill");
     assert.match(sent[0].body, /pp \d+–\d+ · ~\d+ min/, "the reading still leads");
-    assert.match(sent[0].body, /\nCh 20 Penicillins and β-Lactamase Inhibitors · 1 to drill$/);
+    assert.match(sent[0].body, /\nCh 20 · Penicillins and β-Lactamase Inhibitors · 1 to drill$/);
     assert.equal(sent[0].badge, 2);
   } finally { sent.restore(); unfetch(); unclock(); }
 });
@@ -291,4 +326,67 @@ test("bankState reads the index, and yields undefined when it cannot", async () 
   try {
     assert.equal(await nudgeHandler.bankState(req, SECTIONS, progress), undefined);
   } finally { console.error = err; unfetch(); }
+});
+
+test("bankState gives up on a hung origin rather than stalling the cron", async () => {
+  kv.__resetFake();
+  let signal = null;
+  // A hung origin resolves nothing and AbortSignal.timeout ends it with this.
+  // Thrown at once rather than really waiting, so the suite stays quick.
+  const unfetch = stubFetch(async (url, init) => {
+    signal = init && init.signal;
+    throw new DOMException("The operation was aborted due to timeout", "TimeoutError");
+  });
+  const err = console.error; console.error = () => {};
+  try {
+    const req = { headers: { host: "id.example" } };
+    const bank = await nudgeHandler.bankState(req, SECTIONS, readFirst(30, "2026-07-20T12:00:00Z"));
+    assert.equal(bank, undefined, "the reading nudge goes out without the bank");
+    assert.ok(signal instanceof AbortSignal, "the fetch carries a timeout signal");
+    assert.ok(!signal.aborted, "live when the fetch begins");
+  } finally { console.error = err; unfetch(); }
+});
+
+test("both of the cron's fetches carry a timeout signal", async () => {
+  await primeKv();
+  await kv.setSchedule(null);              // force liveSections onto the network too
+  const seen = {};
+  const unclock = stubClock(FRI_EVE);
+  const unfetch = stubFetch(async (url, init) => {
+    if (url.endsWith("/schedule.js")) {
+      seen.schedule = init && init.signal;
+      return { ok: true, text: async () => src };
+    }
+    seen.qbank = init && init.signal;
+    return { ok: true, json: async () => ({ chapters: IDX }) };
+  });
+  const sent = stubPush();
+  try {
+    const r = res();
+    await nudgeHandler(CRON, r);
+    assert.equal(r.body.sent, true);
+    assert.ok(seen.schedule instanceof AbortSignal, "liveSections");
+    assert.ok(seen.qbank instanceof AbortSignal, "bankState");
+  } finally { sent.restore(); unfetch(); unclock(); }
+});
+
+test("each run gets a fresh timeout, not one that started at module load", async () => {
+  // A module-level `const opts = {signal: AbortSignal.timeout(n)}` looks right and
+  // works once: the signal starts counting when the module loads, and Vercel reuses
+  // a warm module, so every later invocation would fetch with an expired signal.
+  kv.__resetFake();
+  const seen = [];
+  const unfetch = stubFetch(async (url, init) => {
+    seen.push(init && init.signal);
+    return { ok: true, json: async () => ({ chapters: IDX }) };
+  });
+  try {
+    const req = { headers: { host: "id.example" } };
+    const progress = readFirst(30, "2026-07-20T12:00:00Z");
+    await nudgeHandler.bankState(req, SECTIONS, progress);
+    await nudgeHandler.bankState(req, SECTIONS, progress);
+    assert.equal(seen.length, 2);
+    assert.notEqual(seen[0], seen[1], "two runs must not share one signal");
+    assert.ok(seen.every((sg) => sg && !sg.aborted), "and neither may arrive pre-aborted");
+  } finally { unfetch(); }
 });

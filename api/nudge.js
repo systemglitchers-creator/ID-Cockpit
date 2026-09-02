@@ -7,11 +7,18 @@ const { getPushSub, delPushSub, getProgress, getSchedule, getAnswers } = require
 const { compose } = require("../lib/nudge.js");
 const { owedChapters } = require("../lib/bank.js");
 
+// A hung origin must not hold the cron open until the platform 504s it; both
+// fetches below are best-effort, and both callers already handle the rejection.
+// Built per call on purpose: an AbortSignal.timeout starts counting the moment
+// it is created, and Vercel reuses a warm module across invocations — a shared
+// one would arrive already expired on every run but the first.
+const fetchOpts = () => ({ signal: AbortSignal.timeout(3000) });
+
 /** The live plan: the pushed schedule if one exists, else the deployed bundle. */
 async function liveSections(req) {
   const stored = await getSchedule();
   if (stored && Array.isArray(stored.sections) && stored.sections.length) return stored.sections;
-  const src = await (await fetch("https://" + req.headers.host + "/schedule.js")).text();
+  const src = await (await fetch("https://" + req.headers.host + "/schedule.js", fetchOpts())).text();
   const g = {};
   new Function("g", src + "\ng.SECTIONS = SECTIONS;")(g);
   return g.SECTIONS;
@@ -21,10 +28,11 @@ async function liveSections(req) {
     unreachable — a bank outage must never silence the reading nudge. */
 async function bankState(req, sections, progress) {
   try {
-    const r = await fetch("https://" + req.headers.host + "/qbank/index.json");
+    const r = await fetch("https://" + req.headers.host + "/qbank/index.json", fetchOpts());
     if (!r.ok) return undefined;
     const idx = await r.json();
-    return { owed: owedChapters(sections, progress, idx.chapters, await getAnswers()) };
+    const answers = await getAnswers();
+    return { owed: owedChapters(sections, progress, idx.chapters, answers), answers };
   } catch (e) {
     console.error("bank state unavailable", e);
     return undefined;
