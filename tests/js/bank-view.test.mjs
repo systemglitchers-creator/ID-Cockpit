@@ -127,3 +127,71 @@ test("one tap on the Bank tab retries an index load that failed", async () => {
   assert.ok(Array.isArray(idx), "one tap re-fetched the index");
   assert.equal(idx.length, 1);
 });
+
+test("the card shows marks per part, strips the trailing '(1.5)', and counts recurrences", async () => {
+  const app = loadCurrentApp({ now: NOW, fetch: fetchFor() });
+  await openChapter(app);
+  app.IDCockpit.setTab("bank");
+  const html = app._elements.get("v-bank").innerHTML;
+  assert.match(html, /Asked 2 times · AB 2018, MB 2018/);
+  assert.match(html, /class="bkmk">1\.5 marks</);
+  assert.doesNotMatch(html, /\(1\.5\)/, "the bracketed mark is not repeated in the text");
+  assert.match(html, /id="bkflag"/);
+});
+
+test("a bare topic stem renders as a heading, not the big serif stem", async () => {
+  const app = loadCurrentApp({ now: NOW, fetch: fetchFor({ W1: { result: "got", ts: 1 } }) });
+  await tick(); await tick();
+  await openChapter(app);                       // lands on W2 ("HPV")
+  app.IDCockpit.setTab("bank");
+  const html = app._elements.get("v-bank").innerHTML;
+  assert.match(html, /class="bktopic">HPV</);
+  assert.doesNotMatch(html, /class="bkstem">HPV</);
+});
+
+test("reveal: cohort-only questions show the documented answer as the primary box", async () => {
+  const app = loadCurrentApp({ now: NOW, fetch: fetchFor() });
+  await openChapter(app);                       // W1: no model answer, cohort present
+  app.IDCockpit.setTab("bank");
+  app.IDCockpit.bankReveal();
+  const html = app._elements.get("bkrev").innerHTML;
+  assert.match(html, /Documented answer · AB 2018 \(answer slide\)/);
+  assert.match(html, /class="bkans">Shiga toxin…</);
+  assert.doesNotMatch(html, /Prior cohort answer/, "not repeated as secondary");
+  assert.doesNotMatch(html, /class="bkans"><\/div>/, "no empty box");
+});
+
+test("reveal: a Mandell draft is primary with the cohort answer secondary", async () => {
+  const app = loadCurrentApp({ now: NOW, fetch: fetchFor({ W1: { result: "got", ts: 1 } }) });
+  await tick(); await tick();
+  await openChapter(app);                       // W2
+  app.IDCockpit.setTab("bank");
+  app.IDCockpit.bankReveal();
+  const html = app._elements.get("bkrev").innerHTML;
+  assert.match(html, /Model answer · Mandell pp\. 1–2/);
+  assert.match(html, /class="bkans">16 and 18\./);
+  assert.match(html, /Prior cohort answer · H-decks/);
+});
+
+test("reveal: neither answer says so instead of drawing a blank", async () => {
+  const app = loadCurrentApp({ now: NOW, fetch: fetchFor({ W1: { result: "got", ts: 1 }, W2: { result: "got", ts: 1 }, M1: { result: "correct", ts: 1 } }) });
+  await tick(); await tick();
+  app.IDCockpit.bankOpen("ch101", "W3");        // deferred, no answers at all
+  await tick(); await tick();
+  app.IDCockpit.setTab("bank");
+  app.IDCockpit.bankReveal();
+  assert.match(app._elements.get("bkrev").innerHTML, /No answer on file/);
+});
+
+test("a repaint mid-question keeps the pick and the reveal", async () => {
+  const app = loadCurrentApp({ now: NOW, fetch: fetchFor({ W1: { result: "got", ts: 1 }, W2: { result: "got", ts: 1 } }) });
+  await tick(); await tick();
+  await openChapter(app);                       // M1
+  app.IDCockpit.setTab("bank");
+  app.IDCockpit.bankPick("A");
+  app.IDCockpit.bankReveal();
+  assert.match(app._elements.get("bkrev").innerHTML, /Incorrect — you chose A/);
+  app.IDCockpit.render();                       // a sync or theme flip repaints the tab
+  assert.match(app._elements.get("bkrev").innerHTML, /Incorrect — you chose A/, "reveal survives the repaint");
+  assert.match(app._elements.get("bkgrade").innerHTML, /data-grade="incorrect"/);
+});

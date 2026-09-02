@@ -653,14 +653,31 @@
     render();
   }
 
+  /** "HPV", "Enterococcus IE", "" — a topic label, not a stem. */
+  function isTopic(t) {
+    t = String(t || "").trim();
+    if (!t) return true;
+    return t.replace(/[.:]$/, "").length < 25 && t.split(/\s+/).length <= 4 && !/\?/.test(t);
+  }
+  function partText(p) { return String(p.text || "").replace(/\s*\(\s*[\d.]+\s*\)\s*$/, ""); }
+  function marksPill(n) {
+    return n == null ? "" : '<span class="bkmk">' + esc(n) + (Number(n) === 1 ? " mark" : " marks") + "</span>";
+  }
+  function askedLine(q) {
+    var n = (q.recurrence || []).length;
+    if (!n) return esc(q.source || "");
+    return "Asked " + n + (n === 1 ? " time" : " times") + " · " + esc(q.recurrence.slice(0, 3).join(", "));
+  }
+
   function bankQuestion() {
-    var q = bkQueue[bkAt], h = "";
+    var q = bkQueue[bkAt], h = "", rec = bankAnswers()[q.cqid] || {};
     // Mid-chapter escape hatch. Without this the only way out of a chapter was to
     // answer every question to reach the summary.
     h += '<button class="bkexit" id="bkback">\u2190 All chapters</button>';
-    h += '<div class="bkq"><div class="qk">' +
+    h += '<div class="bkq"><div class="bkhead"><div><div class="qk">' +
          (q.kind === "mcq" ? "Multiple choice" : "Written · Royal College") + "</div>" +
-         '<div class="qp">' + esc(q.source || "") + "</div>";
+         '<div class="qp">' + askedLine(q) + "</div></div>" +
+         '<button class="bkflagbtn' + (rec.flag ? " on" : "") + '" id="bkflag" title="Flag for later">⚑</button></div>';
     if (q.kind === "mcq") {
       h += '<div class="bkstem">' + esc(q.stem) + "</div>";
       if (q.lead_in) h += '<div class="bkparts" style="padding:0;font-weight:700;margin-top:12px">' +
@@ -670,22 +687,47 @@
                esc(o.letter) + '</span><span class="t">' + esc(o.text) + "</span></li>";
       }).join("") + "</ul>";
     } else {
-      h += '<div class="bkstem">' + esc(q.question) + "</div>";
-      h += '<ol class="bkparts" type="a">' + (q.parts || []).map(function (p) {
-        return "<li>" + esc(p.text) + (p.marks != null ?
-          ' <span class="bkmarks">(' + esc(p.marks) + ")</span>" : "") + "</li>";
+      h += isTopic(q.question)
+        ? (q.question ? '<div class="bktopic">' + esc(q.question) + "</div>" : "")
+        : '<div class="bkstem">' + esc(q.question) + "</div>";
+      h += '<ol class="bkparts">' + (q.parts || []).map(function (p, i) {
+        return '<li><span class="tx">' + String.fromCharCode(97 + i) + ") " + esc(partText(p)) + "</span>" +
+               marksPill(p.marks) + "</li>";
       }).join("") + "</ol>";
     }
     h += '<div class="bkacts" id="bkacts"></div></div><div id="bkrev"></div>';
     var nDef = bkChapter.questions.filter(function (x) { return x.needs.length; }).length;
     if (!bkDeferred && nDef) {
       h += '<div class="bkdef">' + nDef + ' question' + (nDef > 1 ? "s need" : " needs") +
-           ' a chapter you haven’t read yet. <button id="bkshowdef">Show anyway</button></div>';
+           ' a chapter you haven\u2019t read yet. <button id="bkshowdef">Show anyway</button></div>';
     }
     $("v-bank").innerHTML = h;
     if (q.kind === "written") {
-      $("bkacts").innerHTML = '<button class="go" id="bkreveal">Reveal model answer</button>';
+      $("bkacts").innerHTML = '<button class="go" id="bkreveal">Reveal answer</button>';
     }
+    // A repaint must be idempotent: a sync or a theme flip can call render() while a
+    // question is open, and the pick and the reveal must come back exactly as they were.
+    if (bkShown) { bkShown = false; bankReveal(); }
+    else if (bkPicked) bankPick(bkPicked);
+  }
+
+  /** The written-answer block: which answer is primary, and what sits under it. */
+  function answerBlock(q) {
+    var h = "", co = q.cohort_answer && q.cohort_answer.text ? q.cohort_answer : null;
+    if (q.model_answer) {
+      h += '<div class="chip">Model answer · ' + esc(q.cites || "Mandell") + "</div>";
+      h += '<div class="bkans">' + esc(q.model_answer) + "</div>";
+    } else if (co) {
+      h += '<div class="chip">Documented answer · ' + esc(co.source || "prior cohort") + "</div>";
+      h += '<div class="bkans">' + esc(co.text) + "</div>";
+    } else {
+      h += '<div class="chip">No answer on file</div>';
+    }
+    if (q.beyond_mandell) h += '<div class="bkgold"><b>Beyond Mandell.</b> ' + esc(q.beyond_mandell) + "</div>";
+    if (q.model_answer && co) h += '<div class="bkcohort"><b>Prior cohort answer · ' + esc(co.source) +
+                                   "</b> — " + esc(co.text) + "</div>";
+    if (q.uncertain) h += '<div class="bkflag">⚠ Flagged uncertain — verify this one.</div>';
+    return h;
   }
 
   function bankReveal() {
@@ -705,14 +747,9 @@
       h += '<div class="bkans">' + esc(q.correct) + ". " + esc(corr ? corr.text : "") + "</div>";
       h += '<div class="bkexp">' + esc(q.explanation) + "</div>";
     } else {
-      h += '<div class="chip">Model answer</div>';
-      h += '<div class="bkans">' + esc(q.model_answer || "") + "</div>";
-      if (q.beyond_mandell) h += '<div class="bkgold"><b>Beyond Mandell.</b> ' + esc(q.beyond_mandell) + "</div>";
-      if (q.cohort_answer) h += '<div class="bkcohort"><b>Prior cohort answer</b> (' +
-        esc(q.cohort_answer.source) + ") — " + esc(q.cohort_answer.text) + "</div>";
-      if (q.uncertain) h += '<div class="bkflag">⚠ Flagged uncertain — verify this one.</div>';
+      h += answerBlock(q);
     }
-    if (q.cites) h += '<div class="bkcite">' + esc(q.cites) + "</div>";
+    if (q.kind === "mcq" && q.cites) h += '<div class="bkcite">' + esc(q.cites) + "</div>";
     h += '<div class="bkacts" id="bkgrade"></div></div>';
     $("bkrev").innerHTML = h;
     $("bkacts").innerHTML = "";
@@ -1189,6 +1226,7 @@
                        chapNum: chapNum, dayDate: dayDate, studyIdx: studyIdx, isFlex: isFlex,
                        bankOpen: bankOpen, bankGrade: bankGrade, bankFlag: bankFlag, bankPick: bankPick,
                        bankReviewMisses: bankReviewMisses, bankTabTapped: bankTabTapped,
+                       bankReveal: bankReveal, render: render,
                        setTab: function (t) { tab = t; render(); },
                        bank: function () { return { queue: bkQueue, at: bkAt, chapter: bkChapter, index: bkIndex }; } };
 })();
