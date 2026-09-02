@@ -1,5 +1,5 @@
 /* ID Cockpit service worker — offline shell + font caching. */
-var CACHE = "idcockpit-web-v22";
+var CACHE = "idcockpit-web-v23";
 var SHELL = [
   "./", "./index.html", "./schedule.js", "./guidelines.js", "./app.js", "./sync.js",
   "./manifest.webmanifest",
@@ -28,6 +28,9 @@ self.addEventListener("fetch", function (e) {
   if (req.method !== "GET") return;                       // never cache API writes
   var url = new URL(req.url);
   if (url.hostname === "api.github.com") return;           // sync traffic: always network
+  // API traffic is never cached. The answers map and the pushed schedule have
+  // to be current, not one launch stale — and POSTs were excluded above.
+  if (url.origin === self.location.origin && url.pathname.indexOf("/api/") === 0) return;
 
   var isFont = url.hostname === "fonts.googleapis.com" || url.hostname === "fonts.gstatic.com";
   var sameOrigin = url.origin === self.location.origin;
