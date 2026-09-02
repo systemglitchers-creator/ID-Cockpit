@@ -3,8 +3,9 @@
 // Decides whether tonight deserves a push and sends it: silent on rest days,
 // silent once he has read today, honest about doubles. A dead subscription
 // (404/410 from the push service) is deleted rather than retried forever.
-const { getPushSub, delPushSub, getProgress, getSchedule } = require("./_kv.js");
+const { getPushSub, delPushSub, getProgress, getSchedule, getAnswers } = require("./_kv.js");
 const { compose } = require("../lib/nudge.js");
+const { owedChapters } = require("../lib/bank.js");
 
 /** The live plan: the pushed schedule if one exists, else the deployed bundle. */
 async function liveSections(req) {
@@ -14,6 +15,20 @@ async function liveSections(req) {
   const g = {};
   new Function("g", src + "\ng.SECTIONS = SECTIONS;")(g);
   return g.SECTIONS;
+}
+
+/** The bank's owed chapters, or undefined when the index or the store is
+    unreachable — a bank outage must never silence the reading nudge. */
+async function bankState(req, sections, progress) {
+  try {
+    const r = await fetch("https://" + req.headers.host + "/qbank/index.json");
+    if (!r.ok) return undefined;
+    const idx = await r.json();
+    return { owed: owedChapters(sections, progress, idx.chapters, await getAnswers()) };
+  } catch (e) {
+    console.error("bank state unavailable", e);
+    return undefined;
+  }
 }
 
 module.exports = async function handler(req, res) {
@@ -29,7 +44,8 @@ module.exports = async function handler(req, res) {
     const sub = await getPushSub();
     if (!sub) { res.status(200).json({ sent: false, why: "no subscription" }); return; }
 
-    const msg = compose(await liveSections(req), await getProgress(), new Date());
+    const sections = await liveSections(req), progress = await getProgress();
+    const msg = compose(sections, progress, new Date(), await bankState(req, sections, progress));
     if (!msg) { res.status(200).json({ sent: false, why: "nothing tonight" }); return; }
 
     const webpush = require("web-push");
@@ -52,3 +68,5 @@ module.exports = async function handler(req, res) {
     res.status(502).json({ error: "nudge failed" });
   }
 };
+
+module.exports.bankState = bankState;

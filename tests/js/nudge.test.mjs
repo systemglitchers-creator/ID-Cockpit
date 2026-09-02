@@ -68,6 +68,50 @@ test("a finished curriculum never nudges", () => {
   assert.equal(tonight(SECTIONS, all, FRI_EVE), null);
 });
 
+/* ---- drills ride the nudge ---- */
+const { owedChapters, chapterSessionIds } = require_("../../lib/bank.js");
+const IDX = [{ chapter: "Chapter 20", id: "ch20", title: "Penicillins and β-Lactamase Inhibitors",
+               sector: "Drug Foundations — Completed", weeks: [1], cqids: ["Q1", "Q2"], deferred: ["Q2"] }];
+const owedFor = (progress, answers) => ({ owed: owedChapters(SECTIONS, progress, IDX, answers || {}) });
+
+test("reading tonight plus an owed chapter appends a drill line and adds to the badge", () => {
+  const progress = readFirst(30, "2026-07-20T12:00:00Z");   // includes every ch20 sitting
+  assert.ok(chapterSessionIds(SECTIONS, 20).every((id) => progress[id]), "fixture assumption");
+  const msg = compose(SECTIONS, progress, FRI_EVE, owedFor(progress));
+  assert.equal(msg.title, "Tonight's reading");
+  assert.match(msg.body, /\nCh 20 Penicillins and β-Lactamase Inhibitors · 1 to drill$/);
+  assert.equal(msg.badge, 2);
+});
+
+test("read today but a chapter is owed: a drill-only nudge", () => {
+  const progress = readFirst(30, "2026-07-20T12:00:00Z");
+  progress[ROWS[30].id] = at("2026-08-21T14:00:00-03:00");
+  const msg = compose(SECTIONS, progress, FRI_EVE, owedFor(progress));
+  assert.equal(msg.title, "Ready to drill");
+  assert.match(msg.body, /Ch 20 .* · 1 to drill/);
+  assert.equal(msg.badge, 1);
+});
+
+test("a rest Saturday stays silent even with drills owed", () => {
+  const progress = readFirst(30, "2026-07-20T12:00:00Z");
+  assert.equal(compose(SECTIONS, progress, SAT_EVE, owedFor(progress)), null);
+});
+
+test("nothing owed leaves the nudge exactly as it was", () => {
+  const progress = readFirst(30, "2026-07-20T12:00:00Z");
+  const plain = compose(SECTIONS, progress, FRI_EVE);
+  const withBank = compose(SECTIONS, progress, FRI_EVE, owedFor(progress, { Q1: { result: "got", ts: 1 } }));
+  assert.deepEqual(withBank, plain);
+});
+
+test("more than two owed chapters collapse to a '+N more' line", () => {
+  const progress = readFirst(30, "2026-07-20T12:00:00Z");
+  const many = [1, 2, 3, 4].map((n) => ({ chapter: "Chapter " + n, id: "ch" + n, title: "T" + n, sector: "S", remaining: n, total: n, readAt: n }));
+  const msg = compose(SECTIONS, progress, FRI_EVE, { owed: many });
+  assert.match(msg.body, /\+2 more chapters to drill$/);
+  assert.equal(msg.badge, 5);
+});
+
 /* ---- the subscription endpoint ---- */
 
 process.env.COCKPIT_FAKE_KV = "1";
@@ -122,4 +166,92 @@ test("no subscription means the cron reports and does nothing", async () => {
   await nudgeHandler({ method: "GET", headers: {} }, r);
   assert.equal(r.code, 200);
   assert.equal(r.body.sent, false);
+});
+
+/* ---- the cron feeds the bank into the nudge ---- */
+
+const nudgeHandler = require_("../../api/nudge.js");
+const webpush = require_("web-push");
+
+/** Swap global.fetch for the duration of one test. */
+function stubFetch(fn) {
+  const real = global.fetch;
+  global.fetch = fn;
+  return () => { global.fetch = real; };
+}
+
+/** Swap web-push's two network-touching methods; returns the sent payloads. */
+function stubPush() {
+  const real = { v: webpush.setVapidDetails, s: webpush.sendNotification };
+  const sent = [];
+  webpush.setVapidDetails = () => {};
+  webpush.sendNotification = async (sub, payload) => { sent.push(JSON.parse(payload)); };
+  sent.restore = () => { webpush.setVapidDetails = real.v; webpush.sendNotification = real.s; };
+  return sent;
+}
+
+/** A store primed with the real schedule, a subscription and a read chapter 20. */
+async function primeKv() {
+  kv.__resetFake();
+  await kv.setSchedule({ sections: SECTIONS });     // keeps liveSections off the network
+  await kv.setPushSub(SUB);
+  await kv.setProgress(readFirst(30, "2026-07-20T12:00:00Z"));
+  await kv.setAnswers({});
+}
+
+test("the cron names the owed chapter in the push it sends", async () => {
+  await primeKv();
+  const unfetch = stubFetch(async () => ({ ok: true, json: async () => ({ chapters: IDX }) }));
+  const sent = stubPush();
+  try {
+    const r = res();
+    await nudgeHandler({ method: "GET", headers: { host: "id.example" } }, r);
+    assert.equal(r.code, 200);
+    assert.equal(r.body.sent, true);
+    assert.equal(sent.length, 1);
+    // Whether tonight has reading or not, the owed chapter rides along.
+    assert.match(sent[0].body, /Ch 20 Penicillins and β-Lactamase Inhibitors · 1 to drill/);
+    assert.ok(sent[0].badge >= 1);
+  } finally { sent.restore(); unfetch(); }
+});
+
+test("a bank outage never silences the nudge", async () => {
+  await primeKv();
+  const unfetch = stubFetch(async () => ({ ok: false, status: 500 }));
+  const sent = stubPush();
+  try {
+    const r = res();
+    await nudgeHandler({ method: "GET", headers: { host: "id.example" } }, r);
+    assert.equal(r.code, 200, "a dead index must not become a 502");
+    assert.equal(r.body.error, undefined);
+    if (sent.length) assert.doesNotMatch(sent[0].body, /to drill/);
+  } finally { sent.restore(); unfetch(); }
+});
+
+test("bankState reads the index, and yields undefined when it cannot", async () => {
+  kv.__resetFake();
+  const progress = readFirst(30, "2026-07-20T12:00:00Z");
+  const req = { headers: { host: "id.example" } };
+
+  let unfetch = stubFetch(async (url) => {
+    assert.equal(url, "https://id.example/qbank/index.json");
+    return { ok: true, json: async () => ({ chapters: IDX }) };
+  });
+  try {
+    const bank = await nudgeHandler.bankState(req, SECTIONS, progress);
+    assert.equal(bank.owed.length, 1);
+    assert.equal(bank.owed[0].id, "ch20");
+    assert.equal(bank.owed[0].remaining, 1);
+  } finally { unfetch(); }
+
+  unfetch = stubFetch(async () => ({ ok: false, status: 500 }));
+  try {
+    assert.equal(await nudgeHandler.bankState(req, SECTIONS, progress), undefined);
+  } finally { unfetch(); }
+
+  unfetch = stubFetch(async () => { throw new Error("network down"); });
+  const err = console.error; console.error = () => {};
+  try {
+    assert.equal(await nudgeHandler.bankState(req, SECTIONS, progress), undefined);
+  } finally { console.error = err; unfetch(); }
 });
