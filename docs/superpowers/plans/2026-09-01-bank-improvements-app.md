@@ -1051,6 +1051,13 @@ Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
 
 ### Task 6: The question card and the reveal rule
 
+> **Amended after the Task 5 review.** `bankQuestion` must be idempotent: a sync or a theme flip can
+> call `render()` while a question is open. Its last lines therefore replay the state — `if (bkShown)
+> { bkShown = false; bankReveal(); } else if (bkPicked) bankPick(bkPicked);` — and a sixth test pins
+> that a repaint keeps the pick and the reveal. Tests in this task call `app.IDCockpit.setTab("bank")`
+> before reading `v-bank`, since the harness boots on the Today tab.
+
+
 **Files:**
 - Modify: `public/app.js` — `bankQuestion`, `bankReveal`
 - Modify: `public/index.html` — Bank CSS block
