@@ -180,6 +180,19 @@ function stubFetch(fn) {
   return () => { global.fetch = real; };
 }
 
+/** Freeze the wall clock the handler reads via `new Date()`. Without this these
+    tests pass or fail by the day they are run on: a rest Saturday silences the
+    nudge entirely. Date with arguments still behaves — lib/plan.js builds its
+    dates from components. Mirrors fixedDateClass in tests/js/harness.mjs. */
+function stubClock(when) {
+  const Real = global.Date, ms = when.getTime();
+  global.Date = class extends Real {
+    constructor(...args) { if (args.length === 0) super(ms); else super(...args); }
+    static now() { return ms; }
+  };
+  return () => { global.Date = Real; };
+}
+
 /** Swap web-push's two network-touching methods; returns the sent payloads. */
 function stubPush() {
   const real = { v: webpush.setVapidDetails, s: webpush.sendNotification };
@@ -199,33 +212,57 @@ async function primeKv() {
   await kv.setAnswers({});
 }
 
+const CRON = { method: "GET", headers: { host: "id.example" } };
+const servesIndex = async () => ({ ok: true, json: async () => ({ chapters: IDX }) });
+
 test("the cron names the owed chapter in the push it sends", async () => {
   await primeKv();
-  const unfetch = stubFetch(async () => ({ ok: true, json: async () => ({ chapters: IDX }) }));
+  const unclock = stubClock(FRI_EVE);               // a study Friday: reading and a drill
+  const unfetch = stubFetch(servesIndex);
   const sent = stubPush();
   try {
     const r = res();
-    await nudgeHandler({ method: "GET", headers: { host: "id.example" } }, r);
+    await nudgeHandler(CRON, r);
     assert.equal(r.code, 200);
     assert.equal(r.body.sent, true);
     assert.equal(sent.length, 1);
-    // Whether tonight has reading or not, the owed chapter rides along.
-    assert.match(sent[0].body, /Ch 20 Penicillins and β-Lactamase Inhibitors · 1 to drill/);
-    assert.ok(sent[0].badge >= 1);
-  } finally { sent.restore(); unfetch(); }
+    assert.equal(sent[0].title, "Tonight's reading");
+    assert.match(sent[0].body, /pp \d+–\d+ · ~\d+ min/, "the reading still leads");
+    assert.match(sent[0].body, /\nCh 20 Penicillins and β-Lactamase Inhibitors · 1 to drill$/);
+    assert.equal(sent[0].badge, 2);
+  } finally { sent.restore(); unfetch(); unclock(); }
+});
+
+test("the cron stays silent on a rest Saturday even with a chapter owed", async () => {
+  await primeKv();
+  const unclock = stubClock(SAT_EVE);
+  const unfetch = stubFetch(servesIndex);
+  const sent = stubPush();
+  try {
+    const r = res();
+    await nudgeHandler(CRON, r);
+    assert.equal(r.code, 200);
+    assert.equal(r.body.sent, false);
+    assert.equal(r.body.why, "nothing tonight");
+    assert.equal(sent.length, 0, "a rest day is a rest day, drills or not");
+  } finally { sent.restore(); unfetch(); unclock(); }
 });
 
 test("a bank outage never silences the nudge", async () => {
   await primeKv();
+  const unclock = stubClock(FRI_EVE);
   const unfetch = stubFetch(async () => ({ ok: false, status: 500 }));
   const sent = stubPush();
   try {
     const r = res();
-    await nudgeHandler({ method: "GET", headers: { host: "id.example" } }, r);
+    await nudgeHandler(CRON, r);
     assert.equal(r.code, 200, "a dead index must not become a 502");
-    assert.equal(r.body.error, undefined);
-    if (sent.length) assert.doesNotMatch(sent[0].body, /to drill/);
-  } finally { sent.restore(); unfetch(); }
+    assert.equal(r.body.sent, true);
+    assert.equal(sent.length, 1);
+    assert.equal(sent[0].title, "Tonight's reading");
+    assert.doesNotMatch(sent[0].body, /to drill/);
+    assert.equal(sent[0].badge, 1);
+  } finally { sent.restore(); unfetch(); unclock(); }
 });
 
 test("bankState reads the index, and yields undefined when it cannot", async () => {
