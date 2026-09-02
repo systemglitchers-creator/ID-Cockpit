@@ -135,6 +135,13 @@ test("read today and graded today means no nudge at all", () => {
   assert.equal(compose(SECTIONS, progress, FRI_EVE, bank), null);
 });
 
+test("a malformed ts in the answers store neither throws nor counts as today", () => {
+  const progress = readFirst(30, "2026-07-20T12:00:00Z");
+  const answers = { Q9: { result: "got", ts: "not-a-number" }, Q8: { result: "got", ts: null } };
+  const msg = compose(SECTIONS, progress, FRI_EVE, { owed: owedChapters(SECTIONS, progress, IDX, {}), answers });
+  assert.match(msg.body, /to drill/, "bad data is ignored, the drill line still shows");
+});
+
 test("a grade the evening before still leaves tonight's drill line", () => {
   const progress = readFirst(30, "2026-07-20T12:00:00Z");
   const msg = compose(SECTIONS, progress, FRI_EVE, owedFor(progress, { Q9: { result: "got", ts: THU_TS } }));
