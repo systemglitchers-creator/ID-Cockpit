@@ -509,3 +509,28 @@ test("a catch-all row's ring shows a dot, not the CATCHALL id", async () => {
   assert.match(html, /<i style="color:[^"]*">•<\/i>/);
   assert.doesNotMatch(html, />CATCHALL-LAB</);
 });
+
+test("the chapter list ring counts ready questions, so a drilled chapter earns its tick", async () => {
+  const ids = chapterSessionIds(SECTIONS, 101), doneAt = "2026-08-30T12:00:00Z";
+  const app = loadCurrentApp({ now: NOW, done: ids, doneAt, fetch: fetchFor({ W1: { result: "got", ts: 1 }, W2: { result: "missed", ts: 1 }, M1: { result: "correct", ts: 1 } }) });
+  await tick(); await tick();
+  app.IDCockpit.setTab("bank");
+  const html = app._elements.get("v-bank").innerHTML;
+  assert.match(html, /conic-gradient\(var\(--gold\) 100%/, "W3 is deferred and does not hold the ring back");
+  assert.match(html, /class="rt"[^>]*>✓</);
+  const half = loadCurrentApp({ now: NOW, done: ids, doneAt, fetch: fetchFor({ W1: { result: "got", ts: 1 } }) });
+  await tick(); await tick();
+  half.IDCockpit.setTab("bank");
+  assert.match(half._elements.get("v-bank").innerHTML, /class="rt"[^>]*>1\/3</);
+});
+
+test("a drill tap from inside another chapter paints the list, not the old chapter", async () => {
+  const app = loadCurrentApp({ now: NOW, done: chapterSessionIds(SECTIONS, 101), doneAt: "2026-08-30T12:00:00Z",
+                               fetch: fetchFor({}, INDEX, true) });
+  await tick(); await tick();
+  app.IDCockpit.showFlagged();
+  app.IDCockpit.drillTapped("ch101");
+  await tick();
+  assert.equal(app.IDCockpit.bank().chapter, null);
+  assert.match(app._elements.get("v-bank").innerHTML, /data-bank="ch101"/, "the chapter list is on screen while the fetch hangs");
+});

@@ -639,6 +639,7 @@
   /** A drill row was tapped: switch to the Bank and open that chapter. */
   function drillTapped(id) {
     tab = "bank"; sheetSi = null; $("body").scrollTop = 0;
+    bkChapter = null; bkFlagList = false;   // paint the list, not a chapter left open earlier
     render();          // the list paints now; the chapter replaces it when it lands
     bankOpen(id);
   }
@@ -711,9 +712,14 @@
       html += '<div class="bksec"><i style="background:' + esc(col) + '"></i>' +
               '<b style="color:' + esc(col) + '">' + esc(sec) + "</b></div>";
       groups[sec].forEach(function (c) {
-        var done = c.cqids.filter(function (q) { return graded(A[q]); }).length;
-        var pct = c.n_total ? Math.round(done / c.n_total * 100) : 0;
-        var full = pct === 100;
+        // The ring counts READY questions (deferred ones excluded), the same
+        // "ready" the home card, the summary and Stats use, so a chapter the card
+        // has cleared shows the gold tick here too.
+        var def = {}; (c.deferred || []).forEach(function (q) { def[q] = 1; });
+        var ready = c.cqids.filter(function (q) { return !def[q]; });
+        var done = ready.filter(function (q) { return graded(A[q]); }).length;
+        var pct = ready.length ? Math.round(done / ready.length * 100) : 0;
+        var full = ready.length > 0 && done === ready.length;
         var ring = full ? "var(--gold)" : col;
         html += '<button class="bkrow" data-bank="' + esc(c.id) + '">' +
           '<div class="bkring" style="background:conic-gradient(' + ring + " " + pct +
@@ -722,7 +728,7 @@
           '<div style="flex:1;min-width:0"><div class="t">' + esc(c.title) + "</div>" +
           '<div class="m">' + c.n_mcq + " MCQ · " + c.n_written + " written</div></div>" +
           '<div class="rt" style="color:' + (full ? "var(--gold-txt)" : esc(col)) + '">' +
-          (full ? "✓" : done + "/" + c.n_total) + "</div></button>";
+          (full ? "✓" : done + "/" + ready.length) + "</div></button>";
       });
     });
     $("v-bank").innerHTML = html;
