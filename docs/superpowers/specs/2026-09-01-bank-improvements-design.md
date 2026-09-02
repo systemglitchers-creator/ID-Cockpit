@@ -188,6 +188,9 @@ fourth argument `bank = { owed: [...] }` produced by `owedChapters`.
   `{ title: "Ready to drill", body: <lines>, badge: owed.length }`.
 - Rest day → null, as today, regardless of owed.
 - Nothing owed → behaviour unchanged.
+- A day on which any question was graded (Halifax-local) → the drill lines and the
+  drill-only message rest, mirroring "read today → silent". (Added after review.)
+- The owed-chapter count also rides the title so it survives banner truncation.
 
 `api/nudge.js` fetches `/qbank/index.json` from the host (same pattern as it
 fetches `schedule.js`) and `getAnswers()` from `_kv.js`, computes `owed`, and

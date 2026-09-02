@@ -1473,6 +1473,15 @@ Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
 > **Amended.** Beyond the five `compose` cases, the task adds a test for `bankState` in
 > `api/nudge.js` (exported for the test) with a stubbed `global.fetch`: a working index yields
 > `{owed: [...]}`, a 500 yields `undefined` so the reading nudge still fires.
+>
+> **Amended after code review.** Both fetches in `api/nudge.js` carry `AbortSignal.timeout(3000)`
+> so a hung origin cannot 504 the cron. `bankState` returns `{owed, answers}` and `compose` drops
+> the drill lines on a day anything was graded (Halifax-local, `drilledToday` in `lib/nudge.js`),
+> mirroring "read today → silent". The owed count rides the title ("Tonight's reading · 3 to
+> drill"; drill-only: "Ready to drill · 3 chapters") so it survives banner truncation, and body
+> lines use the home card's separator ("Ch 20 · Title · 1 to drill"). Badge arithmetic stays
+> sessions + owed chapters per the approved spec; the review noted the app resets the badge to
+> sessions-due on open, so the push badge is transient — Tyler's call whether to change it.
 
 
 **Files:**
