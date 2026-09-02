@@ -1647,6 +1647,13 @@ Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
 > asserts `marks[cqid] === marksFor(question)` and `deferred` equals the set of questions with a
 > non-empty `needs`, for all 4,034 placements. Consumers of `c.marks` must also tolerate the key
 > being absent (fall back to 1), the way `owedChapters` already tolerates a missing `deferred`.
+>
+> **Amended after code review.** 904 questions sit in more than one chapter, so the flagged list's
+> cqid→chapter map gives an unlocked chapter precedence over a locked one; "Flagged · N" counts only
+> flags on questions present in the index; the "Chapters drilled" denominator counts only unlocked
+> chapters with at least one ready question (18 real chapters are entirely deferred); the Stats card
+> shows "not available" when the index load failed instead of "Loading…" forever; `showFlagged`
+> clears the sector sheet like `drillTapped`.
 
 
 **Files:**
