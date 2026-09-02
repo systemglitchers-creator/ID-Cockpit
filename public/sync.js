@@ -96,6 +96,74 @@
     }
   };
 
+  /* ---- Bank answer-state ---------------------------------------------------
+     The same contract as Server, for the question bank: localStorage is a
+     cache, /api/answers is the truth, and one merge-only round trip both
+     uploads and downloads. A grade is complete the moment it is tapped;
+     the network is caught up with later. Records are {result, ts, chosen?,
+     flag?}; newest ts wins per question on the server, nothing is ever
+     deleted, so an empty phone can never erase anything. */
+  var ANSWERS_KEY = "idcockpit.v1.answers";
+  var Answers = {
+    _t: null, _refresh: null, _inflight: false,
+
+    get: function () {
+      try {
+        var a = JSON.parse(localStorage.getItem(ANSWERS_KEY));
+        if (a && typeof a === "object" && !Array.isArray(a)) return a;
+      } catch (e) {}
+      return {};
+    },
+    replace: function (map) { localStorage.setItem(ANSWERS_KEY, JSON.stringify(map || {})); },
+
+    /** Merge `patch` into the record for `cqid`, stamp it now, persist, sync. */
+    set: function (cqid, patch) {
+      var all = Answers.get(), rec = all[cqid] || {};
+      Object.keys(patch || {}).forEach(function (k) { rec[k] = patch[k]; });
+      rec.ts = Date.now();
+      all[cqid] = rec;
+      Answers.replace(all);
+      Answers.schedule();
+      return rec;
+    },
+
+    sync: function () {
+      if (typeof fetch !== "function" || Answers._inflight) return Promise.resolve(false);
+      Answers._inflight = true;
+      return fetch("/api/answers", {
+        method: "POST",
+        cache: "no-store",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ answers: Answers.get() })
+      })
+        .then(function (r) { if (!r.ok) throw new Error("answers " + r.status); return r.json(); })
+        .then(function (d) {
+          if (!d || typeof d.answers !== "object" || d.answers === null) return false;
+          Answers.replace(d.answers);          // server reply is the union; adopt it
+          if (Answers._refresh) Answers._refresh();
+          return true;
+        })
+        .catch(function () { return false; })   // offline: local stands, retry later
+        .then(function (ok) { Answers._inflight = false; return ok; });
+    },
+
+    schedule: function () {
+      clearTimeout(Answers._t);
+      Answers._t = setTimeout(function () { Answers.sync(); }, 1200);
+    },
+
+    start: function (refresh) {
+      Answers._refresh = refresh;
+      Answers.sync();
+      if (global.addEventListener) {
+        global.addEventListener("online", function () { Answers.sync(); });
+        global.addEventListener("visibilitychange", function () {
+          if (!global.document || global.document.visibilityState === "visible") Answers.sync();
+        });
+      }
+    }
+  };
+
   var Sync = {
     _t: null, _refresh: null,
     cfg: function () { try { return JSON.parse(localStorage.getItem(GIST_KEY)) || {}; } catch (e) { return {}; } },
@@ -143,5 +211,6 @@
   global.IDStore = Store;
   global.IDSync = Sync;
   global.IDServer = Server;
+  global.IDAnswers = Answers;
   global.mergeSessions = mergeSessions;
 })(window);
