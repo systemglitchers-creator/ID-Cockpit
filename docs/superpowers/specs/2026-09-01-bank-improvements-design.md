@@ -89,9 +89,13 @@ shape              { [cqid]: { result, ts, chosen?, flag? } }
   - Flagging: `{flag: true|false}`. A flag-only change still bumps `ts` and
     keeps the existing `result`.
 - `IDAnswers.sync()` → `POST /api/answers` with `{answers: <whole local map>}`,
-  `cache: "no-store"`; on 200, **replace** the local map with the response;
-  on any failure resolve `false` and leave local untouched. Single in-flight
-  guard, like `Server.sync`.
+  `cache: "no-store"`; on 200, **union** the response into the local map
+  (newest `ts` wins per cqid, local wins when strictly newer) — a grade tapped
+  while the request was in flight must survive the reply; on any failure
+  resolve `false` and leave local untouched. Single in-flight guard like
+  `Server.sync`, plus a pending flag so a sync requested during a flight is
+  re-run after it settles. `Server.sync` gets the same union rule via the
+  existing `Store.mergeRemote`.
 - `IDAnswers.schedule()` → 1,200 ms debounce to `sync()`.
 - `IDAnswers.start(refresh)` → sync now, on `online`, and on `visibilitychange`
   to visible; `refresh` re-renders the Bank if it is the active tab.
@@ -114,7 +118,14 @@ validation change is needed beyond the existing shape check.
 **Service worker** (`public/sw.js`): in the fetch handler, return early
 (network only) for any same-origin request whose pathname starts with `/api/`.
 Everything else keeps its current behaviour, which already gives
-cache-on-first-open for `qbank/*.json`. Bump `CACHE`.
+cache-on-first-open for `qbank/*.json`. Bump `CACHE`. The `SHELL` precache
+list must name every script `index.html` loads (it was missing `copy.js` and
+`motion.js`; a test now pins the list against the HTML).
+
+Known gap, out of scope here: a schedule pushed via `/api/schedule` is no
+longer available offline once the worker stops caching the API, because the
+app never persists it. The bundled `schedule.js` stands in; persisting the
+last good payload is a later task.
 
 **Failure modes.**
 - Server unreachable: local stands; rings and summaries render from local.
