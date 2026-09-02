@@ -657,16 +657,24 @@
   function isTopic(t) {
     t = String(t || "").trim();
     if (!t) return true;
-    return t.replace(/[.:]$/, "").length < 25 && t.split(/\s+/).length <= 4 && !/\?/.test(t);
+    return t.replace(/[.:]$/, "").length < 35 && t.split(/\s+/).length <= 6 && !/\?/.test(t);
   }
-  function partText(p) { return String(p.text || "").replace(/\s*\(\s*[\d.]+\s*\)\s*$/, ""); }
+  /** The part's text without its own mark annotation. Only a trailing bracketed
+      number that equals `marks` is stripped — a year or a count stays. */
+  function partText(p) {
+    var t = String(p.text || "");
+    var m = /\s*\(\s*([\d.]+)\s*\)\s*$/.exec(t);
+    if (m && p.marks != null && Number(m[1]) === Number(p.marks)) t = t.slice(0, m.index);
+    return t.replace(/\s*[-–—]\s*$/, "");
+  }
   function marksPill(n) {
     return n == null ? "" : '<span class="bkmk">' + esc(n) + (Number(n) === 1 ? " mark" : " marks") + "</span>";
   }
   function askedLine(q) {
     var n = (q.recurrence || []).length;
     if (!n) return esc(q.source || "");
-    return "Asked " + n + (n === 1 ? " time" : " times") + " · " + esc(q.recurrence.slice(0, 3).join(", "));
+    var tags = q.recurrence.slice(0, 3).map(function (t) { return String(t).replace(/\s+\?$/, ""); });
+    return "Asked " + n + (n === 1 ? " time" : " times") + " · " + esc(tags.join(", ")) + (n > 3 ? " +" + (n - 3) : "");
   }
 
   function bankQuestion() {
@@ -690,9 +698,12 @@
       h += isTopic(q.question)
         ? (q.question ? '<div class="bktopic">' + esc(q.question) + "</div>" : "")
         : '<div class="bkstem">' + esc(q.question) + "</div>";
+      // 21% of parts arrive with their own label ("A. ", "1) ", "ii. ") and in 196
+      // of those the letters disagree with ours -- so only number the ones that need it.
       h += '<ol class="bkparts">' + (q.parts || []).map(function (p, i) {
-        return '<li><span class="tx">' + String.fromCharCode(97 + i) + ") " + esc(partText(p)) + "</span>" +
-               marksPill(p.marks) + "</li>";
+        var tx = partText(p), own = /^([a-z]|[ivx]+|\d+)[.)]\s/i.test(tx);
+        return '<li><span class="tx">' + (own ? "" : String.fromCharCode(97 + i) + ") ") +
+               esc(tx) + "</span>" + marksPill(p.marks) + "</li>";
       }).join("") + "</ol>";
     }
     h += '<div class="bkacts" id="bkacts"></div></div><div id="bkrev"></div>';
@@ -707,7 +718,7 @@
     }
     // A repaint must be idempotent: a sync or a theme flip can call render() while a
     // question is open, and the pick and the reveal must come back exactly as they were.
-    if (bkShown) { bkShown = false; bankReveal(); }
+    if (bkShown) { bkShown = false; bankReveal(true); }
     else if (bkPicked) bankPick(bkPicked);
   }
 
@@ -730,7 +741,9 @@
     return h;
   }
 
-  function bankReveal() {
+  /** @param replay  true when a repaint is restoring a reveal that was already
+      on screen -- it must not scroll the page a second time. */
+  function bankReveal(replay) {
     var q = bkQueue[bkAt];
     if (bkShown) return;
     bkShown = true;
@@ -758,7 +771,7 @@
       : '<button class="go" data-grade="got">Got it</button>' +
         '<button class="alt" data-grade="partial">Partial</button>' +
         '<button class="alt" data-grade="missed">Missed</button>';
-    $("bkrev").scrollIntoView({ behavior: "smooth", block: "start" });
+    if (!replay) $("bkrev").scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
   function bankGrade(result) {

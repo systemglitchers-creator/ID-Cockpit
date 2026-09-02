@@ -28,6 +28,29 @@ const CHAPTER = {
       model_answer: null, cites: null, beyond_mandell: null, uncertain: false, cohort_answer: null }
   ]
 };
+/* A second chapter, fetched directly by id: it is deliberately absent from INDEX so
+   the chapter-list tests keep counting one. It carries the awkward real-world parts —
+   bracketed years, parts that already carry their own letter, a long topic label. */
+const CHAPTER2 = {
+  chapter: "Chapter 102", id: "ch102", title: "Pelvic Infections",
+  sector: "Enteric", weeks: [9], mandell: "pp. 3–4",
+  questions: [
+    { cqid: "P1", kind: "written", needs: [], source: "AB 2018",
+      recurrence: ["AB 2018", "H-decks ?", "H-exams 2024", "MB 2018", "H-virgin 2018"],
+      question: "A 24-year-old woman with lower abdominal pain and cervical motion tenderness.",
+      parts: [{ text: "Outline the interactions – (2019)", marks: null },
+              { text: "What test next (2016)", marks: 1 },
+              { text: "Name three – (1.5)", marks: 1.5 },
+              { text: "B) Mechanism of resistance", marks: null }],
+      model_answer: "Doxycycline plus ceftriaxone.", cites: "Mandell p. 7",
+      beyond_mandell: null, uncertain: false, cohort_answer: null },
+    { cqid: "P2", kind: "written", needs: [], recurrence: ["MB 2016"], source: "MB 2016",
+      question: "Pelvic inflammatory disease",
+      parts: [{ text: "Name the organisms", marks: null }],
+      model_answer: null, cites: null,
+      beyond_mandell: "Newer data on M. genitalium.", uncertain: true, cohort_answer: null }
+  ]
+};
 const INDEX = { chapters: [{ chapter: "Chapter 101", id: "ch101", title: "Acute Dysentery Syndromes", sector: "Enteric",
   weeks: [9], n_total: 4, n_mcq: 1, n_written: 3, n_deferred: 1,
   cqids: ["W1", "W2", "M1", "W3"], deferred: ["W3"], marks: { W1: 3, W2: 1, M1: 1, W3: 1 } }] };
@@ -36,6 +59,7 @@ function fetchFor(answers = {}) {
   return async (url, init) => {
     if (url === "qbank/index.json") return { ok: true, status: 200, json: async () => INDEX };
     if (url === "qbank/ch101.json") return { ok: true, status: 200, json: async () => CHAPTER };
+    if (url === "qbank/ch102.json") return { ok: true, status: 200, json: async () => CHAPTER2 };
     if (url === "/api/answers") return { ok: true, status: 200, json: async () => ({ answers: { ...answers, ...JSON.parse(init.body).answers } }) };
     if (url === "/api/schedule") return { ok: true, status: 204, json: async () => null };
     if (url === "/api/progress") return { ok: true, status: 200, json: async () => ({ sessions: {} }) };
@@ -43,8 +67,8 @@ function fetchFor(answers = {}) {
   };
 }
 const tick = () => new Promise((r) => setTimeout(r, 0));
-async function openChapter(app) {
-  app.IDCockpit.bankOpen("ch101");
+async function openChapter(app, id = "ch101", focus) {
+  app.IDCockpit.bankOpen(id, focus);
   await tick(); await tick();
 }
 
@@ -198,4 +222,80 @@ test("a repaint mid-question keeps the pick and the reveal", async () => {
   app.IDCockpit.render();                       // a sync or theme flip repaints the tab
   assert.match(app._elements.get("bkrev").innerHTML, /Incorrect — you chose A/, "reveal survives the repaint");
   assert.match(app._elements.get("bkgrade").innerHTML, /data-grade="incorrect"/);
+});
+
+/* ---- the review pass: real-question edge cases ---- */
+
+test("a part keeps a bracketed year; only a bracket that equals its own marks is stripped", async () => {
+  const app = loadCurrentApp({ now: NOW, fetch: fetchFor() });
+  await openChapter(app, "ch102");
+  app.IDCockpit.setTab("bank");
+  const html = app._elements.get("v-bank").innerHTML;
+  assert.match(html, /a\) Outline the interactions – \(2019\)<\/span>/, "a year is not a mark");
+  assert.match(html, /b\) What test next \(2016\)<\/span>/, "nor when the marks disagree");
+  assert.match(html, /class="bkmk">1 mark</, "one mark is singular");
+  assert.match(html, /c\) Name three<\/span>/, "the real mark goes, and its dash with it");
+  assert.doesNotMatch(html, /\(1\.5\)/);
+});
+
+test("a part that carries its own label is not double-lettered", async () => {
+  const app = loadCurrentApp({ now: NOW, fetch: fetchFor() });
+  await openChapter(app, "ch102");
+  app.IDCockpit.setTab("bank");
+  const html = app._elements.get("v-bank").innerHTML;
+  assert.match(html, /<span class="tx">B\) Mechanism of resistance<\/span>/);
+  assert.doesNotMatch(html, /d\) B\)/, "the generated letter would have disagreed with it");
+});
+
+test("the recurrence line drops an unknown-year '?' and counts the sittings it hides", async () => {
+  const app = loadCurrentApp({ now: NOW, fetch: fetchFor() });
+  await openChapter(app, "ch102");
+  app.IDCockpit.setTab("bank");
+  assert.match(app._elements.get("v-bank").innerHTML,
+    /Asked 5 times · AB 2018, H-decks, H-exams 2024 \+2/);
+  await openChapter(app, "ch102", "P2");
+  app.IDCockpit.setTab("bank");
+  assert.match(app._elements.get("v-bank").innerHTML, /Asked 1 time · MB 2016/);
+});
+
+test("a longer topic label is still a heading, not the big serif stem", async () => {
+  const app = loadCurrentApp({ now: NOW, fetch: fetchFor() });
+  await openChapter(app, "ch102", "P2");
+  app.IDCockpit.setTab("bank");
+  const html = app._elements.get("v-bank").innerHTML;
+  assert.match(html, /class="bktopic">Pelvic inflammatory disease</);
+  assert.doesNotMatch(html, /class="bkstem">Pelvic/);
+});
+
+test("a written reveal carries its citation in the chip and never a separate cite row", async () => {
+  const app = loadCurrentApp({ now: NOW, fetch: fetchFor() });
+  await openChapter(app, "ch102");
+  app.IDCockpit.setTab("bank");
+  app.IDCockpit.bankReveal();
+  const html = app._elements.get("bkrev").innerHTML;
+  assert.match(html, /Model answer · Mandell p\. 7/);
+  assert.doesNotMatch(html, /class="bkcite"/, "the chip already said it");
+});
+
+test("the reveal keeps the Beyond Mandell row and the uncertain warning", async () => {
+  const app = loadCurrentApp({ now: NOW, fetch: fetchFor() });
+  await openChapter(app, "ch102", "P2");
+  app.IDCockpit.setTab("bank");
+  app.IDCockpit.bankReveal();
+  const html = app._elements.get("bkrev").innerHTML;
+  assert.match(html, /No answer on file/);
+  assert.match(html, /class="bkgold"><b>Beyond Mandell\.<\/b> Newer data on M\. genitalium\./);
+  assert.match(html, /class="bkflag">⚠ Flagged uncertain/);
+});
+
+test("a repaint replays the reveal without scrolling it back into view", async () => {
+  const app = loadCurrentApp({ now: NOW, fetch: fetchFor() });
+  await openChapter(app, "ch102");
+  app.IDCockpit.setTab("bank");
+  let scrolls = 0;
+  app.document.getElementById("bkrev").scrollIntoView = () => { scrolls++; };
+  app.IDCockpit.bankReveal();
+  assert.equal(scrolls, 1, "the first reveal brings the panel into view");
+  app.IDCockpit.render();
+  assert.equal(scrolls, 1, "a repaint replays it where it already was");
 });
