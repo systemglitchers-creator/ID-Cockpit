@@ -54,6 +54,12 @@ Run pipeline tests with `cd "$PIPE" && python3 -m pytest -q tests`. They are gre
 
 ### Task 1: `make_draft_batches.py` — every written question, once, with bounded context
 
+> **Amended in execution.** pypdf text often carries no blank lines (chapter 82 is one 351 KB
+> "paragraph"), so `pick_context` first splits any paragraph over 50 KB by line into ~50 KB blocks
+> before scoring slices. Real run: 345 batches, 300 with page text (109 sliced), 45 without, largest
+> context 118,687 bytes, 235 chapters.
+
+
 **Files:**
 - Create: `$PIPE/scripts/make_draft_batches.py`
 - Test: `$PIPE/tests/test_draft_batches.py`
