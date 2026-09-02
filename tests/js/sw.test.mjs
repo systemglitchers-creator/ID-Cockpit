@@ -13,8 +13,9 @@ import { fileURLToPath } from "node:url";
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
 const ORIGIN = "https://id-cockpit.vercel.app";
 
-function loadSw() {
+function loadSw(cacheKeys = []) {
   const listeners = {};
+  const deleted = [];
   const self = {
     location: { origin: ORIGIN },
     addEventListener(type, fn) { listeners[type] = fn; },
@@ -25,12 +26,18 @@ function loadSw() {
   const cache = { match: () => Promise.resolve(undefined), put: () => {}, add: () => Promise.resolve() };
   const sandbox = {
     self, URL, console, setTimeout, clearTimeout,
-    caches: { open: () => Promise.resolve(cache), keys: () => Promise.resolve([]), delete: () => Promise.resolve(true), match: () => Promise.resolve(undefined) },
+    caches: {
+      open: () => Promise.resolve(cache),
+      keys: () => Promise.resolve(cacheKeys),
+      delete: (k) => { deleted.push(k); return Promise.resolve(true); },
+      match: () => Promise.resolve(undefined)
+    },
     fetch: () => Promise.resolve({ status: 200, clone() { return this; } }),
     clients: self.clients, navigator: {}
   };
   vm.createContext(sandbox);
   vm.runInContext(fs.readFileSync(path.join(ROOT, "public/sw.js"), "utf8"), sandbox, { filename: "sw.js" });
+  listeners.deleted = deleted;
   return listeners;
 }
 
@@ -60,4 +67,32 @@ test("the cache name was bumped for this change", () => {
   const src = fs.readFileSync(path.join(ROOT, "public/sw.js"), "utf8");
   const m = /var CACHE = "idcockpit-web-v(\d+)"/.exec(src);
   assert.ok(m && Number(m[1]) >= 23, "CACHE must be at least v23");
+});
+
+test("the shell precache covers every script index.html loads", () => {
+  const html = fs.readFileSync(path.join(ROOT, "public/index.html"), "utf8");
+  const scripts = [...html.matchAll(/<script\s+src="([^"]+)"/g)]
+    .map((m) => m[1])
+    .filter((src) => !/^([a-z]+:)?\/\//i.test(src)); // same-origin only
+
+  const swSrc = fs.readFileSync(path.join(ROOT, "public/sw.js"), "utf8");
+  const shellMatch = /var SHELL = \[([\s\S]*?)\];/.exec(swSrc);
+  assert.ok(shellMatch, "could not find SHELL array in sw.js");
+  const shellEntries = [...shellMatch[1].matchAll(/"([^"]+)"/g)].map((m) => m[1]);
+  const shellBasenames = shellEntries.map((e) => e.replace(/^\.\//, ""));
+
+  for (const src of scripts) {
+    assert.ok(
+      shellBasenames.includes(src),
+      `SHELL is missing "${src}" (loaded by index.html but not precached)`
+    );
+  }
+});
+
+test("activate deletes the previous cache", async () => {
+  const l = loadSw(["idcockpit-web-v22", "idcockpit-web-v23"]);
+  let captured;
+  l.activate({ waitUntil(p) { captured = p; } });
+  await captured;
+  assert.deepEqual(l.deleted, ["idcockpit-web-v22"]);
 });

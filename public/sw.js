@@ -1,7 +1,7 @@
 /* ID Cockpit service worker — offline shell + font caching. */
 var CACHE = "idcockpit-web-v23";
 var SHELL = [
-  "./", "./index.html", "./schedule.js", "./guidelines.js", "./app.js", "./sync.js",
+  "./", "./index.html", "./schedule.js", "./guidelines.js", "./app.js", "./sync.js", "./copy.js", "./motion.js",
   "./manifest.webmanifest",
   "./icons/icon-192.a37c2970.png", "./icons/icon-512.0cc4f4ab.png",
   "./icons/icon-maskable-512.7639c87b.png", "./icons/apple-touch-icon-180.72faf33d.png",
