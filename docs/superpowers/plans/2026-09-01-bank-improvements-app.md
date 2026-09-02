@@ -369,6 +369,15 @@ Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
 
 ### Task 3: `lib/bank.js` — the owed rule and the marks rule
 
+> **Amended after code review of the first cut.** The original `chapterSessionIds` anchored on the
+> leading chapter number only, so chapters read inside a multi-chapter sitting (40–43, 155–157,
+> 181–183, 194–196) could never be owed, and `owedChapters` rescanned every row per chapter. Both
+> copies now build one `sessionsByChapter` map per call. Five extra tests in
+> `tests/js/bank-owed.test.mjs` pin the multi-chapter case, name digits, a missing `deferred`
+> list, an all-deferred chapter, and an unparsable `doneAt`. The app mirror in Task 7 must include
+> `sessionsByChapter` as well.
+
+
 **Files:**
 - Create: `lib/bank.js`
 - Test: `tests/js/bank-owed.test.mjs`, `tests/js/bank-marks.test.mjs`
@@ -497,16 +506,31 @@ Expected: every test fails with `Cannot find module '.../lib/bank.js'`.
 // same body (the app has no module loader); tests/js/bank-owed.test.mjs pins
 // the two copies equal, so change them together.
 
-/** Every session id whose title starts "Chapter <n>", across all sectors. */
-function chapterSessionIds(sections, chapterNumber) {
-  var num = String(chapterNumber), ids = [];
+/**
+ * chapter number -> [session id], from every row's title. One pass over the
+ * schedule; owedChapters looks chapters up here instead of rescanning every
+ * row per chapter. A row can carry several chapters — "Antifungal Drugs —
+ * Chapter 40 Polyenes, 41 Azoles, 42 Echinocandins" or "Chapter 181 —
+ * Rhinovirus, 182 — Norovirus" — so every integer after "Chapter" or a comma
+ * in the pre-"·" title counts. Digits inside names (HHV-8, COVID-19, HIV-1)
+ * follow neither and are ignored.
+ */
+function sessionsByChapter(sections) {
+  var by = {};
   (sections || []).forEach(function (s) {
     (s.rows || []).forEach(function (r) {
-      var m = /^Chapter\s+(\d+)/.exec(r.r || "");
-      if (m && m[1] === num) ids.push(r.id);
+      var t = String(r.r || "").split("·")[0];
+      if (!/Chapters?\s+\d/.test(t)) return;
+      var m, re = /(?:Chapters?\s+|,\s*)(\d{1,3})\b/g;
+      while ((m = re.exec(t))) (by[m[1]] = by[m[1]] || []).push(r.id);
     });
   });
-  return ids;
+  return by;
+}
+
+/** Every session id that reads chapter <n>, across all sectors. */
+function chapterSessionIds(sections, chapterNumber) {
+  return sessionsByChapter(sections)[String(chapterNumber)] || [];
 }
 
 /**
@@ -519,15 +543,16 @@ function chapterSessionIds(sections, chapterNumber) {
  */
 function owedChapters(sections, progress, index, answers) {
   progress = progress || {}; answers = answers || {};
-  var out = [];
+  var by = sessionsByChapter(sections), out = [];
   (index || []).forEach(function (c) {
     if (!c.weeks || !c.weeks.length) return;           // catch-alls: available, never demanded
-    var ids = chapterSessionIds(sections, String(c.chapter || "").replace(/^Chapter\s+/, ""));
+    var ids = by[String(c.chapter || "").replace(/^Chapter\s+/, "")] || [];
     if (!ids.length) return;
     var readAt = 0;
     for (var i = 0; i < ids.length; i++) {
       var e = progress[ids[i]];
       if (!e || !e.done) return;
+      // An unparsable doneAt gives NaN, which fails the comparison and is skipped.
       var t = e.doneAt ? new Date(e.doneAt).getTime() : 0;
       if (t > readAt) readAt = t;
     }
@@ -558,7 +583,7 @@ function earnedFrom(full, result) {
   return 0;
 }
 
-module.exports = { chapterSessionIds, owedChapters, marksFor, earnedFrom };
+module.exports = { sessionsByChapter, chapterSessionIds, owedChapters, marksFor, earnedFrom };
 ```
 
 - [ ] **Step 4: Run the tests**
@@ -1222,11 +1247,12 @@ Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
 To `tests/js/bank-owed.test.mjs`:
 ```js
 import { loadCurrentApp } from "./harness.mjs";
-const { marksFor, earnedFrom } = require_("../../lib/bank.js");
+const { sessionsByChapter, marksFor, earnedFrom } = require_("../../lib/bank.js");
 
 test("public/app.js carries the same owed and marks functions as lib/bank.js", () => {
   const app = loadCurrentApp({ now: new Date(2026, 8, 1, 21, 0, 0) });
   const norm = (fn) => fn.toString().replace(/\s+/g, " ").trim();
+  assert.equal(norm(app.IDCockpit.sessionsByChapter), norm(sessionsByChapter));
   assert.equal(norm(app.IDCockpit.chapterSessionIds), norm(chapterSessionIds));
   assert.equal(norm(app.IDCockpit.owedChapters), norm(owedChapters));
   assert.equal(norm(app.IDCockpit.marksFor), norm(marksFor));
@@ -1271,27 +1297,33 @@ Directly above `function bankHeader()` insert, verbatim (bodies must match `lib/
   // ---- owed chapters + marks: a copy of lib/bank.js -------------------------
   // The app has no module loader; tests/js/bank-owed.test.mjs pins these equal
   // to the server-side originals. Edit both or the parity test fails.
-  function chapterSessionIds(sections, chapterNumber) {
-    var num = String(chapterNumber), ids = [];
+  function sessionsByChapter(sections) {
+    var by = {};
     (sections || []).forEach(function (s) {
       (s.rows || []).forEach(function (r) {
-        var m = /^Chapter\s+(\d+)/.exec(r.r || "");
-        if (m && m[1] === num) ids.push(r.id);
+        var t = String(r.r || "").split("·")[0];
+        if (!/Chapters?\s+\d/.test(t)) return;
+        var m, re = /(?:Chapters?\s+|,\s*)(\d{1,3})\b/g;
+        while ((m = re.exec(t))) (by[m[1]] = by[m[1]] || []).push(r.id);
       });
     });
-    return ids;
+    return by;
+  }
+  function chapterSessionIds(sections, chapterNumber) {
+    return sessionsByChapter(sections)[String(chapterNumber)] || [];
   }
   function owedChapters(sections, progress, index, answers) {
     progress = progress || {}; answers = answers || {};
-    var out = [];
+    var by = sessionsByChapter(sections), out = [];
     (index || []).forEach(function (c) {
       if (!c.weeks || !c.weeks.length) return;           // catch-alls: available, never demanded
-      var ids = chapterSessionIds(sections, String(c.chapter || "").replace(/^Chapter\s+/, ""));
+      var ids = by[String(c.chapter || "").replace(/^Chapter\s+/, "")] || [];
       if (!ids.length) return;
       var readAt = 0;
       for (var i = 0; i < ids.length; i++) {
         var e = progress[ids[i]];
         if (!e || !e.done) return;
+        // An unparsable doneAt gives NaN, which fails the comparison and is skipped.
         var t = e.doneAt ? new Date(e.doneAt).getTime() : 0;
         if (t > readAt) readAt = t;
       }
@@ -1345,7 +1377,7 @@ In the delegated Bank click listener, add as the first branch after `var t = e.t
     if (drill) { tab = "bank"; sheetSi = null; $("body").scrollTop = 0; bankOpen(drill.dataset.drill); return; }
 ```
 
-Add to the `window.IDCockpit` export: `render: render, chapterSessionIds: chapterSessionIds, owedChapters: owedChapters, marksFor: marksFor, earnedFrom: earnedFrom,`.
+Add to the `window.IDCockpit` export: `render: render, sessionsByChapter: sessionsByChapter, chapterSessionIds: chapterSessionIds, owedChapters: owedChapters, marksFor: marksFor, earnedFrom: earnedFrom,`.
 
 - [ ] **Step 4: Markup and CSS in `public/index.html`**
 
