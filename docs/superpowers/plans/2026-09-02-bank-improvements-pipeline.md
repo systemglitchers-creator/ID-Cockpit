@@ -242,6 +242,14 @@ Previous run's data/draft_batches and data/draft_results are left untouched for 
 
 ### Task 2: `validate_drafts.py` and `draft_status.py` — nothing enters the bundle unchecked
 
+> **Amended after review.** The validator also: rejects (never crashes on) malformed results;
+> flags duplicate cqids; refuses to overwrite `answers_drafted.jsonl` on an empty run; checks
+> labels in `parts_clean`; requires a `cohort_answer` behind any `cohort_conflict`; accepts
+> "Mandell p. A"; treats an uppercase genus abbreviation followed by a lowercase species as prose,
+> not numbering; and, when the context file exists, rejects a cite whose pages do not appear in the
+> text the worker was given (page markers are bare numeric lines in the extracted text).
+
+
 **Files:**
 - Create: `$PIPE/scripts/validate_drafts.py`, `$PIPE/scripts/draft_status.py`
 - Test: `$PIPE/tests/test_validate_drafts.py`
@@ -455,14 +463,18 @@ Cleaning rules:
 - Drop leading exam numbering ("19.", "8)") and part labels ("A)", "b.", "ii."). Keep every clinical
   detail and every requested count ("three", "4"). Keep the mark allocation OUT of the text — it is a
   separate field. A bare topic ("HPV", "Enterococcus IE") becomes one short prompt sentence
-  ("Human papillomavirus and its associated malignancies."). Do not change the meaning, do not add
-  facts to the question, do not merge or split parts.
+  ("Human papillomavirus and its associated malignancies."). Spell out an abbreviated genus that
+  opens a stem or a part ("E. coli O157" → "Escherichia coli O157", "C. diff" → "Clostridioides
+  difficile"). Do not change the meaning, do not add facts to the question, do not merge or split
+  parts.
 
 Answer rules:
 - Mirror the mark allocation: a part worth 1.5 asking for three items gets exactly three numbered
   points "(1) … (2) … (3) …"; a 0.5 part gets one crisp line. Label parts "a)", "b)" to match.
-- Ground every point in the chapter text when you have it, and cite as "Mandell pp. A–B" using
-  BOOK page numbers inside "cite_pages". Never cite outside that range. Never cite without text.
+- Ground every point in the chapter text when you have it, and cite as "Mandell pp. A–B" (or
+  "Mandell p. A" for one page) using BOOK page numbers. The text you were given may be a SLICE of
+  the chapter: page numbers appear in it as bare numeric lines. Cite only pages that appear in the
+  text you actually read, inside "cite_pages". Never cite outside that range. Never cite without text.
 - If the text cannot fully answer a part (newer guideline, a CLSI value, another chapter's content),
   answer what Mandell supports, then put ONE short note in "beyond_mandell" naming the source
   ("IDSA candidiasis 2016: …"). Prefer leaving it null.
