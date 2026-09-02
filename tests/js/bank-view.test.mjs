@@ -59,8 +59,14 @@ const INDEX = { chapters: [{ chapter: "Chapter 101", id: "ch101", title: "Acute 
   weeks: [9], n_total: 4, n_mcq: 1, n_written: 3, n_deferred: 1,
   cqids: ["W1", "W2", "M1", "W3"], deferred: ["W3"], marks: { W1: 3, W2: 1, M1: 1, W3: 1 } }] };
 
-function fetchFor(answers = {}, index = INDEX) {
-  return async (url, init) => {
+function fetchFor(answers = {}, index = INDEX, hangChapter = false) {
+  return (url, init) => {
+    // A chapter file the service worker has not cached yet: the tap must not
+    // wait on it. Only chapter files hang -- the index still loads.
+    if (hangChapter && /^qbank\/ch/.test(url)) return new Promise(() => {});
+    return inner(url, init);
+  };
+  async function inner(url, init) {
     if (url === "qbank/index.json") return { ok: true, status: 200, json: async () => index };
     if (url === "qbank/ch101.json") return { ok: true, status: 200, json: async () => CHAPTER };
     if (url === "qbank/ch102.json") return { ok: true, status: 200, json: async () => CHAPTER2 };
@@ -68,7 +74,7 @@ function fetchFor(answers = {}, index = INDEX) {
     if (url === "/api/schedule") return { ok: true, status: 204, json: async () => null };
     if (url === "/api/progress") return { ok: true, status: 200, json: async () => ({ sessions: {} }) };
     throw new Error("unexpected " + url);
-  };
+  }
 }
 const tick = () => new Promise((r) => setTimeout(r, 0));
 async function openChapter(app, id = "ch101", focus) {
@@ -358,4 +364,33 @@ test("the chapter list unlocks a chapter read inside a multi-chapter sitting", a
   await tick(); await tick();
   app.IDCockpit.setTab("bank");
   assert.match(app._elements.get("v-bank").innerHTML, /data-bank="ch41"/);
+});
+
+test("a drill tap paints the Bank at once, before the chapter fetch resolves", async () => {
+  const ids = chapterSessionIds(SECTIONS, 101);
+  const app = loadCurrentApp({ now: NOW, fetch: fetchFor({}, INDEX, true), done: ids, doneAt: "2026-08-30T12:00:00Z" });
+  await tick(); await tick();
+  app.IDCockpit.drillTapped("ch101");
+  await tick();
+  // renderHeader() writes the title with textContent, not innerHTML.
+  assert.equal(app._elements.get("hTitle").textContent, "Bank", "the header switched tabs at once");
+  assert.match(app._elements.get("v-bank").innerHTML, /data-bank="ch101"/,
+    "the chapter list is on screen while the chapter file is still in flight");
+});
+
+/* Four owed chapters: the card shows three and counts the rest. */
+const OWED4 = { chapters: [20, 21, 22, 23].map((n) => ({
+  chapter: "Chapter " + n, id: "ch" + n, title: "Chapter " + n + " title", sector: "Enteric",
+  weeks: [1], n_total: 1, n_mcq: 0, n_written: 1, n_deferred: 0,
+  cqids: ["Q" + n], deferred: [], marks: { ["Q" + n]: 1 } })) };
+
+test("the To-drill card shows three chapters and counts the rest", async () => {
+  const ids = [20, 21, 22, 23].flatMap((n) => chapterSessionIds(SECTIONS, n));
+  assert.equal(ids.length, 8, "chapters 20-23 span eight sittings");
+  const app = loadCurrentApp({ now: NOW, fetch: fetchFor({}, OWED4), done: ids, doneAt: "2026-08-30T12:00:00Z" });
+  await tick(); await tick();
+  app.IDCockpit.render();
+  const html = app._elements.get("drillCard").innerHTML;
+  assert.equal((html.match(/data-drill=/g) || []).length, 3, "capped at three rows");
+  assert.match(html, /\+1 more/);
 });

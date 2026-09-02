@@ -639,6 +639,7 @@
   /** A drill row was tapped: switch to the Bank and open that chapter. */
   function drillTapped(id) {
     tab = "bank"; sheetSi = null; $("body").scrollTop = 0;
+    render();          // the list paints now; the chapter replaces it when it lands
     bankOpen(id);
   }
 
@@ -659,11 +660,19 @@
     else { el.style.removeProperty("--acc"); el.style.removeProperty("--acc-d"); }
   }
 
+  // One chapter map per schedule. refreshSchedule() swaps SECS wholesale, so
+  // identity is the right cache key; the mirrored functions stay untouched.
+  var _chMap = null, _chMapFor = null;
+  function chapterMap() {
+    if (_chMapFor !== SECS) { _chMapFor = SECS; _chMap = sessionsByChapter(SECS); }
+    return _chMap;
+  }
+
   /** A chapter is drillable once every one of its schedule sessions is read.
       Uses the same chapter map as the owed rule, so a chapter read inside a
       multi-chapter sitting unlocks here exactly when it appears on the home card. */
   function chapterRead(ch) {
-    var ids = chapterSessionIds(SECS, String(ch.chapter || "").replace(/^Chapter\s+/, ""));
+    var ids = chapterMap()[String(ch.chapter || "").replace(/^Chapter\s+/, "")] || [];
     return ids.length ? ids.every(function (id) { return isDone(id); }) : false;
   }
 
