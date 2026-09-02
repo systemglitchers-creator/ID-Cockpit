@@ -133,6 +133,18 @@ input::placeholder{color:var(--faint)}
 .qacts .alt{background:var(--soft);color:var(--acc-d)}
 .qacts .alt:hover{background:var(--alt-hover)}
 
+/* ---- today: to-drill card. Read chapters whose questions are still owed. ---- */
+.drill{background:var(--card);border:var(--edge);border-radius:18px;padding:13px 16px 6px;
+       box-shadow:var(--sh-2);margin-top:10px;animation:idrise .3s ease both}
+.drill .qk{font-size:10px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;color:var(--ind);margin-bottom:4px}
+.drow{display:flex;align-items:center;gap:10px;width:100%;background:none;border:none;
+      border-top:1px solid var(--hair);padding:10px 0;font:inherit;color:var(--txt);text-align:left}
+.drow:first-of-type{border-top:0}
+.drow i{width:9px;height:9px;border-radius:99px;flex:none}
+.drow .t{flex:1;min-width:0;font-size:13px;font-weight:600;line-height:1.25;text-wrap:pretty}
+.drow .n{flex:none;font-size:11px;font-weight:700;color:var(--mut)}
+.dmore{font-size:11px;font-weight:700;color:var(--mut);padding:8px 0 6px;border-top:1px solid var(--hair)}
+
 /* ---- today: up next ---- */
 .upnext{display:flex;flex-direction:column;gap:8px}
 .unrow{display:flex;align-items:center;gap:12px;background:var(--card);border:var(--edge);
@@ -461,6 +473,7 @@ a.chip{text-decoration:none}
   <div id="body">
     <div class="view" id="v-today">
       <div id="questCard"></div>
+      <div id="drillCard"></div>
       <div class="strip" id="statStrip"></div>
       <div id="weekCard"></div>
       <div class="seclabel">The plan</div>

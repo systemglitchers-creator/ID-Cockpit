@@ -4,6 +4,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { createRequire } from "node:module";
+import { loadCurrentApp } from "./harness.mjs";
 
 /* A chapter is OWED when every one of its schedule sessions is read and at
    least one of its ready (non-deferred) questions has no grade. Catch-alls are
@@ -11,7 +12,7 @@ import { createRequire } from "node:module";
 
 const require_ = createRequire(import.meta.url);
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
-const { sessionsByChapter, chapterSessionIds, owedChapters } = require_("../../lib/bank.js");
+const { sessionsByChapter, chapterSessionIds, owedChapters, marksFor, earnedFrom } = require_("../../lib/bank.js");
 const src = fs.readFileSync(path.join(ROOT, "public/schedule.js"), "utf8");
 const SECTIONS = new Function(`${src}; return SECTIONS;`)();
 
@@ -114,4 +115,14 @@ test("readAt ignores a missing or unparsable doneAt", () => {
   p[ids[0]] = at("2026-08-01T12:00:00Z");
   p[ids[1]] = { done: true, updatedAt: "x" };
   assert.equal(owedChapters(SECTIONS, p, [CH20], {})[0].readAt, new Date("2026-08-01T12:00:00Z").getTime());
+});
+
+test("public/app.js carries the same owed and marks functions as lib/bank.js", () => {
+  const app = loadCurrentApp({ now: new Date(2026, 8, 1, 21, 0, 0) });
+  const norm = (fn) => fn.toString().replace(/\s+/g, " ").trim();
+  assert.equal(norm(app.IDCockpit.sessionsByChapter), norm(sessionsByChapter));
+  assert.equal(norm(app.IDCockpit.chapterSessionIds), norm(chapterSessionIds));
+  assert.equal(norm(app.IDCockpit.owedChapters), norm(owedChapters));
+  assert.equal(norm(app.IDCockpit.marksFor), norm(marksFor));
+  assert.equal(norm(app.IDCockpit.earnedFrom), norm(earnedFrom));
 });

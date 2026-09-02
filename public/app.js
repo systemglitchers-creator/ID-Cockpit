@@ -261,6 +261,8 @@
         + '<div class="qt">Every page read — onward to the exam.</div></div>';
     }
 
+    renderDrill();
+
     // Three numbers, no more. The middle one is the only one that changes
     // character: it is the debt, and it earns colour when it is non-zero.
     $("statStrip").innerHTML =
@@ -536,6 +538,108 @@
       if (d && d.chapters) { bkIndex = d.chapters; bkIndexFailed = false; render(); }
       else { bkIndexFailed = true; if (tab === "bank") $("v-bank").innerHTML = '<div class="bkdef">Question bank not available.</div>'; }
     });
+  }
+
+  // ---- owed chapters + marks: a copy of lib/bank.js -------------------------
+  // The app has no module loader; tests/js/bank-owed.test.mjs pins these equal
+  // to the server-side originals. Edit both or the parity test fails.
+
+  /**
+   * chapter number -> [session id], from every row's title. One pass over the
+   * schedule; owedChapters looks chapters up here instead of rescanning every
+   * row per chapter. A row can carry several chapters — "Antifungal Drugs —
+   * Chapter 40 Polyenes, 41 Azoles, 42 Echinocandins" or "Chapter 181 —
+   * Rhinovirus, 182 — Norovirus" — so every integer after "Chapter" or a comma
+   * in the pre-"·" title counts. Digits inside names (HHV-8, COVID-19, HIV-1)
+   * follow neither and are ignored.
+   */
+  function sessionsByChapter(sections) {
+    var by = {};
+    (sections || []).forEach(function (s) {
+      (s.rows || []).forEach(function (r) {
+        var t = String(r.r || "").split("·")[0];
+        if (!/Chapters?\s+\d/.test(t)) return;
+        var m, re = /(?:Chapters?\s+|,\s*)(\d{1,3})\b/g;
+        while ((m = re.exec(t))) (by[m[1]] = by[m[1]] || []).push(r.id);
+      });
+    });
+    return by;
+  }
+
+  /** Every session id that reads chapter <n>, across all sectors. */
+  function chapterSessionIds(sections, chapterNumber) {
+    return sessionsByChapter(sections)[String(chapterNumber)] || [];
+  }
+
+  /**
+   * Chapters that are read but not yet drilled, newest-read first.
+   * @param sections  SECTIONS from schedule.js
+   * @param progress  id -> {done, doneAt}
+   * @param index     qbank/index.json chapters (with `deferred: [cqid]`)
+   * @param answers   cqid -> {result, ts, ...}
+   * @returns [{chapter, id, title, sector, remaining, total, readAt}]
+   */
+  function owedChapters(sections, progress, index, answers) {
+    progress = progress || {}; answers = answers || {};
+    var by = sessionsByChapter(sections), out = [];
+    (index || []).forEach(function (c) {
+      if (!c.weeks || !c.weeks.length) return;           // catch-alls: available, never demanded
+      var ids = by[String(c.chapter || "").replace(/^Chapter\s+/, "")] || [];
+      if (!ids.length) return;
+      var readAt = 0;
+      for (var i = 0; i < ids.length; i++) {
+        var e = progress[ids[i]];
+        if (!e || !e.done) return;
+        // An unparsable doneAt gives NaN, which fails the comparison and is skipped.
+        var t = e.doneAt ? new Date(e.doneAt).getTime() : 0;
+        if (t > readAt) readAt = t;
+      }
+      var deferred = {};
+      (c.deferred || []).forEach(function (q) { deferred[q] = 1; });
+      var ready = (c.cqids || []).filter(function (q) { return !deferred[q]; });
+      var remaining = ready.filter(function (q) { var a = answers[q]; return !(a && a.result); });
+      if (!remaining.length) return;
+      out.push({ chapter: c.chapter, id: c.id, title: c.title, sector: c.sector,
+                 remaining: remaining.length, total: ready.length, readAt: readAt });
+    });
+    out.sort(function (a, b) { return b.readAt - a.readAt; });
+    return out;
+  }
+
+  /** Marks available for a question: MCQ 1; written = sum of parts, null = 1. */
+  function marksFor(q) {
+    if (q.kind === "mcq") return 1;
+    return (q.parts || []).reduce(function (s, p) {
+      return s + (p.marks == null ? 1 : Number(p.marks));
+    }, 0);
+  }
+
+  /** Marks earned from a full mark and a result string. */
+  function earnedFrom(full, result) {
+    if (result === "got" || result === "correct") return full;
+    if (result === "partial") return full / 2;
+    return 0;
+  }
+
+  /** The home card: chapters read but not yet drilled. Empty when nothing is owed. */
+  function renderDrill() {
+    var el = $("drillCard");
+    var owed = bkIndex ? owedChapters(SECS, sessions, bkIndex, bankAnswers()) : [];
+    if (!owed.length) { el.innerHTML = ""; return; }
+    var rows = owed.slice(0, 3).map(function (c) {
+      var col = sectorAccent(c.sector) || "var(--ind)";
+      return '<button class="drow" data-drill="' + esc(c.id) + '"><i style="background:' + esc(col) + '"></i>' +
+        '<span class="t">' + esc(String(c.chapter).replace(/^Chapter\s+/, "Ch ")) + " · " + esc(c.title) + "</span>" +
+        '<span class="n">' + c.remaining + " of " + c.total + " left</span></button>";
+    }).join("");
+    var more = owed.length > 3 ? '<div class="dmore">+' + (owed.length - 3) + " more</div>" : "";
+    el.innerHTML = '<div class="drill"><div class="qk">To drill</div>' + rows + more + "</div>";
+  }
+
+  /** A drill row was tapped: switch to the Bank and open that chapter. */
+  function drillTapped(id) {
+    tab = "bank"; sheetSi = null; $("body").scrollTop = 0;
+    bankOpen(id);
   }
 
   function bankHeader() {
@@ -860,6 +964,8 @@
   // One delegated listener for the whole tab.
   document.addEventListener("click", function (e) {
     var t = e.target;
+    var drill = t.closest && t.closest("[data-drill]");
+    if (drill) { drillTapped(drill.dataset.drill); return; }
     var row = t.closest && t.closest("[data-bank]");
     if (row) { bankOpen(row.dataset.bank); return; }
     if (t.closest && t.closest("#bkreveal")) { bankReveal(); return; }
@@ -1240,6 +1346,9 @@
                        bankOpen: bankOpen, bankGrade: bankGrade, bankFlag: bankFlag, bankPick: bankPick,
                        bankReviewMisses: bankReviewMisses, bankTabTapped: bankTabTapped,
                        bankReveal: bankReveal, render: render,
+                       drillTapped: drillTapped,
+                       sessionsByChapter: sessionsByChapter, chapterSessionIds: chapterSessionIds,
+                       owedChapters: owedChapters, marksFor: marksFor, earnedFrom: earnedFrom,
                        setTab: function (t) { tab = t; render(); },
                        bank: function () { return { queue: bkQueue, at: bkAt, chapter: bkChapter, index: bkIndex }; } };
 })();

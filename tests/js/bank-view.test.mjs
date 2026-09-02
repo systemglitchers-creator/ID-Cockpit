@@ -1,6 +1,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { loadCurrentApp } from "./harness.mjs";
+import { createRequire } from "node:module";
+import fs from "node:fs";
+const { chapterSessionIds } = createRequire(import.meta.url)("../../lib/bank.js");
+const SECTIONS = new Function(fs.readFileSync(new URL("../../public/schedule.js", import.meta.url), "utf8") + "; return SECTIONS;")();
 
 /* The Bank tab's logic, driven through the functions app.js exposes on
    window.IDCockpit. Rendering is checked as HTML strings on the fake DOM. */
@@ -298,4 +302,38 @@ test("a repaint replays the reveal without scrolling it back into view", async (
   assert.equal(scrolls, 1, "the first reveal brings the panel into view");
   app.IDCockpit.render();
   assert.equal(scrolls, 1, "a repaint replays it where it already was");
+});
+
+test("the home screen shows a To-drill card only when a read chapter has ungraded questions", async () => {
+  const ids = chapterSessionIds(SECTIONS, 101);
+  assert.ok(ids.length, "schedule has chapter 101");
+
+  const unread = loadCurrentApp({ now: NOW, fetch: fetchFor() });
+  await tick(); await tick();
+  unread.IDCockpit.render();
+  assert.equal(unread._elements.get("drillCard").innerHTML, "");
+
+  const read = loadCurrentApp({ now: NOW, fetch: fetchFor(), done: ids, doneAt: "2026-08-30T12:00:00Z" });
+  await tick(); await tick();
+  read.IDCockpit.render();
+  const html = read._elements.get("drillCard").innerHTML;
+  assert.match(html, /To drill/);
+  assert.match(html, /data-drill="ch101"/);
+  assert.match(html, /3 of 3 left/, "W3 is deferred and not counted");
+
+  const graded = loadCurrentApp({ now: NOW, fetch: fetchFor({ W1: { result: "got", ts: 1 }, W2: { result: "missed", ts: 1 }, M1: { result: "correct", ts: 1 } }),
+                                  done: ids, doneAt: "2026-08-30T12:00:00Z" });
+  await tick(); await tick();
+  graded.IDCockpit.render();
+  assert.equal(graded._elements.get("drillCard").innerHTML, "", "fully drilled: the card goes away");
+});
+
+test("tapping a drill row opens that chapter in the Bank", async () => {
+  const ids = chapterSessionIds(SECTIONS, 101);
+  const app = loadCurrentApp({ now: NOW, fetch: fetchFor(), done: ids, doneAt: "2026-08-30T12:00:00Z" });
+  await tick(); await tick();
+  app.IDCockpit.drillTapped("ch101");
+  await tick(); await tick();
+  assert.equal(app.IDCockpit.bank().chapter.id, "ch101");
+  assert.match(app._elements.get("v-bank").innerHTML, /Asked 2 times/, "the Bank tab painted the first question");
 });
