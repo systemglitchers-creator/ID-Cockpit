@@ -675,6 +675,19 @@ Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
 
 ### Task 5: Bank tab runs on `IDAnswers` (chosen letter, flag, honest review pass)
 
+> **Amended after code review.** As shipped, Task 5 differs from the blocks below in five ways that
+> later tasks must respect: (1) there is no `bkReview` flag — the review pass works because
+> `bankReviewMisses` builds the queue and sets `bkAt = 0` itself; (2) `renderBank` parses the answer
+> map once per render (`var A = bankAnswers();` above `order.forEach`), not per row; (3) the bank-tab
+> tap logic lives in `bankTabTapped()` (exported for tests) and retries a failed index load on the
+> first tap by calling `bankLoadIndex()` directly; (4) a `bankBusy()` helper (`tab === "bank" &&
+> bkChapter && bkAt < bkQueue.length`) guards `refresh()`, `refreshSchedule()` and the
+> `IDAnswers.start` callback so no sync ever repaints an open question; (5) `bankStart(focus)` falls
+> through to the skip-graded loop when `focus` matches nothing, and the `#bkflag` branch guards
+> `bkQueue[bkAt]`. `setTab(t)` is already on `window.IDCockpit` from this task. The harness's fake
+> element style now supports `setProperty`/`removeProperty`.
+
+
 Replace the in-memory `bkAnswers` map with the store. This task changes behaviour only; the card and reveal visuals are Task 6.
 
 **Files:**
