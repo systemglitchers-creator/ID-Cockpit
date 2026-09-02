@@ -146,7 +146,7 @@ Insert this block immediately before `var Sync = {` (after the closing `};` of `
      deleted, so an empty phone can never erase anything. */
   var ANSWERS_KEY = "idcockpit.v1.answers";
   var Answers = {
-    _t: null, _refresh: null, _inflight: false,
+    _t: null, _refresh: null, _inflight: false, _pending: false,
 
     get: function () {
       try {
@@ -169,7 +169,8 @@ Insert this block immediately before `var Sync = {` (after the closing `};` of `
     },
 
     sync: function () {
-      if (typeof fetch !== "function" || Answers._inflight) return Promise.resolve(false);
+      if (typeof fetch !== "function") return Promise.resolve(false);
+      if (Answers._inflight) { Answers._pending = true; return Promise.resolve(false); }
       Answers._inflight = true;
       return fetch("/api/answers", {
         method: "POST",
@@ -179,13 +180,23 @@ Insert this block immediately before `var Sync = {` (after the closing `};` of `
       })
         .then(function (r) { if (!r.ok) throw new Error("answers " + r.status); return r.json(); })
         .then(function (d) {
-          if (!d || typeof d.answers !== "object" || d.answers === null) return false;
-          Answers.replace(d.answers);          // server reply is the union; adopt it
+          if (!d || typeof d.answers !== "object" || d.answers === null || Array.isArray(d.answers)) return false;
+          // Union, not replace: a grade tapped while this request was in flight
+          // is newer than anything the server sent back and must survive.
+          var local = Answers.get(), out = d.answers;
+          Object.keys(local).forEach(function (k) {
+            if (!out[k] || Number(local[k].ts || 0) > Number(out[k].ts || 0)) out[k] = local[k];
+          });
+          Answers.replace(out);
           if (Answers._refresh) Answers._refresh();
           return true;
         })
         .catch(function () { return false; })   // offline: local stands, retry later
-        .then(function (ok) { Answers._inflight = false; return ok; });
+        .then(function (ok) {
+          Answers._inflight = false;
+          if (Answers._pending) { Answers._pending = false; Answers.schedule(); }
+          return ok;
+        });
     },
 
     schedule: function () {
@@ -195,17 +206,23 @@ Insert this block immediately before `var Sync = {` (after the closing `};` of `
 
     start: function (refresh) {
       Answers._refresh = refresh;
-      Answers.sync();
+      var first = Answers.sync();
       if (global.addEventListener) {
         global.addEventListener("online", function () { Answers.sync(); });
         global.addEventListener("visibilitychange", function () {
           if (!global.document || global.document.visibilityState === "visible") Answers.sync();
         });
       }
+      return first;
     }
   };
 
 ```
+
+Also change `Server.sync()`'s `Store.replace(d.sessions);` to `Store.mergeRemote(d.sessions);` — the same
+mid-flight loss existed for reading progress. (Amended after code review of the first cut: the original
+replace-on-reply lost any grade tapped while a request was in flight. Tests for set-during-flight, the
+pending re-sync and the online/visibility listeners were added alongside.)
 
 Then add the export. Change the bottom of the file from
 
