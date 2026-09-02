@@ -514,8 +514,27 @@
   // ---- Bank: the question bank -------------------------------------------
   // Chapters unlock as you read them. Inside a chapter the accent becomes that
   // chapter's SECTOR hue, so a chapter looks the same here as on the Path.
-  var bkIndex = null, bkChapter = null, bkQueue = [], bkAt = 0,
-      bkPicked = null, bkShown = false, bkDeferred = false, bkAnswers = {};
+  var bkIndex = null, bkIndexFailed = false, bkLoading = false,
+      bkChapter = null, bkQueue = [], bkAt = 0,
+      bkPicked = null, bkShown = false, bkDeferred = false,
+      bkReview = false,      // a "review misses" pass: don't skip graded questions
+      bkFlagList = false;    // the cross-chapter flagged list is showing
+
+  /** The answer map. localStorage is the cache; IDAnswers syncs it. */
+  function bankAnswers() { return window.IDAnswers.get(); }
+  function graded(a) { return !!(a && a.result); }
+
+  /** Load qbank/index.json once. On success re-renders; on failure only marks
+      the failure (a render here would loop forever offline with no cache). */
+  function bankLoadIndex() {
+    if (bkIndex || bkLoading) return;
+    bkLoading = true;
+    bankFetch("qbank/index.json").then(function (d) {
+      bkLoading = false;
+      if (d && d.chapters) { bkIndex = d.chapters; bkIndexFailed = false; render(); }
+      else { bkIndexFailed = true; if (tab === "bank") $("v-bank").innerHTML = '<div class="bkdef">Question bank not available.</div>'; }
+    });
+  }
 
   function bankHeader() {
     if (!bkChapter) return { e: "Question bank", t: "Bank",
@@ -561,17 +580,12 @@
     // sector hue set by bankStart() must survive every re-render.
     if (!bkChapter) setBankAccent(null);
     if (!bkIndex) {
-      $("v-bank").innerHTML = '<div class="bkdef">Loading question bank…</div>';
-      bankFetch("qbank/index.json").then(function (d) {
-        if (!d) { $("v-bank").innerHTML = '<div class="bkdef">Question bank not available.</div>'; return; }
-        bkIndex = d.chapters;
-        bankFetch("/api/answers").then(function (a) {
-          if (a && a.answers) bkAnswers = a.answers;
-          if (tab === "bank") renderBank();
-        });
-      });
+      $("v-bank").innerHTML = '<div class="bkdef">' +
+        (bkIndexFailed ? "Question bank not available." : "Loading question bank…") + "</div>";
+      if (!bkIndexFailed) bankLoadIndex();
       return;
     }
+    if (bkFlagList) return bankFlagged();
     if (bkChapter) return bkAt >= bkQueue.length ? bankSummary() : bankQuestion();
 
     var ready = bankReady(), groups = {}, order = [];
@@ -586,7 +600,8 @@
       html += '<div class="bksec"><i style="background:' + esc(col) + '"></i>' +
               '<b style="color:' + esc(col) + '">' + esc(sec) + "</b></div>";
       groups[sec].forEach(function (c) {
-        var done = c.cqids.filter(function (q) { return bkAnswers[q]; }).length;
+        var A = bankAnswers();
+        var done = c.cqids.filter(function (q) { return graded(A[q]); }).length;
         var pct = c.n_total ? Math.round(done / c.n_total * 100) : 0;
         var full = pct === 100;
         var ring = full ? "var(--gold)" : col;
@@ -603,19 +618,30 @@
     $("v-bank").innerHTML = html;
   }
 
-  function bankOpen(id) {
+  /** Open a chapter; `focus` (a cqid) starts at that question, showing deferred
+      ones if it is one of them. */
+  function bankOpen(id, focus) {
     bankFetch("qbank/" + encodeURIComponent(id) + ".json").then(function (d) {
       if (!d) return;
-      bkChapter = d; bkDeferred = false;
-      bankStart();
+      bkChapter = d; bkDeferred = false; bkFlagList = false;
+      if (focus) {
+        var fq = null;
+        d.questions.forEach(function (q) { if (q.cqid === focus) fq = q; });
+        if (fq && fq.needs.length) bkDeferred = true;
+      }
+      bankStart(focus);
     });
   }
 
-  function bankStart() {
-    var qs = bkChapter.questions.filter(function (q) { return bkDeferred || !q.needs.length; });
-    bkQueue = qs;
-    bkAt = 0;
-    while (bkAt < bkQueue.length && bkAnswers[bkQueue[bkAt].cqid]) bkAt++;
+  function bankStart(focus) {
+    bkQueue = bkChapter.questions.filter(function (q) { return bkDeferred || !q.needs.length; });
+    bkAt = 0; bkReview = false;
+    var A = bankAnswers();
+    if (focus) {
+      bkQueue.forEach(function (q, i) { if (q.cqid === focus) bkAt = i; });
+    } else {
+      while (bkAt < bkQueue.length && graded(A[bkQueue[bkAt].cqid])) bkAt++;
+    }
     bkPicked = null; bkShown = false;
     setBankAccent(sectorAccent(bkChapter.sector));
     render();
@@ -694,26 +720,53 @@
 
   function bankGrade(result) {
     var q = bkQueue[bkAt];
-    bkAnswers[q.cqid] = { result: result, ts: Date.now() };
-    var body = {}; body[q.cqid] = bkAnswers[q.cqid];
-    fetch("/api/answers", { method: "POST", headers: { "Content-Type": "application/json" },
-                            body: JSON.stringify({ answers: body }) }).catch(function () {});
+    var patch = { result: result };
+    if (q.kind === "mcq") patch.chosen = bkPicked;
+    window.IDAnswers.set(q.cqid, patch);      // local now, server when it can
     bkAt++; bkPicked = null; bkShown = false;
     render();
+  }
+
+  /** Toggle the flag on a question; re-paints the button in place. */
+  function bankFlag(cqid) {
+    var rec = bankAnswers()[cqid] || {};
+    window.IDAnswers.set(cqid, { flag: !rec.flag });
+    var b = $("bkflag"); if (b && b.classList) b.classList.toggle("on", !rec.flag);
+  }
+
+  /** Re-queue this chapter's missed, incorrect and partial questions. Grades
+      are kept: a re-grade is a newer entry, never a deletion. */
+  function bankReviewMisses() {
+    var A = bankAnswers();
+    var m = bkQueue.filter(function (q) {
+      var a = A[q.cqid];
+      return a && (a.result === "missed" || a.result === "incorrect" || a.result === "partial");
+    });
+    if (!m.length) { bankExit(); return; }
+    bkReview = true; bkQueue = m; bkAt = 0; bkPicked = null; bkShown = false;
+    render();
+  }
+
+  function bankPick(letter) {
+    bkPicked = letter;
+    Array.prototype.forEach.call($("v-bank").querySelectorAll(".bkopt"), function (el) {
+      el.classList.toggle("sel", el.dataset.opt === bkPicked);
+    });
+    $("bkacts").innerHTML = '<button class="go" id="bksubmit">Submit answer</button>';
   }
 
   /** Leave the current chapter and show the chapter list again. */
   function bankExit() {
     bkChapter = null; bkQueue = []; bkAt = 0;
-    bkPicked = null; bkShown = false; bkDeferred = false;
+    bkPicked = null; bkShown = false; bkDeferred = false; bkReview = false; bkFlagList = false;
     setBankAccent(null);
     render();
   }
 
   function bankSummary() {
-    var got = 0, part = 0, miss = 0;
+    var got = 0, part = 0, miss = 0, A = bankAnswers();
     bkQueue.forEach(function (q) {
-      var a = bkAnswers[q.cqid]; if (!a) return;
+      var a = A[q.cqid]; if (!graded(a)) return;
       if (a.result === "correct" || a.result === "got") got++;
       else if (a.result === "partial") part++;
       else miss++;
@@ -736,6 +789,8 @@
       '<button class="alt" id="bkback">Back to bank</button></div>' + defNote;
   }
 
+  function bankFlagged() { $("v-bank").innerHTML = ""; }
+
   // One delegated listener for the whole tab.
   document.addEventListener("click", function (e) {
     var t = e.target;
@@ -743,31 +798,20 @@
     if (row) { bankOpen(row.dataset.bank); return; }
     if (t.closest && t.closest("#bkreveal")) { bankReveal(); return; }
     var opt = t.closest && t.closest(".bkopt");
-    if (opt && !bkShown && bkChapter) {
-      bkPicked = opt.dataset.opt;
-      Array.prototype.forEach.call($("v-bank").querySelectorAll(".bkopt"), function (el) {
-        el.classList.toggle("sel", el.dataset.opt === bkPicked);
-      });
-      $("bkacts").innerHTML = '<button class="go" id="bksubmit">Submit answer</button>';
-      return;
-    }
+    if (opt && !bkShown && bkChapter) { bankPick(opt.dataset.opt); return; }
+    if (t.closest && t.closest("#bkflag") && bkChapter) { bankFlag(bkQueue[bkAt].cqid); return; }
     if (t.closest && t.closest("#bksubmit")) { bankReveal(); return; }
     var g = t.closest && t.closest("[data-grade]");
     if (g) { bankGrade(g.dataset.grade); return; }
     if (t.closest && t.closest("#bkshowdef")) { bkDeferred = true; bankStart(); return; }
     if (t.closest && t.closest("#bkback")) { bankExit(); return; }
     var bankTab = t.closest && t.closest('[data-tab="bank"]');
-    if (bankTab && tab === "bank" && bkChapter) { bankExit(); return; }
-    if (t.closest && t.closest("#bkmiss")) {
-      var m = bkQueue.filter(function (q) {
-        var a = bkAnswers[q.cqid];
-        return a && (a.result === "missed" || a.result === "incorrect" || a.result === "partial");
-      });
-      if (!m.length) { bkChapter = null; setBankAccent(null); render(); return; }
-      m.forEach(function (q) { delete bkAnswers[q.cqid]; });
-      bkQueue = m; bkAt = 0; bkPicked = null; bkShown = false; render();
-      return;
+    if (bankTab) {
+      if (!bkIndex) bkIndexFailed = false;      // a fresh tap retries a failed index load
+      window.IDAnswers.schedule();              // catch up with the other device
+      if (tab === "bank" && (bkChapter || bkFlagList)) { bankExit(); return; }
     }
+    if (t.closest && t.closest("#bkmiss")) { bankReviewMisses(); return; }
   });
 
   function renderStats() {
@@ -1117,6 +1161,10 @@
   refreshSchedule();
 
   window.IDServer.start(refresh);   // progress lives on the server; local is a cache
+  // Bank answers: same shape of sync as progress. Don't repaint mid-question —
+  // a reveal panel that vanishes under the thumb is worse than a stale ring.
+  window.IDAnswers.start(function () { if (tab === "bank" && bkChapter) return; render(); });
+  bankLoadIndex();   // the home card needs the index before the Bank tab is ever opened
   window.IDSync.start(refresh);
   if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(function () {});
 
@@ -1124,5 +1172,8 @@
   window.IDCockpit = { compute: compute, cleanTitle: cleanTitle, partOf: partOf,
                        groupByChapter: groupByChapter, dayPlan: dayPlan, weekView: weekView,
                        duskActive: duskActive,
-                       chapNum: chapNum, dayDate: dayDate, studyIdx: studyIdx, isFlex: isFlex };
+                       chapNum: chapNum, dayDate: dayDate, studyIdx: studyIdx, isFlex: isFlex,
+                       bankOpen: bankOpen, bankGrade: bankGrade, bankFlag: bankFlag, bankPick: bankPick,
+                       bankReviewMisses: bankReviewMisses,
+                       bank: function () { return { queue: bkQueue, at: bkAt, chapter: bkChapter, index: bkIndex }; } };
 })();

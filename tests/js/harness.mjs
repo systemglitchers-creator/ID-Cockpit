@@ -19,9 +19,18 @@ function fixedDateClass(nowMs) {
   };
 }
 
+/** Enough of a CSSStyleDeclaration for the app: plain property assignment
+    plus the custom-property pair setBankAccent() uses for the sector hue. */
+function fakeStyle() {
+  return {
+    setProperty(k, v) { this[k] = v; },
+    removeProperty(k) { delete this[k]; }
+  };
+}
+
 function fakeElement() {
   const el = {
-    style: {}, dataset: {}, value: "", textContent: "", innerHTML: "", children: [],
+    style: fakeStyle(), dataset: {}, value: "", textContent: "", innerHTML: "", children: [],
     classList: {
       _s: new Set(),
       add(c) { this._s.add(c); }, remove(c) { this._s.delete(c); },
