@@ -58,6 +58,14 @@ Run pipeline tests with `cd "$PIPE" && python3 -m pytest -q tests`. They are gre
 > "paragraph"), so `pick_context` first splits any paragraph over 50 KB by line into ~50 KB blocks
 > before scoring slices. Real run: 345 batches, 300 with page text (109 sliced), 45 without, largest
 > context 118,687 bytes, 235 chapters.
+>
+> **Amended after review.** Slices are scored by rarity-weighted keyword occurrences
+> (`count / document-frequency`), not distinct-keyword presence, which saturated on 50 KB blocks and
+> dropped Chapter 82's enterococcal-therapy section; the chapter opening is no longer forced in —
+> only its first 12 KB is prepended when slice 0 does not earn its place. Batch files are named
+> `<chapter id>-<NN>.json` (`ch82-00.json`) so a regenerated question file cannot re-attach
+> results to the wrong questions; the validator and status scripts glob `*.json`. Task 4 and 5
+> references to `b###` should be read as these names.
 
 
 **Files:**
