@@ -1877,6 +1877,16 @@ The local server has no `/api/*`, so syncs fail and are retried; that is the off
 
 ### Task 11: Merge, push, verify the deploy
 
+> **Final-review fixes before merge.** The Bank list ring now counts ready questions (deferred
+> excluded), matching the home card, the summary and Stats, so a drilled chapter earns its tick;
+> `drillTapped` clears `bkChapter`/`bkFlagList` before painting. Task 10's screenshots were taken
+> in the in-app browser pane against a scratchpad copy of `public/` (the launched server cannot
+> read Google Drive); they cannot be exported as files, so the evidence is the DOM checks recorded
+> in the session and the tests. Two decisions left for Tyler: the push badge (sessions + owed) is
+> reset to sessions-due when the app opens, and `needs` is static — 1,121 placements stay deferred
+> even after the chapter they need is read, reachable only via "Show anyway".
+
+
 - [ ] **Step 1: Merge**
 
 ```bash
