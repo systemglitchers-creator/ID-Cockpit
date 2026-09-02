@@ -644,6 +644,7 @@
   }
 
   function bankHeader() {
+    if (bkFlagList) return { e: "Question bank", t: "Flagged", r: "" };
     if (!bkChapter) return { e: "Question bank", t: "Bank",
       r: bkIndex ? bankReady().length + " chapters ready" : "" };
     if (bkAt >= bkQueue.length) return { e: "Chapter complete", t: bkChapter.title, r: "" };
@@ -934,6 +935,11 @@
       else if (a.result === "partial") part++;
       else miss++;
     });
+    var avail = 0, earned = 0;
+    bkQueue.forEach(function (q) {
+      var full = marksFor(q), a = A[q.cqid];
+      avail += full; if (graded(a)) earned += earnedFrom(full, a.result);
+    });
     // The deferred toggle must live here too. Once a chapter's ready questions are
     // answered, reopening it lands straight on this summary -- so if the toggle only
     // existed on the question screen the deferred set would be unreachable forever.
@@ -948,11 +954,29 @@
       '<div><span class="n">' + part + '</span><span class="l">Partial</span></div>' +
       '<div><span class="n" style="color:var(--behind)">' + miss +
       '</span><span class="l">Missed</span></div></div>' +
+      '<div class="bkmarksum">' + earned + " of " + avail + " marks</div>" +
       '<div class="bkacts"><button class="go" id="bkmiss">Review misses</button>' +
       '<button class="alt" id="bkback">Back to bank</button></div>' + defNote;
   }
 
-  function bankFlagged() { $("v-bank").innerHTML = ""; }
+  function showFlagged() { tab = "bank"; bkChapter = null; bkFlagList = true; setBankAccent(null); render(); }
+
+  /** Every flagged question, across chapters. Rows open the chapter at that question. */
+  function bankFlagged() {
+    var A = bankAnswers(), byQ = {};
+    (bkIndex || []).forEach(function (c) { c.cqids.forEach(function (q) { byQ[q] = c; }); });
+    var flagged = Object.keys(A).filter(function (q) { return A[q].flag && byQ[q]; });
+    var h = '<button class="bkexit" id="bkback">\u2190 All chapters</button>';
+    if (!flagged.length) h += '<div class="bkdef">Nothing flagged. Tap \u2691 on a question to keep it here.</div>';
+    flagged.forEach(function (q) {
+      var c = byQ[q], col = sectorAccent(c.sector) || "var(--ind)";
+      h += '<button class="bkfl" data-open="' + esc(c.id) + '" data-cqid="' + esc(q) + '">' +
+           '<i style="background:' + esc(col) + '"></i><span class="t">' +
+           esc(String(c.chapter).replace(/^Chapter\s+/, "Ch ")) + " \u00b7 " + esc(c.title) + "</span>" +
+           '<span class="n">' + esc(q) + (graded(A[q]) ? " \u00b7 " + esc(A[q].result) : "") + "</span></button>";
+    });
+    $("v-bank").innerHTML = h;
+  }
 
   /** The Bank tab was tapped. The #tabs listener runs first and has already
       re-rendered, so retrying a failed index load here has to kick off the
@@ -969,6 +993,9 @@
     var t = e.target;
     var drill = t.closest && t.closest("[data-drill]");
     if (drill) { drillTapped(drill.dataset.drill); return; }
+    var fl = t.closest && t.closest("[data-open]");
+    if (fl) { bankOpen(fl.dataset.open, fl.dataset.cqid); return; }
+    if (t.closest && t.closest("[data-flagged]")) { showFlagged(); $("body").scrollTop = 0; return; }
     var row = t.closest && t.closest("[data-bank]");
     if (row) { bankOpen(row.dataset.bank); return; }
     if (t.closest && t.closest("#bkreveal")) { bankReveal(); return; }
@@ -1018,6 +1045,44 @@
         +   '<span class="c">' + x.dn + '/' + x.tot + '</span></div>'
         + '<div class="bar"><i class="' + (pct === 100 ? "full" : "") + '" style="width:' + pct + '%"></i></div></div>';
     }).join("");
+
+    renderBankStats();
+  }
+
+  /** Stats: the question bank in five lines. Unlocked = read chapters + catch-alls.
+      `c.marks` may be absent on an older index: a question then counts 1. */
+  function renderBankStats() {
+    var el = $("bankStats");
+    if (!bkIndex) { el.innerHTML = '<div class="card bkstat"><span class="l">Loading question bank\u2026</span></div>'; bankLoadIndex(); return; }
+    var A = bankAnswers(), total = 0, answered = 0, got = 0, part = 0, miss = 0,
+        drilled = 0, avail = 0, earned = 0, flagged = 0, unlocked = bankReady();
+    unlocked.forEach(function (c) {
+      var def = {}; (c.deferred || []).forEach(function (q) { def[q] = 1; });
+      var ready = c.cqids.filter(function (q) { return !def[q]; }), done = 0;
+      total += ready.length;
+      ready.forEach(function (q) {
+        var a = A[q]; if (!graded(a)) return;
+        done++;
+        var full = (c.marks && c.marks[q] != null) ? Number(c.marks[q]) : 1;
+        avail += full; earned += earnedFrom(full, a.result);
+        if (a.result === "got" || a.result === "correct") got++;
+        else if (a.result === "partial") part++;
+        else miss++;
+      });
+      answered += done;
+      if (ready.length && done === ready.length) drilled++;
+    });
+    Object.keys(A).forEach(function (q) { if (A[q].flag) flagged++; });
+    el.innerHTML =
+      '<div class="card bkstat">' +
+      '<div class="baseline"><span class="l">Answered</span><span class="v">' + answered + " / " + total + "</span></div>" +
+      '<div class="bktally small"><div><span class="n">' + got + '</span><span class="l">Got</span></div>' +
+      '<div><span class="n">' + part + '</span><span class="l">Partial</span></div>' +
+      '<div><span class="n">' + miss + '</span><span class="l">Missed</span></div></div>' +
+      '<div class="baseline"><span class="l">Marks</span><span class="v">' + earned + " of " + avail + "</span></div>" +
+      '<div class="baseline"><span class="l">Chapters drilled</span><span class="v">' + drilled + " / " + unlocked.length + "</span></div>" +
+      '<div class="baseline"><span class="l">Flagged</span><span class="v"><button data-flagged>Flagged \u00b7 ' + flagged + "</button></span></div>" +
+      "</div>";
   }
 
   /* ---- Sector sheet ---- */
@@ -1349,6 +1414,7 @@
                        bankOpen: bankOpen, bankGrade: bankGrade, bankFlag: bankFlag, bankPick: bankPick,
                        bankReviewMisses: bankReviewMisses, bankTabTapped: bankTabTapped,
                        bankReveal: bankReveal, render: render,
+                       showFlagged: showFlagged,
                        drillTapped: drillTapped,
                        sessionsByChapter: sessionsByChapter, chapterSessionIds: chapterSessionIds,
                        owedChapters: owedChapters, marksFor: marksFor, earnedFrom: earnedFrom,

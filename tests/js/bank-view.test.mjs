@@ -394,3 +394,49 @@ test("the To-drill card shows three chapters and counts the rest", async () => {
   assert.equal((html.match(/data-drill=/g) || []).length, 3, "capped at three rows");
   assert.match(html, /\+1 more/);
 });
+
+test("the chapter summary reports marks as well as the tally", async () => {
+  const app = loadCurrentApp({ now: NOW, fetch: fetchFor({ W1: { result: "partial", ts: 1 }, W2: { result: "got", ts: 1 }, M1: { result: "incorrect", ts: 1 } }) });
+  await tick(); await tick();
+  await openChapter(app);
+  app.IDCockpit.setTab("bank");
+  const html = app._elements.get("v-bank").innerHTML;
+  assert.match(html, /2\.5 of 5 marks/, "W1 3 marks × ½ + W2 1 + M1 0, of 3 + 1 + 1");
+});
+
+test("the Stats block counts answered, the split, marks, drilled chapters and flags", async () => {
+  const ids = chapterSessionIds(SECTIONS, 101);
+  const app = loadCurrentApp({ now: NOW, done: ids, doneAt: "2026-08-30T12:00:00Z",
+    fetch: fetchFor({ W1: { result: "got", ts: 1 }, M1: { result: "incorrect", ts: 1, chosen: "A" }, W2: { flag: true, ts: 1 } }) });
+  await tick(); await tick();
+  app.IDCockpit.setTab("stats");
+  const html = app._elements.get("bankStats").innerHTML;
+  assert.match(html, /Answered<\/span><span class="v">2 \/ 3</);
+  assert.match(html, /Marks<\/span><span class="v">3 of 4</, "got W1 (3) + incorrect M1 (0), of the 4 answered marks");
+  assert.match(html, /Chapters drilled<\/span><span class="v">0 \/ 1</);
+  assert.match(html, /data-flagged[^>]*>Flagged · 1/);
+});
+
+test("the Stats block tolerates an index without marks", async () => {
+  const ids = chapterSessionIds(SECTIONS, 101);
+  const bare = { chapters: INDEX.chapters.map((c) => { const { marks, ...rest } = c; return rest; }) };
+  const app = loadCurrentApp({ now: NOW, done: ids, doneAt: "2026-08-30T12:00:00Z",
+    fetch: fetchFor({ W1: { result: "got", ts: 1 } }, bare) });
+  await tick(); await tick();
+  app.IDCockpit.setTab("stats");
+  assert.match(app._elements.get("bankStats").innerHTML, /Marks<\/span><span class="v">1 of 1</, "a missing marks map counts 1 per question");
+});
+
+test("the flagged list shows every flagged question and opens its chapter at that question", async () => {
+  const app = loadCurrentApp({ now: NOW, fetch: fetchFor({ W2: { flag: true, ts: 1 }, W3: { flag: true, result: "missed", ts: 1 } }) });
+  await tick(); await tick();
+  app.IDCockpit.showFlagged();
+  const html = app._elements.get("v-bank").innerHTML;
+  assert.match(html, /data-open="ch101" data-cqid="W2"/);
+  assert.match(html, /data-open="ch101" data-cqid="W3"/);
+  assert.equal(app._elements.get("hTitle").textContent, "Flagged");
+  app.IDCockpit.bankOpen("ch101", "W3");
+  await tick(); await tick();
+  const b = app.IDCockpit.bank();
+  assert.equal(b.queue[b.at].cqid, "W3", "a deferred question is reachable from the flag list");
+});

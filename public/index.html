@@ -457,6 +457,19 @@ a.chip{text-decoration:none}
 .bktally div{display:flex;flex-direction:column;gap:2px}
 .bktally .n{font-family:var(--serif);font-size:32px;font-weight:600;line-height:1;color:var(--numeral)}
 .bktally .l{font-size:10px;font-weight:800;letter-spacing:.13em;text-transform:uppercase;color:var(--mut)}
+.bkmarksum{font-size:12.5px;font-weight:700;color:var(--mut);margin:-8px 2px 16px}
+.bkfl{display:flex;align-items:center;gap:10px;width:100%;background:var(--card);border:var(--edge);
+  border-radius:14px;padding:11px 13px;font:inherit;color:var(--txt);text-align:left;margin-bottom:8px;box-shadow:var(--sh-1)}
+.bkfl i{width:9px;height:9px;border-radius:99px;flex:none}
+.bkfl .t{flex:1;min-width:0;font-size:13px;font-weight:600;line-height:1.25}
+.bkfl .n{flex:none;font-size:10.5px;font-weight:700;color:var(--mut)}
+.bkstat{padding:14px 16px}
+.bkstat .baseline{margin-bottom:9px}
+.bkstat .l{font-size:11px;font-weight:600;color:var(--mut)}
+.bkstat .v{font-size:13px;font-weight:700}
+.bkstat button{background:none;border:none;padding:0;font:inherit;font-weight:800;color:var(--acc);text-decoration:underline}
+.bktally.small{margin:6px 2px 12px;gap:22px}
+.bktally.small .n{font-size:22px}
 </style>
 </head>
 <body>
@@ -498,6 +511,8 @@ a.chip{text-decoration:none}
 
     <div class="view" id="v-stats">
       <div id="statSummary"></div>
+      <div class="seclabel">Question bank</div>
+      <div id="bankStats"></div>
       <div class="seclabel" id="badgeLabel"></div>
       <div class="badges" id="badges"></div>
       <div class="seclabel">By sector</div>
