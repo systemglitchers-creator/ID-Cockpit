@@ -191,6 +191,10 @@ test("a repaint mid-question keeps the pick and the reveal", async () => {
   app.IDCockpit.bankPick("A");
   app.IDCockpit.bankReveal();
   assert.match(app._elements.get("bkrev").innerHTML, /Incorrect — you chose A/);
+  // The fake DOM memoises elements, so blank them first: the assertion can then
+  // only pass if bankQuestion genuinely replays the reveal.
+  app._elements.get("bkrev").innerHTML = "";
+  app._elements.get("bkgrade").innerHTML = "";
   app.IDCockpit.render();                       // a sync or theme flip repaints the tab
   assert.match(app._elements.get("bkrev").innerHTML, /Incorrect — you chose A/, "reveal survives the repaint");
   assert.match(app._elements.get("bkgrade").innerHTML, /data-grade="incorrect"/);
