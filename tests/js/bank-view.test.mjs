@@ -59,9 +59,9 @@ const INDEX = { chapters: [{ chapter: "Chapter 101", id: "ch101", title: "Acute 
   weeks: [9], n_total: 4, n_mcq: 1, n_written: 3, n_deferred: 1,
   cqids: ["W1", "W2", "M1", "W3"], deferred: ["W3"], marks: { W1: 3, W2: 1, M1: 1, W3: 1 } }] };
 
-function fetchFor(answers = {}) {
+function fetchFor(answers = {}, index = INDEX) {
   return async (url, init) => {
-    if (url === "qbank/index.json") return { ok: true, status: 200, json: async () => INDEX };
+    if (url === "qbank/index.json") return { ok: true, status: 200, json: async () => index };
     if (url === "qbank/ch101.json") return { ok: true, status: 200, json: async () => CHAPTER };
     if (url === "qbank/ch102.json") return { ok: true, status: 200, json: async () => CHAPTER2 };
     if (url === "/api/answers") return { ok: true, status: 200, json: async () => ({ answers: { ...answers, ...JSON.parse(init.body).answers } }) };
@@ -336,4 +336,26 @@ test("tapping a drill row opens that chapter in the Bank", async () => {
   await tick(); await tick();
   assert.equal(app.IDCockpit.bank().chapter.id, "ch101");
   assert.match(app._elements.get("v-bank").innerHTML, /Asked 2 times/, "the Bank tab painted the first question");
+});
+
+/* Chapter 41 is only ever read inside "Antifungal Drugs — Chapter 40 Polyenes, 41
+   Azoles, 42 Echinocandins", so its row title does not START with its number. */
+const INDEX41 = { chapters: [{ chapter: "Chapter 41", id: "ch41", title: "Azoles",
+  sector: "Invasive Fungal Disease", weeks: [47], n_total: 1, n_mcq: 0, n_written: 1,
+  n_deferred: 0, cqids: ["Z1"], deferred: [], marks: { Z1: 1 } }] };
+
+test("the chapter list unlocks a chapter read inside a multi-chapter sitting", async () => {
+  const ids = chapterSessionIds(SECTIONS, 41);
+  assert.ok(ids.length, "the schedule bundles Azoles into the antifungal sittings");
+
+  const unread = loadCurrentApp({ now: NOW, fetch: fetchFor({}, INDEX41) });
+  await tick(); await tick();
+  unread.IDCockpit.setTab("bank");
+  assert.doesNotMatch(unread._elements.get("v-bank").innerHTML, /data-bank="ch41"/,
+    "unread chapters stay locked");
+
+  const app = loadCurrentApp({ now: NOW, fetch: fetchFor({}, INDEX41), done: ids, doneAt: "2026-08-30T12:00:00Z" });
+  await tick(); await tick();
+  app.IDCockpit.setTab("bank");
+  assert.match(app._elements.get("v-bank").innerHTML, /data-bank="ch41"/);
 });

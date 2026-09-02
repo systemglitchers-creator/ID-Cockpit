@@ -659,18 +659,12 @@
     else { el.style.removeProperty("--acc"); el.style.removeProperty("--acc-d"); }
   }
 
-  /** A chapter is drillable once every one of its schedule sessions is read. */
+  /** A chapter is drillable once every one of its schedule sessions is read.
+      Uses the same chapter map as the owed rule, so a chapter read inside a
+      multi-chapter sitting unlocks here exactly when it appears on the home card. */
   function chapterRead(ch) {
-    var num = String(ch.chapter || "").replace(/^Chapter\s+/, "");
-    var ids = [], any = false;
-    SECS.forEach(function (sec) {
-      sec.rows.forEach(function (r) {
-        var m = /^Chapter\s+(\d+)/.exec(r.r || "");
-        if (m && m[1] === num) { ids.push(r.id); any = true; }
-      });
-    });
-    if (!any) return false;
-    return ids.every(function (id) { return isDone(id); });
+    var ids = chapterSessionIds(SECS, String(ch.chapter || "").replace(/^Chapter\s+/, ""));
+    return ids.length ? ids.every(function (id) { return isDone(id); }) : false;
   }
 
   function bankReady() {
