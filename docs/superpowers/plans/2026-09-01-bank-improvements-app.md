@@ -1470,6 +1470,11 @@ Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>"
 
 ### Task 8: The evening nudge knows about drills
 
+> **Amended.** Beyond the five `compose` cases, the task adds a test for `bankState` in
+> `api/nudge.js` (exported for the test) with a stubbed `global.fetch`: a working index yields
+> `{owed: [...]}`, a 500 yields `undefined` so the reading nudge still fires.
+
+
 **Files:**
 - Modify: `lib/nudge.js`
 - Modify: `api/nudge.js`
