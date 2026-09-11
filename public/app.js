@@ -151,17 +151,19 @@
       open.push({ r: r, si: si, d: d, x: x, n: open.length });
     }
 
-    // Make-up extras. A session flagged `extra` is pinned to its own day (its
-    // gi) as a second session and never enters the queue — how a missed week is
-    // spaced out over fixed Sundays instead of doubling every day until the
-    // debt clears. One whose day has passed lands on the next study day and
-    // stays due until read: reading today's regular session does not push it,
-    // because the point of a make-up day is that two get read.
-    var nextDay = todayIdx + (dayOff ? 1 : 0), extras = 0;
+    // Pinned second readings. A session flagged `extra` is dealt on its own day
+    // (its gi) as a second row and never enters the queue — how two short
+    // chapters share a day, or a missed week is folded onto fixed days, without
+    // the packing model's rolling doubles. While its day is still to come it is
+    // simply the plan; once the day has passed unread it lands on the next study
+    // day and is owed. Reading the day's regular row does not push it: the point
+    // of the day is that both get read.
+    var nextDay = todayIdx + (dayOff ? 1 : 0), extras = 0, overdue = 0;
     SECS.forEach(function (s, si) { s.rows.forEach(function (r) {
       if (!r.extra || isDone(r.id)) return;
       deal(r, si, Math.max(r.gi, nextDay), 1);
       extras++;
+      if (r.gi < nextDay) overdue++;
     }); });
     var queued = remaining - extras;
 
@@ -195,9 +197,9 @@
     var firstOpenSec = open.length ? open[0].si : 0;
     var upcoming = open.slice(1, 4).map(function (o) { return { r: o.r, si: o.si }; });
     // Sessions owed beyond one-a-day — the honest measure of how far behind he
-    // is once the schedule has absorbed the slip. Zero when on track. Pinned
-    // extras are that debt, already given a day.
-    var makeup = (doubling ? queued - slots : 0) + extras;
+    // is once the schedule has absorbed the slip. Zero when on track. A pinned
+    // row counts only once its day has passed unread.
+    var makeup = (doubling ? queued - slots : 0) + overdue;
     var drift = remaining > 0 ? Math.round((dayDate(lastDay) - dayDate(planEnd)) / DAY) : 0;
     // Open sessions dealt onto today — what "done for today" has to check.
     var dueToday = dayOff ? 0 : (perDay[todayIdx] || 0);
@@ -387,7 +389,6 @@
     var p = partOf(r.r); if (p !== "Whole chapter") bits.push(p);
     if (r.ps != null && r.pe != null) bits.push("pp " + r.ps + "–" + r.pe);
     else if (!ch) bits.push("Review session");
-    if (r.extra) bits.push("Make-up");   // why a Sunday carries a second row
     return bits.join(" · ");
   }
   function renderStream() {

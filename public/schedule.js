@@ -5,9 +5,10 @@
    niche chapters pulled into the differential that owns them, and
    prosthetic valve / cardiac device infection moved to the hardware
    sector. The 2026-08-16 rebase anchor is unchanged.
-   2026-09-10: the eight sessions missed Sep 1–9 are pinned as make-up
-   extras on the next eight Sundays (extra: true, gi = that Sunday) —
-   docs/superpowers/specs/2026-09-10-make-up-extras-design.md. */
+   2026-09-10: the week of Sep 6 went unread. Its 51 pages were folded into
+   the pneumonia sector's remaining days as whole-chapter sittings; three
+   days carry a pinned second row (extra: true, gi = that day) —
+   docs/superpowers/specs/2026-09-10-pinned-readings-design.md. */
 var SECTIONS = [
 {"title": "Drug Foundations — Completed", "sub": "The β-lactam and aminoglycoside spine you have already read.", "year": 1, "accent": "#3d7a5a", "multi": true, "rows": [
   {"r": "Chapter 20 — Penicillins and β-Lactamase Inhibitors  ·  Part 1 of 3", "g": "", "pp": 6, "ps": 263, "pe": 268, "wk": 1, "fow": true, "id": "ch20-p1", "num": 1, "gi": 0},
@@ -53,7 +54,7 @@ var SECTIONS = [
   {"r": "Chapter 199 — Staphylococcus aureus  ·  Part 6 of 6", "g": "", "pp": 7, "ps": 2406, "pe": 2412, "wk": 9, "fow": false, "id": "ch199-p6", "num": 37, "gi": 55},
   {"r": "Chapter 200 — Coagulase-Negative Staphylococci  ·  Part 2 of 2", "g": "", "pp": 6, "ps": 2419, "pe": 2424, "wk": 9, "fow": false, "id": "ch200-p2", "num": 38, "gi": 56}
 ]},
-{"title": "Pneumonia & the Atypicals", "sub": "Community pneumonia and its organisms, drugs braided behind first contact.  ·  Aug 24 – Nov 1, 2026", "year": 1, "accent": "#9a5a2f", "multi": true, "rows": [
+{"title": "Pneumonia & the Atypicals", "sub": "Community pneumonia and its organisms, drugs braided behind first contact.  ·  Aug 24 – Sep 22, 2026", "year": 1, "accent": "#9a5a2f", "multi": true, "rows": [
   {"r": "Chapter 69 — Acute Pneumonia  ·  Part 1 of 3", "g": "ATS/IDSA community-acquired pneumonia (2019)", "pp": 8, "ps": 836, "pe": 843, "wk": 10, "fow": true, "id": "ch69-p1", "num": 39, "gi": 57},
   {"r": "Chapter 69 — Acute Pneumonia  ·  Part 2 of 3", "g": "", "pp": 8, "ps": 844, "pe": 851, "wk": 10, "fow": false, "id": "ch69-p2", "num": 40, "gi": 58},
   {"r": "Chapter 69 — Acute Pneumonia  ·  Part 3 of 3", "g": "", "pp": 8, "ps": 852, "pe": 859, "wk": 10, "fow": false, "id": "ch69-p3", "num": 41, "gi": 59},
@@ -61,25 +62,20 @@ var SECTIONS = [
   {"r": "Chapter 28 — Macrolides and Clindamycin  ·  Part 2 of 3", "g": "", "pp": 6, "ps": 381, "pe": 386, "wk": 10, "fow": false, "id": "ch28-p2", "num": 43, "gi": 61},
   {"r": "Chapter 204 — Streptococcus pneumoniae  ·  Part 1 of 3", "g": "Pneumococcal disease & vaccination", "pp": 6, "ps": 2457, "pe": 2462, "wk": 10, "fow": false, "id": "ch204-p1", "num": 44, "gi": 62},
   {"r": "Chapter 204 — Streptococcus pneumoniae  ·  Part 2 of 3", "g": "", "pp": 6, "ps": 2463, "pe": 2468, "wk": 11, "fow": true, "id": "ch204-p2", "num": 45, "gi": 63},
-  {"r": "Chapter 204 — Streptococcus pneumoniae  ·  Part 3 of 3", "g": "", "pp": 5, "ps": 2469, "pe": 2473, "wk": 11, "fow": false, "id": "ch204-p3", "num": 46, "gi": 92, "extra": true},
-  {"r": "Chapter 189 — Mycoplasma pneumoniae", "g": "", "pp": 8, "ps": 2305, "pe": 2312, "wk": 11, "fow": false, "id": "ch189-p1", "num": 47, "gi": 98, "extra": true},
-  {"r": "Chapter 190 — Genital Mycoplasmas", "g": "Mycoplasma genitalium", "pp": 4, "ps": 2313, "pe": 2316, "wk": 11, "fow": false, "id": "ch190-p1", "num": 48, "gi": 104, "extra": true},
-  {"r": "Chapter 34 — Quinolones  ·  Part 1 of 3", "g": "", "pp": 8, "ps": 445, "pe": 452, "wk": 11, "fow": false, "id": "ch34-p1", "num": 49, "gi": 80, "extra": true},
-  {"r": "Chapter 34 — Quinolones  ·  Part 2 of 3", "g": "", "pp": 8, "ps": 453, "pe": 460, "wk": 11, "fow": false, "id": "ch34-p2", "num": 50, "gi": 86, "extra": true},
-  {"r": "Chapter 238 — Legionnaires' Disease  ·  Part 1 of 2", "g": "Legionella", "pp": 7, "ps": 2799, "pe": 2805, "wk": 12, "fow": true, "id": "ch238-p1", "num": 51, "gi": 110, "extra": true},
-  {"r": "Chapter 238 — Legionnaires' Disease  ·  Part 2 of 2", "g": "", "pp": 6, "ps": 2806, "pe": 2811, "wk": 12, "fow": false, "id": "ch238-p2", "num": 52, "gi": 116, "extra": true},
-  {"r": "Chapter 193 — Coxiella burnetii (Q Fever)  ·  Part 1 of 2", "g": "Q fever / chronic Q-fever endocarditis", "pp": 5, "ps": 2333, "pe": 2337, "wk": 12, "fow": false, "id": "ch193-p1", "num": 53, "gi": 74, "extra": true},
-  {"r": "Chapter 193 — Coxiella burnetii (Q Fever)  ·  Part 2 of 2", "g": "", "pp": 5, "ps": 2338, "pe": 2342, "wk": 12, "fow": false, "id": "ch193-p2", "num": 54, "gi": 72},
-  {"r": "Chapter 28 — Macrolides and Clindamycin  ·  Part 3 of 3", "g": "", "pp": 6, "ps": 387, "pe": 392, "wk": 12, "fow": false, "id": "ch28-p3", "num": 55, "gi": 73},
-  {"r": "Chapter 34 — Quinolones  ·  Part 3 of 3", "g": "", "pp": 7, "ps": 461, "pe": 467, "wk": 12, "fow": false, "id": "ch34-p3", "num": 56, "gi": 74},
-  {"r": "Chapter 187 — Psittacosis", "g": "", "pp": 3, "ps": 2293, "pe": 2295, "wk": 13, "fow": true, "id": "ch187-p1", "num": 57, "gi": 75},
-  {"r": "Chapter 188 — C. pneumoniae", "g": "", "pp": 9, "ps": 2296, "pe": 2304, "wk": 13, "fow": false, "id": "ch188-p1", "num": 58, "gi": 76},
-  {"r": "Chapter 173 — Bunyavirus Infections (Hantavirus, CCHF, Rift Valley Fever)", "g": "Hantavirus / CCHF", "pp": 9, "ps": 2152, "pe": 2160, "wk": 13, "fow": false, "id": "ch173-p1", "num": 59, "gi": 77},
-  {"r": "Chapter 307 — Nosocomial Pneumonia  ·  Part 1 of 2", "g": "ATS/IDSA HAP/VAP (2016)", "pp": 5, "ps": 3600, "pe": 3604, "wk": 13, "fow": false, "id": "ch307-p1", "num": 60, "gi": 78},
-  {"r": "Chapter 307 — Nosocomial Pneumonia  ·  Part 2 of 2", "g": "", "pp": 5, "ps": 3605, "pe": 3609, "wk": 13, "fow": false, "id": "ch307-p2", "num": 61, "gi": 79},
-  {"r": "Chapter 71 — Bacterial Lung Abscess", "g": "", "pp": 6, "ps": 873, "pe": 878, "wk": 13, "fow": false, "id": "ch71-p1", "num": 62, "gi": 80},
-  {"r": "Chapter 70 — Pleural Effusion and Empyema  ·  Part 1 of 2", "g": "", "pp": 7, "ps": 860, "pe": 866, "wk": 14, "fow": true, "id": "ch70-p1", "num": 63, "gi": 81},
-  {"r": "Chapter 70 — Pleural Effusion and Empyema  ·  Part 2 of 2", "g": "", "pp": 6, "ps": 867, "pe": 872, "wk": 14, "fow": false, "id": "ch70-p2", "num": 64, "gi": 82}
+  {"r": "Chapter 193 — Coxiella burnetii (Q Fever)", "g": "Q fever / chronic Q-fever endocarditis", "pp": 10, "ps": 2333, "pe": 2342, "wk": 12, "fow": true, "id": "ch193-p1", "num": 46, "gi": 72},
+  {"r": "Chapter 28 — Macrolides and Clindamycin  ·  Part 3 of 3", "g": "", "pp": 6, "ps": 387, "pe": 392, "wk": 12, "fow": false, "id": "ch28-p3", "num": 47, "gi": 73},
+  {"r": "Chapter 204 — Streptococcus pneumoniae  ·  Part 3 of 3", "g": "", "pp": 5, "ps": 2469, "pe": 2473, "wk": 12, "fow": false, "id": "ch204-p3", "num": 48, "gi": 73, "extra": true},
+  {"r": "Chapter 34 — Quinolones  ·  Part 1 of 2", "g": "", "pp": 12, "ps": 445, "pe": 456, "wk": 12, "fow": false, "id": "ch34-p1", "num": 49, "gi": 74},
+  {"r": "Chapter 34 — Quinolones  ·  Part 2 of 2", "g": "", "pp": 11, "ps": 457, "pe": 467, "wk": 13, "fow": true, "id": "ch34-p2", "num": 50, "gi": 75},
+  {"r": "Chapter 187 — Psittacosis", "g": "", "pp": 3, "ps": 2293, "pe": 2295, "wk": 13, "fow": false, "id": "ch187-p1", "num": 51, "gi": 76},
+  {"r": "Chapter 188 — C. pneumoniae", "g": "", "pp": 9, "ps": 2296, "pe": 2304, "wk": 13, "fow": false, "id": "ch188-p1", "num": 52, "gi": 76, "extra": true},
+  {"r": "Chapter 189 — Mycoplasma pneumoniae", "g": "", "pp": 8, "ps": 2305, "pe": 2312, "wk": 13, "fow": false, "id": "ch189-p1", "num": 53, "gi": 77},
+  {"r": "Chapter 190 — Genital Mycoplasmas", "g": "Mycoplasma genitalium", "pp": 4, "ps": 2313, "pe": 2316, "wk": 13, "fow": false, "id": "ch190-p1", "num": 54, "gi": 77, "extra": true},
+  {"r": "Chapter 238 — Legionnaires' Disease", "g": "Legionella", "pp": 13, "ps": 2799, "pe": 2811, "wk": 13, "fow": false, "id": "ch238-p1", "num": 55, "gi": 78},
+  {"r": "Chapter 173 — Bunyavirus Infections (Hantavirus, CCHF, Rift Valley Fever)", "g": "Hantavirus / CCHF", "pp": 9, "ps": 2152, "pe": 2160, "wk": 13, "fow": false, "id": "ch173-p1", "num": 56, "gi": 79},
+  {"r": "Chapter 307 — Nosocomial Pneumonia", "g": "ATS/IDSA HAP/VAP (2016)", "pp": 10, "ps": 3600, "pe": 3609, "wk": 13, "fow": false, "id": "ch307-p1", "num": 57, "gi": 80},
+  {"r": "Chapter 71 — Bacterial Lung Abscess", "g": "", "pp": 6, "ps": 873, "pe": 878, "wk": 14, "fow": true, "id": "ch71-p1", "num": 58, "gi": 81},
+  {"r": "Chapter 70 — Pleural Effusion and Empyema", "g": "", "pp": 13, "ps": 860, "pe": 872, "wk": 14, "fow": false, "id": "ch70-p1", "num": 59, "gi": 82}
 ]},
 {"title": "Upper Airway & Respiratory Viruses", "sub": "Throat to sinus and ear, the cough syndromes, then the winter viruses.  ·  Sep 23 – Oct 19, 2026", "year": 1, "accent": "#b07a35", "multi": true, "rows": [
   {"r": "Chapter 61 — Pharyngitis", "g": "IDSA group A strep pharyngitis (2012)", "pp": 8, "ps": 769, "pe": 776, "wk": 14, "fow": false, "id": "ch61-p1", "num": 65, "gi": 83},

@@ -64,7 +64,7 @@ test("a make-up flag must be a boolean when present", () => {
 
 test("a null page count is allowed", () => {
   // The Consolidation and Practice Questions sessions are review days with no
-  // page range: pp/ps/pe are null by design. 20 of the 590 look like this.
+  // page range: pp/ps/pe are null by design. 20 of the 585 look like this.
   const ok = JSON.parse(JSON.stringify(good));
   ok.sections[0].rows[0].pp = null;
   assert.deepEqual(validateSchedule(ok).errors, []);
@@ -145,7 +145,7 @@ const serving = (status, body) => () =>
 
 test("a pushed schedule replaces the bundled one after boot", async () => {
   const app = loadCurrentApp({ now: NOW, fetch: serving(200, served) });
-  assert.equal(app.IDCockpit.compute().sessTotal, 590, "boots on the bundled schedule");
+  assert.equal(app.IDCockpit.compute().sessTotal, 585, "boots on the bundled schedule");
   await new Promise((r) => setTimeout(r, 40));
   assert.equal(app.IDCockpit.compute().sessTotal, 1, "swapped to the pushed schedule");
 });
@@ -153,19 +153,19 @@ test("a pushed schedule replaces the bundled one after boot", async () => {
 test("an unpushed store leaves the bundled schedule in place", async () => {
   const app = loadCurrentApp({ now: NOW, fetch: serving(204, null) });
   await new Promise((r) => setTimeout(r, 40));
-  assert.equal(app.IDCockpit.compute().sessTotal, 590);
+  assert.equal(app.IDCockpit.compute().sessTotal, 585);
 });
 
 test("being offline leaves the bundled schedule in place", async () => {
   const app = loadCurrentApp({ now: NOW, fetch: () => Promise.reject(new Error("offline")) });
   await new Promise((r) => setTimeout(r, 40));
-  assert.equal(app.IDCockpit.compute().sessTotal, 590);
+  assert.equal(app.IDCockpit.compute().sessTotal, 585);
 });
 
 test("a malformed served schedule is ignored rather than applied", async () => {
   for (const body of [{ version: "v" }, { version: "v", sections: [] }, null]) {
     const app = loadCurrentApp({ now: NOW, fetch: serving(200, body) });
     await new Promise((r) => setTimeout(r, 40));
-    assert.equal(app.IDCockpit.compute().sessTotal, 590, JSON.stringify(body));
+    assert.equal(app.IDCockpit.compute().sessTotal, 585, JSON.stringify(body));
   }
 });

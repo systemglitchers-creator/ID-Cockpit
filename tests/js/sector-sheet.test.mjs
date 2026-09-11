@@ -57,9 +57,9 @@ test("a chapter with no number still groups without merging", () => {
   assert.equal(g.length, 2, "unnumbered sessions must not collapse into one another");
 });
 
-test("the real curriculum collapses 590 rows into 319 groups", () => {
+test("the real curriculum collapses 585 rows into 319 groups", () => {
   const all = app.SECTIONS.flatMap((s) => s.rows);
-  assert.equal(all.length, 590);
+  assert.equal(all.length, 585);
   const groups = groupByChapter(all);
   assert.equal(groups.length, 319);
   assert.equal(groups.filter((g) => !g.chapter).length, 21,

@@ -23,8 +23,8 @@ const before = (list, early, late, why) => {
 };
 
 test("the curriculum is still complete and unduplicated", () => {
-  assert.equal(allIds.length, 590);
-  assert.equal(new Set(allIds).size, 590);
+  assert.equal(allIds.length, 585);
+  assert.equal(new Set(allIds).size, 585);
 });
 
 test("the plan still ends where it always did", () => {

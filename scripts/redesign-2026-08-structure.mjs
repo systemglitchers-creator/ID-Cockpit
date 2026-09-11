@@ -60,14 +60,22 @@ export const STRUCTURE = [
 { title:"Pneumonia & the Atypicals", year:1, accent:"#9a5a2f",
   sub:"Community pneumonia and its organisms, drugs braided behind first contact.",
   ids:[...P("ch69",1,3),                            // CAP — the flagship
-       ...P("ch28",1,2), ...P("ch204",1,3),         // macrolides, then the pneumococcus
-       one("ch189")[0], one("ch190")[0],                           // ← braided: Mycoplasma, the macrolide payoff
-       ...P("ch34",1,2), ...P("ch238",1,2),         // quinolones, then Legionella
-       ...P("ch193",1,2),                           // ← braided: Q fever — atypical + culture-negative IE
-       "ch28-p3","ch34-p3",                         // finish the drugs
-       one("ch187")[0], one("ch188")[0],                           // ← braided: psittacosis + C. pneumoniae
+       ...P("ch28",1,2), ...P("ch204",1,2),         // macrolides, then the pneumococcus (read)
+       // 2026-09-10 re-cut (docs/superpowers/specs/2026-09-10-pinned-readings-design.md):
+       // the week of Sep 6 went unread and its pages were folded into the days
+       // below as whole-chapter sittings. ch193-p2, ch34-p3, ch238-p2, ch307-p2
+       // and ch70-p2 were merged into their p1 rows and no longer exist.
+       // ch204-p3, ch188-p1 and ch190-p1 are pinned second readings (`extra`)
+       // in public/schedule.js; this generator does not know about pinning, so
+       // do not re-run it over the pneumonia tail without teaching it that.
+       "ch193-p1",                                  // ← braided: Q fever, whole chapter
+       "ch28-p3", "ch204-p3",                       // finish the drugs; pneumococcus part 3 shares the day
+       ...P("ch34",1,2),                            // quinolones, two halves
+       one("ch187")[0], one("ch188")[0],            // ← braided: psittacosis + C. pneumoniae, one day
+       one("ch189")[0], one("ch190")[0],            // ← braided: Mycoplasma + genital mycoplasmas, one day
+       "ch238-p1",                                  // Legionella, whole chapter
        one("ch173")[0],                             // ← braided snapper: hantavirus pulmonary syndrome
-       ...P("ch307",1,2), one("ch71")[0], ...P("ch70",1,2)] },  // HAP/VAP, abscess, empyema
+       "ch307-p1", one("ch71")[0], "ch70-p1"] },    // HAP/VAP, abscess, empyema — whole chapters
 
 { title:"Upper Airway & Respiratory Viruses", year:1, accent:"#b07a35",
   sub:"Throat to sinus and ear, the cough syndromes, then the winter viruses.",

@@ -15,8 +15,8 @@ function flatDays(p) { return p.flatMap((mo) => Array.from(mo.days)); }
 test("the day view carries every session exactly once", () => {
   const app = loadCurrentApp({ now: FRI_AUG_7 });
   const rows = flatDays(plan(app)).flatMap((d) => Array.from(d.rows));
-  assert.equal(rows.length, 590);
-  assert.equal(new Set(rows.map((x) => x.r.id)).size, 590);
+  assert.equal(rows.length, 585);
+  assert.equal(new Set(rows.map((x) => x.r.id)).size, 585);
 });
 
 test("days are chronological and no open session sits on a Saturday off", () => {
@@ -56,9 +56,10 @@ test("review sessions in the stream say what they are instead of pp null", () =>
 });
 
 test("a catch-up double shows as two sessions on one day, never three", () => {
-  // 30 read leaves 6 owed at Aug 8 under planEnd 591 — the schedule-dates fixtures.
+  // 25 read leaves 6 owed at Aug 8 under the 585-session plan — the
+  // schedule-dates fixtures.
   const all = loadCurrentApp({ now: SAT_AUG_8 }).SECTIONS.flatMap((s) => s.rows);
-  const app = loadCurrentApp({ now: SAT_AUG_8, done: all.slice(0, 30).map((r) => r.id),
+  const app = loadCurrentApp({ now: SAT_AUG_8, done: all.slice(0, 25).map((r) => r.id),
                                doneAt: "2026-07-20T12:00:00Z", noExtras: true });
   const counts = flatDays(plan(app))
     .filter((d) => Array.from(d.rows).some((x) => !x.done))
