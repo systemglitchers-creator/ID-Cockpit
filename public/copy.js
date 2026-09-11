@@ -17,7 +17,9 @@
     if (m.remaining === 0 || !m.firstOpen) return "Every page read.";
     if (m.justCleared) return m.justCleared + " cleared.";
     if (m.dayOff) return "Rest day. Back at it tomorrow.";
-    if (m.readToday) return "Done for today.";
+    // A make-up pinned to today is still due after the regular session is read;
+    // "done" over a quest card that disagrees would be a contradiction.
+    if (m.readToday && !m.dueToday) return "Done for today.";
     return greeting(m.now);
   }
 

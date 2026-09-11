@@ -41,6 +41,14 @@ test("finishing the day's reading is acknowledged", () => {
   assert.match(headline(model({ readToday: true })), /done|clear|tomorrow/i);
 });
 
+test("a make-up still due today is not called done", () => {
+  // Sunday: the regular session is read, the pinned extra is still today's.
+  // "Done for today." over a quest card that says otherwise is a contradiction.
+  assert.equal(headline(model({ readToday: true, dueToday: 0 })), "Done for today.");
+  assert.notEqual(headline(model({ readToday: true, dueToday: 1 })), "Done for today.");
+  assert.equal(headline(model({ readToday: true, dueToday: 1 })), "Good morning");
+});
+
 test("a completed curriculum is not treated as an ordinary day", () => {
   assert.match(headline(model({ remaining: 0, firstOpen: null })), /finish|complete|done|every page/i);
 });
@@ -83,6 +91,7 @@ test("the browser shim matches the module", async () => {
     { now: new Date(2026, 7, 9, 21, 0, 0), remaining: 5, firstOpen: { id: "x" }, makeup: 0 },
     { now: new Date(2026, 7, 9, 9, 0, 0), remaining: 5, firstOpen: { id: "x" }, dayOff: true, makeup: 0 },
     { now: new Date(2026, 7, 9, 9, 0, 0), remaining: 5, firstOpen: { id: "x" }, readToday: true, makeup: 0 },
+    { now: new Date(2026, 7, 9, 9, 0, 0), remaining: 5, firstOpen: { id: "x" }, readToday: true, dueToday: 1, makeup: 8 },
     { now: new Date(2026, 7, 9, 9, 0, 0), remaining: 0, firstOpen: null, makeup: 0 },
     { now: new Date(2026, 7, 9, 9, 0, 0), remaining: 5, firstOpen: { id: "x" }, makeup: 6 },
     { now: new Date(2026, 7, 9, 9, 0, 0), remaining: 5, firstOpen: { id: "x" }, justCleared: "Sepsis", makeup: 0 }

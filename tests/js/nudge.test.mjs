@@ -16,6 +16,9 @@ const { compose } = require_("../../lib/nudge.js");
 
 const src = fs.readFileSync(path.join(ROOT, "public/schedule.js"), "utf8");
 const SECTIONS = new Function(`${src}; return SECTIONS;`)();
+// The real plan pins make-up extras to Sundays (see make-up-extras.test.mjs);
+// these fixtures pin the packing on its own, so strip the flags.
+SECTIONS.forEach((s) => s.rows.forEach((r) => { delete r.extra; }));
 const ROWS = SECTIONS.flatMap((s) => s.rows);
 
 const at = (t) => ({ done: true, doneAt: t, updatedAt: t });

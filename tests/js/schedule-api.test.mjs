@@ -51,6 +51,17 @@ test("a non-numeric plan day is rejected", () => {
   assert.match(validateSchedule(bad).errors.join(), /gi must be a number/);
 });
 
+test("a make-up flag must be a boolean when present", () => {
+  // `extra: true` pins a session to its own day as a second session. Anything
+  // else is a typo that would silently leave the session in the queue.
+  const ok = JSON.parse(JSON.stringify(good));
+  ok.sections[0].rows[0].extra = true;
+  assert.deepEqual(validateSchedule(ok).errors, []);
+  const bad = JSON.parse(JSON.stringify(good));
+  bad.sections[0].rows[0].extra = "yes";
+  assert.match(validateSchedule(bad).errors.join(), /extra must be a boolean/);
+});
+
 test("a null page count is allowed", () => {
   // The Consolidation and Practice Questions sessions are review days with no
   // page range: pp/ps/pe are null by design. 20 of the 590 look like this.

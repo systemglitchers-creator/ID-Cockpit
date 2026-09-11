@@ -101,6 +101,15 @@ export function loadApp(opts = {}) {
   const files = opts.files ?? ["schedule.js", "guidelines.js", "sync.js", "copy.js", "motion.js", "app.js"];
   for (const f of files) {
     vm.runInContext(fs.readFileSync(path.join(dir, f), "utf8"), sandbox, { filename: f });
+    // The catch-up tests pin the packing on its own. The real plan carries
+    // make-up extras pinned to fixed days, which would otherwise sit outside
+    // the queue and change every owed count; strip the flags before app.js
+    // snapshots SECTIONS.
+    if (f === "schedule.js" && opts.noExtras) {
+      vm.runInContext(
+        "SECTIONS.forEach(function (s) { s.rows.forEach(function (r) { delete r.extra; }); });",
+        sandbox, { filename: "noExtras" });
+    }
   }
   return sandbox;
 }
@@ -108,7 +117,7 @@ export function loadApp(opts = {}) {
 /**
  * Load the current app (public/), optionally with the clock frozen and some
  * sessions already marked read.
- * @param {object} opts  {now, done: string[], doneAt}
+ * @param {object} opts  {now, done: string[], doneAt, noExtras}
  */
 export function loadCurrentApp(opts = {}) {
   // Progress has to be in storage before the scripts run: app.js snapshots it
@@ -121,6 +130,7 @@ export function loadCurrentApp(opts = {}) {
     files: ["schedule.js", "guidelines.js", "sync.js", "copy.js", "motion.js", "app.js"],
     now: opts.now,
     fetch: opts.fetch,
+    noExtras: opts.noExtras,
     storage: { "idcockpit.v1.state": JSON.stringify({ sessions }) }
   });
 }

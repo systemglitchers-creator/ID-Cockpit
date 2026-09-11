@@ -143,8 +143,30 @@
     var k0 = todayIdx + (dayOff || readToday ? 1 : 0);
     var remaining = sessTotal - sessDone;
 
+    var EFF = {}, perDay = {}, open = [], lastDay = k0;
+    function deal(r, si, d, x) {
+      EFF[r.id] = d;
+      perDay[d] = (perDay[d] || 0) + 1;
+      if (d > lastDay) lastDay = d;
+      open.push({ r: r, si: si, d: d, x: x, n: open.length });
+    }
+
+    // Make-up extras. A session flagged `extra` is pinned to its own day (its
+    // gi) as a second session and never enters the queue — how a missed week is
+    // spaced out over fixed Sundays instead of doubling every day until the
+    // debt clears. One whose day has passed lands on the next study day and
+    // stays due until read: reading today's regular session does not push it,
+    // because the point of a make-up day is that two get read.
+    var nextDay = todayIdx + (dayOff ? 1 : 0), extras = 0;
+    SECS.forEach(function (s, si) { s.rows.forEach(function (r) {
+      if (!r.extra || isDone(r.id)) return;
+      deal(r, si, Math.max(r.gi, nextDay), 1);
+      extras++;
+    }); });
+    var queued = remaining - extras;
+
     // Catch-up. Rather than let missed days push the finish date out, the
-    // remaining sessions are packed into the study days still available before
+    // queued sessions are packed into the study days still available before
     // the plan's *original* end: on track that is exactly one a day, and behind
     // it means a handful of days carry two so the end date holds.
     //
@@ -152,30 +174,33 @@
     // due the very next morning. floor(i*slots/count) spreads the doubles evenly
     // across everything after that.
     var slots = planEnd - k0 + 1;
-    var doubling = slots >= 1 && remaining > slots;
+    var doubling = slots >= 1 && queued > slots;
     var graced = doubling
       ? Math.max(0, Math.min(studyIdx(CATCHUP_FROM) - k0, slots - 1))
       : 0;
-    var packSlots = slots - graced, packCount = remaining - graced;
+    var packSlots = slots - graced, packCount = queued - graced;
 
-    var EFF = {}, perDay = {}, i = 0, lastDay = k0;
-    var firstOpen = null, firstOpenSec = 0, upcoming = [];
+    var i = 0;
     SECS.forEach(function (s, si) { s.rows.forEach(function (r) {
-      if (isDone(r.id)) return;
-      if (!firstOpen) { firstOpen = r; firstOpenSec = si; }
-      else if (upcoming.length < 3) upcoming.push({ r: r, si: si });
-      var d = (!doubling || i < graced)
+      if (r.extra || isDone(r.id)) return;
+      deal(r, si, (!doubling || i < graced)
         ? k0 + i
-        : k0 + graced + Math.floor((i - graced) * packSlots / packCount);
-      EFF[r.id] = d;
-      perDay[d] = (perDay[d] || 0) + 1;
-      if (d > lastDay) lastDay = d;
+        : k0 + graced + Math.floor((i - graced) * packSlots / packCount), 0);
       i++;
     }); });
+    // The quest is the earliest open session. On a make-up day the plan's own
+    // session leads and the extra follows; otherwise curriculum order.
+    open.sort(function (a, b) { return a.d - b.d || a.x - b.x || a.n - b.n; });
+    var firstOpen = open.length ? open[0].r : null;
+    var firstOpenSec = open.length ? open[0].si : 0;
+    var upcoming = open.slice(1, 4).map(function (o) { return { r: o.r, si: o.si }; });
     // Sessions owed beyond one-a-day — the honest measure of how far behind he
-    // is once the schedule has absorbed the slip. Zero when on track.
-    var makeup = doubling ? remaining - slots : 0;
+    // is once the schedule has absorbed the slip. Zero when on track. Pinned
+    // extras are that debt, already given a day.
+    var makeup = (doubling ? queued - slots : 0) + extras;
     var drift = remaining > 0 ? Math.round((dayDate(lastDay) - dayDate(planEnd)) / DAY) : 0;
+    // Open sessions dealt onto today — what "done for today" has to check.
+    var dueToday = dayOff ? 0 : (perDay[todayIdx] || 0);
 
 
     var secs = SECS.map(function (s, si) {
@@ -195,7 +220,8 @@
       pagesTotal: pagesTotal, pagesDone: pagesDone, sessTotal: sessTotal, sessDone: sessDone,
       pctAll: pagesTotal ? Math.round(pagesDone / pagesTotal * 100) : 0,
       remaining: remaining, drift: drift, planEnd: planEnd,
-      makeup: makeup, perDay: perDay, dayOff: dayOff, readToday: readToday,
+      makeup: makeup, extras: extras, perDay: perDay, dayOff: dayOff, readToday: readToday,
+      dueToday: dueToday,
       firstOpen: firstOpen, firstOpenSec: firstOpenSec, upcoming: upcoming
     };
   }
@@ -361,6 +387,7 @@
     var p = partOf(r.r); if (p !== "Whole chapter") bits.push(p);
     if (r.ps != null && r.pe != null) bits.push("pp " + r.ps + "–" + r.pe);
     else if (!ch) bits.push("Review session");
+    if (r.extra) bits.push("Make-up");   // why a Sunday carries a second row
     return bits.join(" · ");
   }
   function renderStream() {

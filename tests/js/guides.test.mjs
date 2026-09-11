@@ -63,8 +63,10 @@ test("the icon badge count follows the deal", () => {
 
   const app = loadCurrentApp({ now: new Date(2026, 8, 20, 12, 0, 0) });
   const ids = app.SECTIONS.flatMap((s) => s.rows).slice(0, 30).map((r) => r.id);
+  // noExtras: Sep 20 is a make-up Sunday in the real plan (see
+  // make-up-extras.test.mjs); this pins the packing's double on its own.
   const behind = loadCurrentApp({
-    now: new Date(2026, 8, 20, 12, 0, 0), done: ids, doneAt: "2026-07-20T12:00:00Z",
+    now: new Date(2026, 8, 20, 12, 0, 0), done: ids, doneAt: "2026-07-20T12:00:00Z", noExtras: true,
   }).IDCockpit.compute();
   assert.equal(behind.perDay[behind.todayIdx] || 0, 2, "a double day badges 2");
 });

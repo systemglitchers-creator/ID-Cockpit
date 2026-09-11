@@ -76,7 +76,9 @@ function planEndIdx(app) {
   return Math.max(...app.SECTIONS.flatMap((s) => s.rows).map((r) => r.gi));
 }
 function behind(n) {   // n sessions read, all well in the past
-  return loadCurrentApp({ now: SAT_AUG_8, doneAt: "2026-07-20T12:00:00Z",
+  // noExtras: the real plan pins make-up extras to Sundays (see
+  // make-up-extras.test.mjs); these tests pin the packing on its own.
+  return loadCurrentApp({ now: SAT_AUG_8, doneAt: "2026-07-20T12:00:00Z", noExtras: true,
     done: loadCurrentApp({ now: SAT_AUG_8 }).SECTIONS.flatMap((s) => s.rows).slice(0, n).map((r) => r.id) });
 }
 
@@ -137,7 +139,7 @@ test("the first double does not recede as days pass", () => {
   const on = (now, n) => {
     const all = loadCurrentApp({ now }).SECTIONS.flatMap((s) => s.rows);
     const app = loadCurrentApp({ now, done: all.slice(0, n).map((r) => r.id),
-                                 doneAt: "2026-07-20T12:00:00Z" });
+                                 doneAt: "2026-07-20T12:00:00Z", noExtras: true });
     const m = app.IDCockpit.compute();
     const d = Object.keys(m.perDay).filter((k) => m.perDay[k] > 1).map(Number).sort((a, b) => a - b);
     return app.IDCockpit.dayDate(d[0]).toDateString();
@@ -151,7 +153,7 @@ test("once the grace date passes, catch-up starts immediately", () => {
   const now = new Date(2026, 8, 14, 9, 0, 0);   // well past Aug 23
   const all = loadCurrentApp({ now }).SECTIONS.flatMap((s) => s.rows);
   const app = loadCurrentApp({ now, done: all.slice(0, 38).map((r) => r.id),
-                               doneAt: "2026-07-20T12:00:00Z" });
+                               doneAt: "2026-07-20T12:00:00Z", noExtras: true });
   const m = app.IDCockpit.compute();
   const first = Object.keys(m.perDay).filter((k) => m.perDay[k] > 1).map(Number).sort((a, b) => a - b)[0];
   assert.equal(first, Math.min(...Object.values(m.EFF)), "first open day carries the first double");
