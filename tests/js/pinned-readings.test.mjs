@@ -159,12 +159,12 @@ test("reading the first leaves the pinned reading as today's quest, not pushed t
 
 const throughSep11 = (app) => throughSep10(app).concat(["ch28-p3"]);   // ch204-p3 skipped
 
-test("a pinned reading left unread rolls to the next study day and only then counts as make-up", () => {
+test("a pinned reading left unread rejoins the queue in curriculum order and is paid on a Sunday", () => {
   const app = loadCurrentApp({ now: SUN_SEP_13, done: throughSep11(app0()), doneAt: PAST });
   const m = app.IDCockpit.compute();
-  assert.equal(m.EFF["ch204-p3"], m.todayIdx, "Sunday now");
+  assert.equal(m.EFF["ch204-p3"], m.todayIdx, "Sunday is a make-up day, so it lands today");
   assert.equal(m.perDay[m.todayIdx], 2);
-  assert.equal(m.firstOpen.id, "ch34-p1", "Sunday's own row still leads");
+  assert.equal(m.firstOpen.id, "ch204-p3", "it sits before Quinolones in the curriculum, so it leads");
   assert.equal(m.makeup, 1);
   assert.equal(app.IDCopy.meta(m), "Catching up · 1 to make up");
 });
@@ -208,6 +208,6 @@ test("both read means silence", () => {
 
 test("an overdue pinned reading rides Sunday's nudge as the make-up", () => {
   const t = tonight(SECTIONS, progressOf(throughSep11(app0()), PAST), SUN_EVE);
-  assert.deepEqual(t.sessions.map((r) => r.id), ["ch34-p1", "ch204-p3"]);
+  assert.deepEqual(t.sessions.map((r) => r.id), ["ch204-p3", "ch34-p1"]);
   assert.equal(t.makeup, 1);
 });

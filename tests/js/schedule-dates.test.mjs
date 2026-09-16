@@ -151,13 +151,17 @@ test("the first double does not recede as days pass", () => {
   assert.equal(on(new Date(2026, 7, 20, 9, 0, 0), 25), "Sun Aug 23 2026", "still Aug 23 the week of");
 });
 
-test("once the grace date passes, catch-up starts immediately", () => {
-  const now = new Date(2026, 8, 14, 9, 0, 0);   // well past Aug 23
+test("past the grace date, the next Sunday carries the first double — never today", () => {
+  // A weekday slip is paid on Sundays, one session each. Stacking today was
+  // the August behaviour and the thing Tyler kept running into.
+  const now = new Date(2026, 8, 14, 9, 0, 0);   // a Monday, well past Aug 23
   const all = loadCurrentApp({ now }).SECTIONS.flatMap((s) => s.rows);
   const app = loadCurrentApp({ now, done: all.slice(0, 38).map((r) => r.id),
                                doneAt: "2026-07-20T12:00:00Z", noExtras: true });
   const m = app.IDCockpit.compute();
-  const first = Object.keys(m.perDay).filter((k) => m.perDay[k] > 1).map(Number).sort((a, b) => a - b)[0];
-  assert.equal(first, Math.min(...Object.values(m.EFF)), "first open day carries the first double");
+  const doubles = Object.keys(m.perDay).filter((k) => m.perDay[k] > 1).map(Number).sort((a, b) => a - b);
+  assert.equal(app.IDCockpit.dayDate(doubles[0]).toDateString(), "Sun Sep 20 2026");
+  assert.equal(m.perDay[m.todayIdx], 1, "Monday carries one");
+  for (const d of doubles) assert.equal(app.IDCockpit.dayDate(d).getDay(), 0, "every double is a Sunday");
   assert.equal(m.drift, 0, "the end date still holds");
 });

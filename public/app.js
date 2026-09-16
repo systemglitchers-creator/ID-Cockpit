@@ -9,13 +9,13 @@
   var FLEX_START = new Date(2026, 6, 18);
   var WD = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
   var MO = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-  // First day a catch-up double may land — two study weeks after the Aug 2026
-  // slip, so coming back from time away isn't punished immediately.
+  // First Sunday a catch-up double may land — two study weeks after the Aug
+  // 2026 slip, so coming back from time away wasn't punished immediately.
   //
   // A fixed date, not "today + 12": a relative window is recomputed on every
   // render, so the first double would recede one day per day and the make-up
-  // would never actually come due. Once this date is past, doubles start from
-  // the next open day.
+  // would never actually come due. Make-up days are Sundays from this date on
+  // (see compute()).
   var CATCHUP_FROM = new Date(2026, 7, 23);
 
   /* ---- study-day calendar (ported verbatim from the original cockpit.js) ---- */
@@ -140,10 +140,14 @@
     // already passed. Resume on the next study day instead, and don't charge a
     // second day for an opportunistic read on a Saturday.
     var dayOff = isFlex(now);
-    var k0 = todayIdx + (dayOff || readToday ? 1 : 0);
     var remaining = sessTotal - sessDone;
+    // The first study day that can still take a session: today, or tomorrow on
+    // a day off. (On a day off studyIdx() has counted only the days before
+    // today, so it hands back the *previous* study day — dealt from there, the
+    // queue would land on a date already past.)
+    var nextDay = todayIdx + (dayOff ? 1 : 0);
 
-    var EFF = {}, perDay = {}, open = [], lastDay = k0;
+    var EFF = {}, perDay = {}, open = [], lastDay = nextDay;
     function deal(r, si, d, x) {
       EFF[r.id] = d;
       perDay[d] = (perDay[d] || 0) + 1;
@@ -151,55 +155,62 @@
       open.push({ r: r, si: si, d: d, x: x, n: open.length });
     }
 
-    // Pinned second readings. A session flagged `extra` is dealt on its own day
-    // (its gi) as a second row and never enters the queue — how two short
-    // chapters share a day, or a missed week is folded onto fixed days, without
-    // the packing model's rolling doubles. While its day is still to come it is
-    // simply the plan; once the day has passed unread it lands on the next study
-    // day and is owed. Reading the day's regular row does not push it: the point
-    // of the day is that both get read.
-    var nextDay = todayIdx + (dayOff ? 1 : 0), extras = 0, overdue = 0;
+    // Pinned second readings. A session flagged `extra` sits on its own day
+    // (its gi) as a second row, outside the queue — how two short chapters
+    // share a day. One whose day has passed unread simply rejoins the queue in
+    // curriculum order; it never chases today. Reading the day's regular row
+    // does not push a pinned one, and reading the pinned one does not spend
+    // the regular slot: each row has its own.
+    var extras = 0, queue = [], queueReadToday = 0;
     SECS.forEach(function (s, si) { s.rows.forEach(function (r) {
-      if (!r.extra || isDone(r.id)) return;
-      deal(r, si, Math.max(r.gi, nextDay), 1);
-      extras++;
-      if (r.gi < nextDay) overdue++;
+      if (isDone(r.id)) {
+        var when = doneAt(r.id);
+        if (when && dayKey(when) === todayKey && !(r.extra && r.gi >= todayIdx)) queueReadToday++;
+        return;
+      }
+      if (r.extra && r.gi >= nextDay) { deal(r, si, r.gi, 1); extras++; }
+      else queue.push({ r: r, si: si });
     }); });
-    var queued = remaining - extras;
 
-    // Catch-up. Rather than let missed days push the finish date out, the
-    // queued sessions are packed into the study days still available before
-    // the plan's *original* end: on track that is exactly one a day, and behind
-    // it means a handful of days carry two so the end date holds.
-    //
-    // Days before CATCHUP_FROM always stay single, so a week away doesn't come
-    // due the very next morning. floor(i*slots/count) spreads the doubles evenly
-    // across everything after that.
-    var slots = planEnd - k0 + 1;
-    var doubling = slots >= 1 && queued > slots;
-    var graced = doubling
-      ? Math.max(0, Math.min(studyIdx(CATCHUP_FROM) - k0, slots - 1))
-      : 0;
-    var packSlots = slots - graced, packCount = queued - graced;
-
-    var i = 0;
-    SECS.forEach(function (s, si) { s.rows.forEach(function (r) {
-      if (r.extra || isDone(r.id)) return;
-      deal(r, si, (!doubling || i < graced)
-        ? k0 + i
-        : k0 + graced + Math.floor((i - graced) * packSlots / packCount), 0);
-      i++;
-    }); });
-    // The quest is the earliest open session. On a make-up day the plan's own
-    // session leads and the extra follows; otherwise curriculum order.
+    // Catch-up. Rather than let missed days push the finish date out, sessions
+    // owed beyond one a day are paid one per Sunday — the first study day after
+    // the Saturday off — and never by stacking today. On track that is exactly
+    // one a day and the mechanism is inert; behind, a Sunday carries two until
+    // the debt is gone, so the end date holds. Sundays are fixed dates, so the
+    // first make-up does not recede as days pass (the trap a "today + N" window
+    // falls into), and on a make-up Sunday reading one row leaves the other due:
+    // the day's second slot stays open until it is used. Sundays before
+    // CATCHUP_FROM stay single — the grace given to the Aug 2026 slip.
+    var spentToday = dayOff ? 0 : queueReadToday;          // a read on a day off spends nothing
+    // Clamped at zero: past the plan's last day there are no slots left, and
+    // the debt is then simply what is unread, never more.
+    var slots = Math.max(0, planEnd - nextDay + 1 - Math.min(1, spentToday));
+    var owed = Math.max(0, queue.length - slots);
+    var makeupFrom = studyIdx(CATCHUP_FROM), owedLeft = owed;
+    function capOf(day, date) {
+      return 1 + (owedLeft > 0 && day >= makeupFrom && date.getDay() === 0 ? 1 : 0);
+    }
+    var d = nextDay, cur = dayDate(nextDay), cap = capOf(d, cur), left = Math.max(0, cap - spentToday);
+    queue.forEach(function (q) {
+      while (left === 0) {
+        d++;
+        cur = new Date(cur);
+        do { cur.setDate(cur.getDate() + 1); } while (isFlex(cur));
+        cap = capOf(d, cur); left = cap;
+      }
+      deal(q.r, q.si, d, 0);
+      left--;
+      if (left === 0 && cap === 2) owedLeft--;     // that Sunday's make-up is spoken for
+    });
+    // The quest is the earliest open session. On a two-row day the queue's own
+    // row leads and the pinned one follows; otherwise curriculum order.
     open.sort(function (a, b) { return a.d - b.d || a.x - b.x || a.n - b.n; });
     var firstOpen = open.length ? open[0].r : null;
     var firstOpenSec = open.length ? open[0].si : 0;
     var upcoming = open.slice(1, 4).map(function (o) { return { r: o.r, si: o.si }; });
     // Sessions owed beyond one-a-day — the honest measure of how far behind he
-    // is once the schedule has absorbed the slip. Zero when on track. A pinned
-    // row counts only once its day has passed unread.
-    var makeup = (doubling ? queued - slots : 0) + overdue;
+    // is once the schedule has absorbed the slip. Zero when on track.
+    var makeup = owed;
     var drift = remaining > 0 ? Math.round((dayDate(lastDay) - dayDate(planEnd)) / DAY) : 0;
     // Open sessions dealt onto today — what "done for today" has to check.
     var dueToday = dayOff ? 0 : (perDay[todayIdx] || 0);
