@@ -115,6 +115,43 @@ unknown fields through unchanged.
   it only happens when a pinned day was itself skipped, and the honest count
   is the useful one.
 
+## Revision 2026-09-16: make-up Sundays, and no stacking of today
+
+Six days in, Tyler opened the app to four rows on a Wednesday: Quinolones
+Parts 1 and 2 (the packing's first double is always *today* once the grace
+date is past), Tuesday's pinned C. pneumoniae (an overdue pinned row landed
+on today and stuck), and Wednesday's own pinned Genital Mycoplasmas. Two rules
+were stacking today, which is the opposite of what he has asked for three
+times.
+
+**The rule now.** Sessions owed beyond one a day are paid **one per Sunday**
+(the first study day after the Saturday off), from `CATCHUP_FROM` on, and
+never by stacking today. On track that is exactly one a day and the mechanism
+is inert; behind, each Sunday carries two until the debt is gone, so the end
+date still holds. Sundays are fixed dates, so the first make-up does not
+recede as days pass. If more is owed than there are Sundays left, the tail
+runs past the plan's end and `drift` says so.
+
+- A pinned row whose day has passed unread **rejoins the queue in curriculum
+  order**. It no longer chases today, and `makeup` is simply the queue's
+  surplus over the days left.
+- Each row has its own slot: reading the day's pinned row does not spend the
+  queue's slot, and reading the queue's row does not push the pinned one.
+- On a make-up Sunday the second slot stays open until it is used — reading
+  one leaves the other due today (`dueToday`, the greeting rather than "Done
+  for today."), reading both pays one Sunday off.
+- `lib/plan.js tonight()` mirrors all of it; Wednesday's nudge names two rows,
+  Sunday's names the pair.
+
+Wed Sep 16 under this rule: Quinolones Part 1 + Genital Mycoplasmas; Thu
+Part 2; Fri Psittacosis; Sun Sep 20 C. pneumoniae + Legionnaires'; Sun Sep 27
+the second make-up; on plan from the following week, with the session read
+early in August absorbing the last day of lateness in May 2027.
+
+Tests: `tests/js/makeup-days.test.mjs` reproduces the Sep 16 state and the
+Sunday flow; the catch-up fixtures in `schedule-dates.test.mjs` now assert a
+Monday slip is first paid on Sun Sep 20, never on the Monday.
+
 ## Tests (`tests/js/pinned-readings.test.mjs`)
 
 - Data: the sector's tail is exactly the table above (ids, days, page ranges,
