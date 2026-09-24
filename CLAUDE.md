@@ -1,5 +1,10 @@
 # ID Cockpit
 
+**The front end is frozen (2026-09-24). UI work goes to Culture**
+(`8. Claude/ID Culture/`). Only the backend and the schedule data are still
+edited here: `api/`, `lib/`, `public/schedule.js`, `public/guidelines.js`,
+`public/qbank/`. Culture reads all of them through rewrites.
+
 **Read the `id-cockpit` skill before changing anything here.** It carries the
 working knowledge — the two-builds trap, the study-day calendar rules, where
 progress lives, and the release steps. This file only exists so a session opened

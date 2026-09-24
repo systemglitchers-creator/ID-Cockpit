@@ -1,5 +1,14 @@
 # ID Cockpit
 
+> **Front end frozen 2026-09-24.** Culture (`8. Claude/ID Culture/`,
+> <https://id-culture.vercel.app>) is the daily app and gets all UI work. This
+> repo stays deployed because it is Culture's backend: `api/`, `lib/`,
+> `public/schedule.js`, `public/guidelines.js` and `public/qbank/` are live and
+> still edited here. `public/app.js`, `index.html`, `copy.*`, `motion.*`,
+> `sync.js`, `sw.js` and the icons are frozen — `app.js` is now the reference
+> Culture's parity test runs against. Plan: move the backend into Culture, then
+> retire this app.
+
 Tyler's two-year Mandell reading schedule — 584 sessions across 38 sectors — as
 an installable phone app. Tick off what you've read; the remaining sessions
 re-deal themselves onto the days ahead. Five tabs: **Today** (the day's quest,
