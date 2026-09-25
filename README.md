@@ -1,6 +1,6 @@
 # ID Cockpit
 
-> **Front end frozen 2026-09-24.** Culture (`8. Claude/ID Culture/`,
+> **Front end frozen 2026-09-24.** Culture (`~/Projects/id-culture/`,
 > <https://id-culture.vercel.app>) is the daily app and gets all UI work. This
 > repo stays deployed because it is Culture's backend: `api/`, `lib/`,
 > `public/schedule.js`, `public/guidelines.js` and `public/qbank/` are live and
@@ -21,7 +21,7 @@ generation happen in the Claude Code skills (`id-anki-cards`), not here.
 ## Layout
 
 ```
-8. Claude/ID Platform/
+~/Projects/id-cockpit/   (in Google Drive until 2026-09-25)
   public/              # the app — apothecary, deployed on Vercel
     index.html         # markup + CSS
     app.js             # all app logic (Today / Path / Find / Stats / sector sheet)

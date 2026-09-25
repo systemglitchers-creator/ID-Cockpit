@@ -1,7 +1,7 @@
 # ID Cockpit
 
 **The front end is frozen (2026-09-24). UI work goes to Culture**
-(`8. Claude/ID Culture/`). Only the backend and the schedule data are still
+(`~/Projects/id-culture/`). Only the backend and the schedule data are still
 edited here: `api/`, `lib/`, `public/schedule.js`, `public/guidelines.js`,
 `public/qbank/`. Culture reads all of them through rewrites.
 
