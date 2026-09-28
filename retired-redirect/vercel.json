@@ -1,0 +1,11 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "outputDirectory": "public",
+  "redirects": [
+    { "source": "/schedule.js", "destination": "https://id-culture.vercel.app/data/schedule.js", "permanent": true },
+    { "source": "/guidelines.js", "destination": "https://id-culture.vercel.app/data/guidelines.js", "permanent": true },
+    { "source": "/qbank/:path*", "destination": "https://id-culture.vercel.app/qbank/:path*", "permanent": true },
+    { "source": "/api/:path*", "destination": "https://id-culture.vercel.app/api/:path*", "permanent": false },
+    { "source": "/(.*)", "destination": "https://id-culture.vercel.app/", "permanent": true }
+  ]
+}

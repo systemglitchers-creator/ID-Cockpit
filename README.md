@@ -1,5 +1,11 @@
 # ID Cockpit
 
+> **Retired 2026-09-27.** id-cockpit.vercel.app now only redirects to Culture
+> (`retired-redirect/` is that build). Culture (`8. Claude/ID Culture`) owns the
+> app, server, reading plan, guidelines and question bank. This repo is an archive:
+> don't edit, build or deploy from it. Its frozen `public/app.js` is still the
+> reference Culture's parity test runs.
+
 > **Front end frozen 2026-09-24.** Culture (`8. Claude/ID Culture/`,
 > <https://id-culture.vercel.app>) is the daily app and gets all UI work. This
 > repo stays deployed because it is Culture's backend: `api/`, `lib/`,
