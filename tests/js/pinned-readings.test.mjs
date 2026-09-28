@@ -4,7 +4,11 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { createRequire } from "node:module";
-import { loadApp, loadCurrentApp } from "./harness.mjs";
+import { loadApp as loadAppLive, loadCurrentApp as loadCurrentAppLive, PLAN_2026_09_26 } from "./harness.mjs";
+
+// A past moment: read the plan as it stood then, not the re-dated live one.
+const loadApp = (o) => loadAppLive({ ...o, plan: PLAN_2026_09_26 });
+const loadCurrentApp = (o) => loadCurrentAppLive({ ...o, plan: PLAN_2026_09_26 });
 
 /* Pinned second readings (spec: docs/superpowers/specs/2026-09-10-pinned-readings-design.md).
    The week of Sep 6 2026 went unread. Its 51 pages were folded into the
@@ -180,7 +184,7 @@ test("an overdue pinned reading never lands on a Saturday off", () => {
 /* ---- the evening nudge mirrors the deal ---------------------------------- */
 
 const { tonight } = require_("../../lib/plan.js");
-const SECTIONS = new Function(fs.readFileSync(path.join(ROOT, "public/schedule.js"), "utf8") + "; return SECTIONS;")();
+const SECTIONS = new Function(fs.readFileSync(PLAN_2026_09_26, "utf8") + "; return SECTIONS;")();
 const at = (t) => ({ done: true, doneAt: t, updatedAt: t });
 const progressOf = (ids, iso) => Object.fromEntries(ids.map((id) => [id, at(iso)]));
 const FRI_EVE = new Date("2026-09-11T20:30:00-03:00");

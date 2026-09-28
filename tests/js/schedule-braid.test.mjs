@@ -27,9 +27,9 @@ test("the curriculum is still complete and unduplicated", () => {
   assert.equal(new Set(allIds).size, 585);
 });
 
-test("the plan still ends where it always did", () => {
+test("the plan ends where the 2026-09-27 fresh start put it", () => {
   const maxGi = Math.max(...SECTIONS.flatMap((s) => s.rows.map((r) => r.gi)));
-  assert.equal(maxGi, 597, "planEnd anchors catch-up and drift — it moves only when the session count does");
+  assert.equal(maxGi, 605, "planEnd anchors catch-up and drift: it moves only when the session count does, or when the plan is deliberately re-dated (597 until 2026-09-27)");
 });
 
 test("prosthetic valve and cardiac device infection left the endovascular sector", () => {

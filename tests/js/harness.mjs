@@ -8,6 +8,12 @@ import { fileURLToPath } from "node:url";
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
 
+/** The plan as it stood on 2026-09-26, before unread sessions were re-dated to
+    start fresh on Mon Sep 28. Tests that reproduce a moment from before then
+    (the Aug 8 calendar, the Sep 10 re-cut, the Sep 16 slip) load this with
+    `plan:`, because the live public/schedule.js no longer dates them the same. */
+export const PLAN_2026_09_26 = path.join(ROOT, "tests/fixtures/schedule-2026-09-26.js");
+
 /** Freeze the clock inside the sandbox. Date with arguments still behaves. */
 function fixedDateClass(nowMs) {
   return class extends Date {
@@ -100,7 +106,8 @@ export function loadApp(opts = {}) {
   const dir = path.join(ROOT, opts.dir ?? "public");
   const files = opts.files ?? ["schedule.js", "guidelines.js", "sync.js", "copy.js", "motion.js", "app.js"];
   for (const f of files) {
-    vm.runInContext(fs.readFileSync(path.join(dir, f), "utf8"), sandbox, { filename: f });
+    const file = f === "schedule.js" && opts.plan ? opts.plan : path.join(dir, f);
+    vm.runInContext(fs.readFileSync(file, "utf8"), sandbox, { filename: f });
     // The catch-up tests pin the packing on its own. The real plan carries
     // make-up extras pinned to fixed days, which would otherwise sit outside
     // the queue and change every owed count; strip the flags before app.js
@@ -117,7 +124,7 @@ export function loadApp(opts = {}) {
 /**
  * Load the current app (public/), optionally with the clock frozen and some
  * sessions already marked read.
- * @param {object} opts  {now, done: string[], doneAt, noExtras}
+ * @param {object} opts  {now, done: string[], doneAt, noExtras, plan}
  */
 export function loadCurrentApp(opts = {}) {
   // Progress has to be in storage before the scripts run: app.js snapshots it
@@ -131,6 +138,7 @@ export function loadCurrentApp(opts = {}) {
     now: opts.now,
     fetch: opts.fetch,
     noExtras: opts.noExtras,
+    plan: opts.plan,
     storage: { "idcockpit.v1.state": JSON.stringify({ sessions }) }
   });
 }

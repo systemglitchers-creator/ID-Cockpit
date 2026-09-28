@@ -1,6 +1,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { loadCurrentApp } from "./harness.mjs";
+import { loadCurrentApp as loadCurrentAppLive, PLAN_2026_09_26 } from "./harness.mjs";
+
+// A past moment: read the plan as it stood then, not the re-dated live one.
+const loadCurrentApp = (o) => loadCurrentAppLive({ ...o, plan: PLAN_2026_09_26 });
 
 /* The plan reads Sun–Fri; Saturdays from 2026-07-18 on are days off ("flex").
    These tests pin what date the next unread session carries, which is the one

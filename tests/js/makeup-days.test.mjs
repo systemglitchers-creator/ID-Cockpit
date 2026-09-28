@@ -4,7 +4,10 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { createRequire } from "node:module";
-import { loadApp } from "./harness.mjs";
+import { loadApp as loadAppLive, PLAN_2026_09_26 } from "./harness.mjs";
+
+// A past moment: read the plan as it stood then, not the re-dated live one.
+const loadApp = (o) => loadAppLive({ ...o, plan: PLAN_2026_09_26 });
 
 /* Make-up Sundays (spec: docs/superpowers/specs/2026-09-10-pinned-readings-design.md,
    "Make-up days" revision of 2026-09-16).
@@ -149,7 +152,7 @@ test("reading both on the make-up Sunday pays one off and moves the queue on", (
 /* ---- the evening nudge mirrors it ---------------------------------------- */
 
 const { tonight } = require_("../../lib/plan.js");
-const SECTIONS = new Function(fs.readFileSync(path.join(ROOT, "public/schedule.js"), "utf8") + "; return SECTIONS;")();
+const SECTIONS = new Function(fs.readFileSync(PLAN_2026_09_26, "utf8") + "; return SECTIONS;")();
 const at = (t) => ({ done: true, doneAt: t, updatedAt: t });
 function progress(extra = {}) {
   const p = {};

@@ -1,6 +1,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { loadCurrentApp } from "./harness.mjs";
+import { loadCurrentApp as loadCurrentAppLive, PLAN_2026_09_26 } from "./harness.mjs";
+
+// A past moment: read the plan as it stood then, not the re-dated live one.
+const loadCurrentApp = (o) => loadCurrentAppLive({ ...o, plan: PLAN_2026_09_26 });
 
 /* dayPlan feeds the home stream: the whole plan, chronological, one entry
    per calendar day. Read sessions sit on the day they were actually read;
